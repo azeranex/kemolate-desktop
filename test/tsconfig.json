@@ -1,0 +1,25 @@
+{
+  // The tests under `test/unit/` sit in neither the app's project nor the
+  // main process's, so they get their own — referenced from the root
+  // `tsconfig.json`, which is the only reason `pnpm typecheck` covers them. The
+  // same arrangement as the web build's `test/tsconfig.json`, and the same
+  // warning: drop the reference and the tests stop being checked without
+  // anything going red.
+  "compilerOptions": {
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "#shared/*": ["../shared/*"],
+      "~~/*": ["../*"]
+    }
+  },
+  "include": ["./unit/**/*"]
+}

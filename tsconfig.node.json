@@ -11,7 +11,8 @@
     "noUnusedParameters": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["vite.config.ts", "electron/**/*.ts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "electron/**/*.ts"]
 }

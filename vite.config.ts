@@ -35,13 +35,24 @@ import { defineConfig, build as viteBuild } from 'vite'
 
 // Forward slashes even on Windows: these paths are written into generated
 // imports, where a backslash is an escape and `X:\repos` arrives as `X:epos`.
-const src = fileURLToPath(new URL('./src', import.meta.url)).replaceAll('\\', '/')
+const root = fileURLToPath(new URL('.', import.meta.url)).replaceAll('\\', '/').replace(/\/$/, '')
+const appDir = `${root}/app`
+
+/**
+ * The web build's aliases, so a file carried across keeps its imports: `~` and
+ * `@` for the app, `#shared` for the code both sides of the app share, `~~` for
+ * the root. The layout they point into is the web build's too — `app/`,
+ * `shared/`, `test/` — so a path in one project is the same path in the other.
+ */
+export const aliases = {
+  '@': appDir,
+  '~': appDir,
+  '#shared': `${root}/shared`,
+  '~~': root,
+}
 
 export default defineConfig({
-  resolve: {
-    // Both of the web build's spellings, so a file carried across keeps its imports.
-    alias: { '@': src, '~': src },
-  },
+  resolve: { alias: aliases },
   plugins: [vue(), tailwindcss(), ...nuxtStyleImports(), electron()],
   server: { port: 5173, strictPort: true },
 })
@@ -53,7 +64,8 @@ export default defineConfig({
  * ported file a diff against its original instead of a copy of it.
  *
  * - Vue's and VueUse's functions, and everything exported from the top level of
- *   `composables/` and `utils/`, types included (`DockSide` in a prop type).
+ *   `app/composables/`, `app/utils/` and `shared/utils/`, types included
+ *   (`DockSide` in a prop type).
  * - Components by Nuxt's rule: a folder is a prefix, and a prefix the file name
  *   already starts with is not repeated — `dock/DockColumn.vue` is `DockColumn`,
  *   `panel/Blocks.vue` is `PanelBlocks`.
@@ -61,7 +73,7 @@ export default defineConfig({
  *   `UAccordionItem` — whichever folder of `components/ui` holds them.
  */
 function nuxtStyleImports () {
-  const uiDir = `${src}/components/ui`
+  const uiDir = `${appDir}/components/ui`
 
   /**
    * Every shadcn-vue component by the name its folder's `index.ts` exports it
@@ -92,20 +104,21 @@ function nuxtStyleImports () {
   return [
     AutoImport({
       imports: ['vue', '@vueuse/core'],
-      dirs: ['./src/composables', './src/utils'],
+      // `shared/utils` as well, which Nuxt auto-imports into the app too.
+      dirs: ['./app/composables', './app/utils', './shared/utils'],
       dirsScanOptions: { types: true },
       vueTemplate: true,
-      dts: './src/auto-imports.d.ts',
+      dts: './app/auto-imports.d.ts',
     }),
     Components({
-      globs: ['src/components/**/*.vue', '!src/components/ui/**'],
+      globs: ['app/components/**/*.vue', '!app/components/ui/**'],
       directoryAsNamespace: true,
       collapseSamePrefixes: true,
       resolvers: [(name: string) => {
         const file = name.startsWith('U') ? find(name.slice(1)) : undefined
         return file ? { from: file } : undefined
       }],
-      dts: './src/components.d.ts',
+      dts: './app/components.d.ts',
     }),
   ]
 }

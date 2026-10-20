@@ -14,9 +14,11 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "~/*": ["./src/*"]
+      "@/*": ["./app/*"],
+      "~/*": ["./app/*"],
+      "#shared/*": ["./shared/*"],
+      "~~/*": ["./*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "electron/preload.ts"]
+  "include": ["app/**/*.ts", "app/**/*.vue", "shared/**/*.ts", "electron/preload.ts"]
 }
