@@ -74,6 +74,8 @@ and a later fix in one can be carried to the other. Keep it that way.
     the OS (`electron/keys.ts`), so nothing is ever locked. `pages/settings.vue` is the web
     page's key section alone (no passcode, no access tokens), drawn *over* the open
     workspace — see `App.vue` and the page's header for why it stops every key press.
+  - `panel/Text.vue` says earlier wordings are not kept here, where the web build says to
+    move the workspace to the cloud (`useRevisions` keeps them only server-side).
   - `panel/Translate.vue` hides "Undo that run" without a server (`shared`): run revisions are
     kept only server-side, and `revertRun` on a local workspace reverts nothing, silently.
     That is a web build bug as well, reached there only by local workspaces.

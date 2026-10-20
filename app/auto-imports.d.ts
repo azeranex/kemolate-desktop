@@ -12,6 +12,9 @@ declare global {
   const ADJUSTMENTS: typeof import('../shared/utils/adjust').ADJUSTMENTS
   const AI_MODELS: typeof import('../shared/utils/models').AI_MODELS
   const AUTO_LINE: typeof import('../shared/utils/lettering').AUTO_LINE
+  const AnchorBottomIcon: typeof import('./utils/anchorIcons').AnchorBottomIcon
+  const AnchorMiddleIcon: typeof import('./utils/anchorIcons').AnchorMiddleIcon
+  const AnchorTopIcon: typeof import('./utils/anchorIcons').AnchorTopIcon
   const BATCH: typeof import('./utils/resources').BATCH
   const BESIDE: typeof import('../shared/utils/ocr').BESIDE
   const BLOCK_TONE: typeof import('./composables/useComic').BLOCK_TONE
@@ -709,6 +712,7 @@ declare global {
   const useReadingDirection: typeof import('./composables/useReadingDirection').useReadingDirection
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
+  const useRevisions: typeof import('./composables/useRevisions').useRevisions
   const useRoute: typeof import('./composables/nuxt').useRoute
   const useRouter: typeof import('./composables/nuxt').useRouter
   const useRuntimeConfig: typeof import('./composables/nuxt').useRuntimeConfig
@@ -853,6 +857,9 @@ declare global {
   // @ts-ignore
   export type { DockSide, PanelSection, DockColumn, PanelLayout, PanelDropTarget } from './composables/usePanelDock'
   import('./composables/usePanelDock')
+  // @ts-ignore
+  export type { Revision } from './composables/useRevisions'
+  import('./composables/useRevisions')
   // @ts-ignore
   export type { RemotePage, SharedWorkspace } from './composables/useShared'
   import('./composables/useShared')
@@ -1017,6 +1024,9 @@ declare module 'vue' {
     readonly ADJUSTMENTS: UnwrapRef<typeof import('../shared/utils/adjust')['ADJUSTMENTS']>
     readonly AI_MODELS: UnwrapRef<typeof import('../shared/utils/models')['AI_MODELS']>
     readonly AUTO_LINE: UnwrapRef<typeof import('../shared/utils/lettering')['AUTO_LINE']>
+    readonly AnchorBottomIcon: UnwrapRef<typeof import('./utils/anchorIcons')['AnchorBottomIcon']>
+    readonly AnchorMiddleIcon: UnwrapRef<typeof import('./utils/anchorIcons')['AnchorMiddleIcon']>
+    readonly AnchorTopIcon: UnwrapRef<typeof import('./utils/anchorIcons')['AnchorTopIcon']>
     readonly BATCH: UnwrapRef<typeof import('./utils/resources')['BATCH']>
     readonly BESIDE: UnwrapRef<typeof import('../shared/utils/ocr')['BESIDE']>
     readonly BLOCK_TONE: UnwrapRef<typeof import('./composables/useComic')['BLOCK_TONE']>
@@ -1713,6 +1723,7 @@ declare module 'vue' {
     readonly useReadingDirection: UnwrapRef<typeof import('./composables/useReadingDirection')['useReadingDirection']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
+    readonly useRevisions: UnwrapRef<typeof import('./composables/useRevisions')['useRevisions']>
     readonly useRoute: UnwrapRef<typeof import('./composables/nuxt')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('./composables/nuxt')['useRouter']>
     readonly useRuntimeConfig: UnwrapRef<typeof import('./composables/nuxt')['useRuntimeConfig']>
