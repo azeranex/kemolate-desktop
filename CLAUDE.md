@@ -84,6 +84,12 @@ and a later fix in one can be carried to the other. Keep it that way.
     lands in the last workspace (`App.vue`); the mark goes to the list. Leaving for the list
     unmounts the workspace as in the web build, and `useWorkspaceReset` lets go of its
     state when another is opened; Settings is drawn over the workspace instead.
+  - Readers: no Manga OCR or Manga OCR 2025 (`READERS` in `utils/ocr/readers.ts`), and
+    Kemolate OCR is the default (`useOcr`). Their code is kept; an entry put back brings
+    one back. Kemolate OCR's weights are never fetched (`kemolate/` is ours): put the
+    run's export — `E:\ml\export\out26-web` on the dev machine — at
+    `kemolate/kemolate-ocr-out26/resolve/main/` under the model store (`%APPDATA%\
+    kemolate-desktop\models` built, `.data/models` in dev), or every read is a 404.
   - `utils/export/letters.ts` waits for the faces inlined into a lettering plate's SVG before
     drawing it (`facesIn`): `decode()` does not, and the first export of a session came out in
     the fallback face with lines that no longer fitted their balloons clipped away. The web

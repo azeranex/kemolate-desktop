@@ -75,20 +75,17 @@ export interface Reader {
  * What it adds that nothing local had is Korean and Chinese. See
  * `paddle-rec.ts`.
  */
+/*
+ * Desktop: no Manga OCR. The web build lists Manga OCR and Manga OCR 2025 first,
+ * and Manga OCR is its default; here both are off the list and Kemolate OCR — this
+ * project's own retrain, which reads Japanese better than either and Korean and
+ * Chinese besides — is the default (`useOcr`). Their code is untouched
+ * (`readWithMangaOcr` still takes `base` and `2025`, and `ReaderId` still names
+ * them), so either can come back by putting its entry back here. A reader
+ * remembered as one of them is not a reader this list has, so `heldOcrSettings`
+ * drops it and the default stands.
+ */
 export const READERS: Reader[] = [
-  // The encoder, the decoder and the tokenizer, file by file — a q8 encoder on
-  // WebAssembly, an fp32 one on WebGPU, an fp16 one where it can run it; the
-  // merged decoder is fp32 at all three (`mangaPrecision`).
-  {
-    id: 'manga',
-    label: 'Manga OCR',
-    note: 'Japanese, vertical or horizontal',
-    bytes: 86_967_767 + 117_445_718 + 117_755,
-    gpuBytes: 343_377_067 + 117_445_718 + 117_755,
-    halfBytes: 171_851_891 + 117_445_718 + 117_755,
-  },
-  // One build, read on WebAssembly wherever it runs.
-  { id: 'manga-2025', label: 'Manga OCR 2025', note: 'Japanese, lighter and quicker', bytes: 22_356_885 + 118_053_454 + 117_755 },
   // This project's own retrain, out26 — see `KEMOLATE_OCR_BETA_MODEL`. The q8
   // pair on WebAssembly, the fp32 pair on WebGPU, the fp16 pair where it can run
   // it (`betaPrecision`). The encoder is the same size every run; the decoder and

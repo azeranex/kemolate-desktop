@@ -150,12 +150,15 @@ export function useOcr () {
   const mayWrite = computed(() => atLeast(shared.value?.role, 'editor'))
 
   /**
-   * Manga OCR and the full comic detector: a Japanese page read well, found by
-   * the build that is both the most thorough and — on WebGPU — the quickest.
+   * Kemolate OCR and the full comic detector: a page read well, found by the
+   * build that is both the most thorough and — on WebGPU — the quickest.
+   *
+   * Desktop: Kemolate OCR rather than the web build's Manga OCR, which is not
+   * offered here — see `READERS`.
    */
   const settings = useState<OcrSettings>('ocr-settings', () => ({
     detector: DEFAULT_BUILD.comic,
-    reader: 'manga',
+    reader: 'kemolate-beta',
     since: DETECTOR_DEFAULT_SINCE,
   }))
 
