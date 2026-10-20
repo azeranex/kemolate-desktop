@@ -47,30 +47,8 @@ const { last, recall, run, running } = usePageExport()
 
 const route = useRoute()
 
-/*
- * ## Stand-ins, until what the rest of the menus drive is migrated
- *
- * In the web build these come from `useLayerPresets`, which has not come
- * across yet. Each line below stands in for one of its answers, shaped so the
- * template — the web build's — reads it truthfully: no presets this reader may
- * write, so every preset item is disabled by its own condition. When it lands,
- * the stand-in goes and its line comes back:
- *
- *   const { presets, active, apply, writable } = useLayerPresets()
- */
+const { presets, active, apply, writable } = useLayerPresets()
 const { on: balloonDebug } = useBalloonDebug()
-
-// The four presets by their real ids and names (`LAYER_PRESETS`), greyed as for
-// a reader who may not write them.
-const presets = [
-  { id: 'read', label: 'Read' },
-  { id: 'clean', label: 'Clean' },
-  { id: 'letter', label: 'Letter' },
-  { id: 'final', label: 'Final' },
-]
-const active = ref<string | null>(null)
-const apply = (_id: string) => {}
-const writable = ref(false)
 
 const importer = ref<{ choose: () => void } | null>(null)
 const exporting = ref(false)
@@ -202,13 +180,17 @@ function deleteSelection () {
         <UMenubarCheckboxItem v-model="balloonDebug" :disabled="!pages.length">
           Balloon debug
         </UMenubarCheckboxItem>
-        <UMenubarSeparator />
+        <UMenubarSeparator v-if="writable" />
         <!--
           The presets write every page's standard rows, so they are an editor's
           — see `useLayerPresets`. Shown to everybody, greyed where not theirs,
           so the menu reads the same whoever opens it.
+
+          Desktop: shown only where they can be applied, which no local
+          workspace — so no workspace here — is yet; see the Layers panel's
+          "Working on" row, which says why at length.
         -->
-        <UMenubarRadioGroup :model-value="active ?? ''">
+        <UMenubarRadioGroup v-if="writable" :model-value="active ?? ''">
           <UMenubarRadioItem
             v-for="preset in presets"
             :key="preset.id"

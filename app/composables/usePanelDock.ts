@@ -48,6 +48,7 @@ import PanelBlocks from '~/components/panel/Blocks.vue'
 import PanelCast from '~/components/panel/Cast.vue'
 import PanelDetect from '~/components/panel/Detect.vue'
 import PanelGlossary from '~/components/panel/Glossary.vue'
+import PanelLayers from '~/components/panel/Layers.vue'
 import PanelLettering from '~/components/panel/Lettering.vue'
 import PanelPages from '~/components/panel/Pages.vue'
 import PanelPending from '~/components/panel/Pending.vue'
@@ -66,7 +67,6 @@ function pending (label: string): Component {
 
 const PanelBlockImages = pending('Block images')
 const PanelDev = pending('Dev')
-const PanelLayers = pending('Layers')
 
 export type DockSide = 'left' | 'right'
 

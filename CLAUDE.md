@@ -57,15 +57,13 @@ and a later fix in one can be carried to the other. Keep it that way.
   original stays unchanged and reads it truthfully: things that need a chapter disable
   themselves; things that cannot, say so with a toast. Each stand-in names what replaces it.
   - Cloud-only, permanent: `useShared` (no shared workspace — every caller already steps
-    around `null`), `useSwarm`, `useBlockSync`, `useLiveSync` (their exports used on the
+    around `null`), `useSwarm` (no room: `peers` is empty and a live stroke is told to
+    nobody — `sendLive`, `onSwarmLive`), `useBlockSync`, `useLiveSync` (their exports used on the
     server-row branch only), `utils/strokes.ts` (server stroke
     calls → "the server would not"), `useUserSession` (nobody is ever signed in).
   - Nuxt's `<NuxtLink>` is `components/NuxtLink.vue`: an anchor that goes through
     `navigateTo`.
   - Partial ports at the original path, growing as their dependencies arrive:
-    `canvas/Sheet.vue` (everything that shows — art and repairs, lettering, placed pictures,
-    hit areas — without `CanvasMask`, the mask and region brushes or `CanvasPaint`, so no
-    retouching or sheet is drawn),
     `pages/w/[workspaceId].vue`
     (opening, restoring, the reading and repairs restore, paging, zoom),
     `server/database/index.ts` (row types only),
@@ -157,6 +155,14 @@ rather than the account menu. The header has no account menu.
   (`electron/windowState.ts`). Set with `setBounds`, and a read within two pixels of where it
   was put is taken as that place: either half alone left the window growing a few pixels a
   launch with the hidden title bar at 125%.
+- A component that draws itself by its Nuxt name (`<PanelLayerRow>` inside `LayerRow.vue`)
+  needs `defineOptions({ name })`: Nuxt registers components globally, but here they are
+  imported where used and never into themselves, so the recursion rendered nothing — the
+  Layers panel's groups came up empty. It is the only one so far; check for another when
+  porting a tree.
+- The Layers panel's presets ("Working on") and the View menu's preset items are shown only
+  where a preset can be applied — in the web build, an editor of a *shared* workspace — so
+  here they are hidden rather than four buttons that never work.
 - A component used in a template but never brought across renders its slot inline rather
   than failing — the Detect panel's `InfoTip` did, as five lines beside a switch. Check
   `app/components.d.ts` when a ported panel lays out oddly.

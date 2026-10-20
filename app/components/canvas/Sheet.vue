@@ -33,22 +33,6 @@
  * sheet's *contents*, as a fragment, into the sheet element the board lays out
  * and still owns: its size, the pixelated sampling, and the pointer arithmetic
  * that is measured against it.
- *
- * ## Desktop: a partial port
- *
- * The web build's file, with the four components that paint *on* the page cut
- * out until they come across: the mask plate (`CanvasMask`), the mask and
- * region brushes (`CanvasMaskBrush`, `CanvasRegionBrush`) and the paint canvas
- * (`CanvasPaint`) — the Clean plate's retouching and every blank sheet. Each
- * cut is marked where it was. Everything that only *shows* is here unchanged:
- * the art and the repairs (the engine's run, and the element fallback), the
- * lettering plates, placed pictures, adjustment filters, the in-place editor
- * and the hit areas.
- *
- * What is missing therefore draws nothing rather than something wrong: the
- * engine draws a surface only once a `CanvasPaint` has handed it one, a mask is
- * shown only on its own plate, and a sheet has nowhere to come from until the
- * layer panel does.
  */
 import type { CSSProperties } from 'vue'
 import type { LetterSpace, ShapeParts } from '~/utils/letterCss'
@@ -555,8 +539,9 @@ defineExpose({ editor })
     which is how you tell a mask that covers the lettering from one that misses
     a stroke of it.
   -->
-  <!-- Desktop: `CanvasMask` has not come across yet; the plate stays, empty. -->
-  <div v-show="plates.mask.visible" class="pointer-events-none absolute inset-0" :style="plateStyle('mask')" />
+  <div v-show="plates.mask.visible" class="pointer-events-none absolute inset-0" :style="plateStyle('mask')">
+    <CanvasMask v-if="page.scan" :page="page" :shown="plates.mask.visible" />
+  </div>
 
   <!--
     The brush that corrects the mask. Above every plate and outside the mask's
@@ -572,7 +557,11 @@ defineExpose({ editor })
     does not fall back to anything, because there is nothing else a mask stroke
     could sensibly land on.
   -->
-  <!-- Desktop: `CanvasMaskBrush` has not come across yet. -->
+  <CanvasMaskBrush
+    v-if="page.scan && tool === 'mask' && inkedMask"
+    :page="page"
+    :style="{ zIndex: CHROME_Z }"
+  />
 
   <!--
     The brush that hands a piece of the page to a reader. Mounted on the same
@@ -582,7 +571,12 @@ defineExpose({ editor })
     row it could be refused by. Where the block it produces may land is
     `addBlock`'s question, and it answers out loud.
   -->
-  <!-- Desktop: `CanvasRegionBrush` has not come across yet. -->
+  <CanvasRegionBrush
+    v-if="page.scan && regioning"
+    :page="page"
+    :mode="tool === 'translate-region' ? 'translate' : 'read'"
+    :style="{ zIndex: CHROME_Z }"
+  />
 
   <div v-show="plates.clean.visible" class="pointer-events-none absolute inset-0" :style="plateStyle('clean')">
     <!--
@@ -629,7 +623,7 @@ defineExpose({ editor })
       panel's eye, opacity and place in the pile govern paint the same as
       everything else on the plate.
     -->
-    <!-- Desktop: `CanvasPaint` has not come across yet, so no retouching is drawn. -->
+    <CanvasPaint v-if="page.scan" :page="page" :active="painting && inked?.plate === 'clean'" :engine="run.keys.has('clean')" />
   </div>
 
   <!--
@@ -790,17 +784,21 @@ defineExpose({ editor })
     its own — a surface keyed by the row — so nothing it holds can be confused
     with the retouching.
   -->
-  <!--
-    Desktop: each sheet is `CanvasPaint` on its own surface, which has not come
-    across yet. Nothing can add a sheet before the layer panel does.
-  -->
   <div
     v-for="row in sheets"
     v-show="row.visible"
     :key="row.layer"
     class="pointer-events-none absolute inset-0"
     :style="sheetStyle(row)"
-  />
+  >
+    <CanvasPaint
+      v-if="page.scan"
+      :page="page"
+      :surface="row.layer"
+      :active="painting && inked?.layer === row.layer"
+      :engine="run.keys.has(row.key)"
+    />
+  </div>
 
   <!--
     The pictures somebody has placed, each at its own height in the pile.

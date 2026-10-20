@@ -116,6 +116,9 @@ declare global {
   const TOOL_GROUPS: typeof import('./composables/useTools').TOOL_GROUPS
   const TRANSFORM_FIELDS: typeof import('./composables/useTransform').TRANSFORM_FIELDS
   const TRANSLATE_ENGINES: typeof import('./composables/useComic').TRANSLATE_ENGINES
+  const TREE_LEAD: typeof import('./utils/tree').TREE_LEAD
+  const TREE_MARKER: typeof import('./utils/tree').TREE_MARKER
+  const TREE_STEP: typeof import('./utils/tree').TREE_STEP
   const UNTITLED: typeof import('./composables/useComic').UNTITLED
   const VERDICT_COLOUR: typeof import('./utils/ocr/trace').VERDICT_COLOUR
   const WORKSPACE_OWNED: typeof import('./utils/idbKeys').WORKSPACE_OWNED
@@ -253,6 +256,7 @@ declare global {
   const forgetAgreed: typeof import('./composables/useBlockSync').forgetAgreed
   const forgetAgreedTranslations: typeof import('./composables/useTranslationSync').forgetAgreedTranslations
   const forgetHistory: typeof import('./utils/history').forgetHistory
+  const forgetPaintSync: typeof import('./composables/usePaintSync').forgetPaintSync
   const formatBytes: typeof import('./utils/bytes').formatBytes
   const framedBoxOf: typeof import('./composables/useComic').framedBoxOf
   const framesLettering: typeof import('./composables/useComic').framesLettering
@@ -266,6 +270,7 @@ declare global {
   const googleTranslateAll: typeof import('./utils/google').googleTranslateAll
   const gridCopy: typeof import('../shared/utils/raster').gridCopy
   const grownBounds: typeof import('../shared/utils/raster').grownBounds
+  const guideAt: typeof import('./utils/tree').guideAt
   const h: typeof import('vue').h
   const hashBytes: typeof import('./utils/hash').hashBytes
   const hashFile: typeof import('./utils/hash').hashFile
@@ -371,6 +376,7 @@ declare global {
   const onServerPrefetch: typeof import('vue').onServerPrefetch
   const onStartTyping: typeof import('@vueuse/core').onStartTyping
   const onSwarmChange: typeof import('./composables/useSwarm').onSwarmChange
+  const onSwarmLive: typeof import('./composables/useSwarm').onSwarmLive
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
@@ -438,6 +444,7 @@ declare global {
   const readManifest: typeof import('./utils/project').readManifest
   const readModel: typeof import('./utils/ocr/store').readModel
   const readPage: typeof import('../shared/utils/ocr').readPage
+  const readPaint: typeof import('./composables/usePaintSync').readPaint
   const readPatch: typeof import('./utils/ocr/patches').readPatch
   const readPlacedMany: typeof import('./utils/placed').readPlacedMany
   const readScanSheet: typeof import('./utils/paper').readScanSheet
@@ -459,6 +466,7 @@ declare global {
   const refManualReset: typeof import('@vueuse/core').refManualReset
   const refThrottled: typeof import('@vueuse/core').refThrottled
   const refWithControl: typeof import('@vueuse/core').refWithControl
+  const refreshPaint: typeof import('./composables/usePaintSync').refreshPaint
   const refusalNote: typeof import('./utils/ocr/mask').refusalNote
   const regionCanvas: typeof import('./utils/ocr/manga').regionCanvas
   const regionPrompt: typeof import('../shared/utils/prompt').regionPrompt
@@ -496,6 +504,7 @@ declare global {
   const segmentedPage: typeof import('./utils/ocr/segment').segmentedPage
   const sendCast: typeof import('./composables/useCast').sendCast
   const sendGlossary: typeof import('./composables/useGlossary').sendGlossary
+  const sendLive: typeof import('./composables/useSwarm').sendLive
   const serverCast: typeof import('./composables/useCast').serverCast
   const serverGlossaries: typeof import('./composables/useGlossary').serverGlossaries
   const serverGlossary: typeof import('./composables/useGlossary').serverGlossary
@@ -680,11 +689,13 @@ declare global {
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLayerCache: typeof import('./composables/useLayerCache').useLayerCache
   const useLayerClaims: typeof import('./composables/useLayerSync').useLayerClaims
+  const useLayerPresets: typeof import('./composables/useLayerPresets').useLayerPresets
   const useLayerRows: typeof import('./composables/useLayerSync').useLayerRows
   const useLetteringFit: typeof import('./composables/useLetteringFit').useLetteringFit
   const useLetteringStandard: typeof import('./composables/useLetteringStandard').useLetteringStandard
   const useLibrary: typeof import('./composables/useLibrary').useLibrary
   const useLiveAnnouncer: typeof import('@vueuse/core').useLiveAnnouncer
+  const useLiveStrokes: typeof import('./composables/useLiveStrokes').useLiveStrokes
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
   const useMagicKeys: typeof import('@vueuse/core').useMagicKeys
   const useManualRefHistory: typeof import('@vueuse/core').useManualRefHistory
@@ -717,6 +728,7 @@ declare global {
   const usePaintCache: typeof import('./composables/usePaintCache').usePaintCache
   const usePaintSettingShortcuts: typeof import('./composables/usePaintSettings').usePaintSettingShortcuts
   const usePaintSettings: typeof import('./composables/usePaintSettings').usePaintSettings
+  const usePaintSync: typeof import('./composables/usePaintSync').usePaintSync
   const usePanelDock: typeof import('./composables/usePanelDock').usePanelDock
   const usePanelLayoutStorage: typeof import('./composables/usePanelDock').usePanelLayoutStorage
   const usePaper: typeof import('./composables/usePaper').usePaper
@@ -741,6 +753,7 @@ declare global {
   const useRafFn: typeof import('@vueuse/core').useRafFn
   const useReadingDirection: typeof import('./composables/useReadingDirection').useReadingDirection
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
+  const useRegion: typeof import('./composables/useRegion').useRegion
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useRevisions: typeof import('./composables/useRevisions').useRevisions
   const useRoute: typeof import('./composables/nuxt').useRoute
@@ -765,6 +778,7 @@ declare global {
   const useStorageAsync: typeof import('@vueuse/core').useStorageAsync
   const useStyleTag: typeof import('@vueuse/core').useStyleTag
   const useSupported: typeof import('@vueuse/core').useSupported
+  const useSwarm: typeof import('./composables/useSwarm').useSwarm
   const useSwipe: typeof import('@vueuse/core').useSwipe
   const useTargetLanguage: typeof import('./composables/useTargetLanguage').useTargetLanguage
   const useTemplateRef: typeof import('vue').useTemplateRef
@@ -880,6 +894,9 @@ declare global {
   export type { Linked } from './composables/useLibrary'
   import('./composables/useLibrary')
   // @ts-ignore
+  export type { Ghost, LiveWhere } from './composables/useLiveStrokes'
+  import('./composables/useLiveStrokes')
+  // @ts-ignore
   export type { LocalScope } from './composables/useLocalChanges'
   import('./composables/useLocalChanges')
   // @ts-ignore
@@ -901,8 +918,14 @@ declare global {
   export type { LocalStroke } from './composables/usePaintCache'
   import('./composables/usePaintCache')
   // @ts-ignore
+  export type { PaintDestination } from './composables/usePaintSync'
+  import('./composables/usePaintSync')
+  // @ts-ignore
   export type { DockSide, PanelSection, DockColumn, PanelLayout, PanelDropTarget } from './composables/usePanelDock'
   import('./composables/usePanelDock')
+  // @ts-ignore
+  export type { RegionMode } from './composables/useRegion'
+  import('./composables/useRegion')
   // @ts-ignore
   export type { Revision } from './composables/useRevisions'
   import('./composables/useRevisions')
@@ -910,7 +933,7 @@ declare global {
   export type { RemotePage, SharedWorkspace } from './composables/useShared'
   import('./composables/useShared')
   // @ts-ignore
-  export type { SwarmChange } from './composables/useSwarm'
+  export type { SwarmChange, SwarmLive, SwarmPeer } from './composables/useSwarm'
   import('./composables/useSwarm')
   // @ts-ignore
   export type { ToolId, ToolOption, Tool } from './composables/useTools'
@@ -1180,6 +1203,9 @@ declare module 'vue' {
     readonly TOOL_GROUPS: UnwrapRef<typeof import('./composables/useTools')['TOOL_GROUPS']>
     readonly TRANSFORM_FIELDS: UnwrapRef<typeof import('./composables/useTransform')['TRANSFORM_FIELDS']>
     readonly TRANSLATE_ENGINES: UnwrapRef<typeof import('./composables/useComic')['TRANSLATE_ENGINES']>
+    readonly TREE_LEAD: UnwrapRef<typeof import('./utils/tree')['TREE_LEAD']>
+    readonly TREE_MARKER: UnwrapRef<typeof import('./utils/tree')['TREE_MARKER']>
+    readonly TREE_STEP: UnwrapRef<typeof import('./utils/tree')['TREE_STEP']>
     readonly UNTITLED: UnwrapRef<typeof import('./composables/useComic')['UNTITLED']>
     readonly VERDICT_COLOUR: UnwrapRef<typeof import('./utils/ocr/trace')['VERDICT_COLOUR']>
     readonly WORKSPACE_OWNED: UnwrapRef<typeof import('./utils/idbKeys')['WORKSPACE_OWNED']>
@@ -1317,6 +1343,7 @@ declare module 'vue' {
     readonly forgetAgreed: UnwrapRef<typeof import('./composables/useBlockSync')['forgetAgreed']>
     readonly forgetAgreedTranslations: UnwrapRef<typeof import('./composables/useTranslationSync')['forgetAgreedTranslations']>
     readonly forgetHistory: UnwrapRef<typeof import('./utils/history')['forgetHistory']>
+    readonly forgetPaintSync: UnwrapRef<typeof import('./composables/usePaintSync')['forgetPaintSync']>
     readonly formatBytes: UnwrapRef<typeof import('./utils/bytes')['formatBytes']>
     readonly framedBoxOf: UnwrapRef<typeof import('./composables/useComic')['framedBoxOf']>
     readonly framesLettering: UnwrapRef<typeof import('./composables/useComic')['framesLettering']>
@@ -1330,6 +1357,7 @@ declare module 'vue' {
     readonly googleTranslateAll: UnwrapRef<typeof import('./utils/google')['googleTranslateAll']>
     readonly gridCopy: UnwrapRef<typeof import('../shared/utils/raster')['gridCopy']>
     readonly grownBounds: UnwrapRef<typeof import('../shared/utils/raster')['grownBounds']>
+    readonly guideAt: UnwrapRef<typeof import('./utils/tree')['guideAt']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hashBytes: UnwrapRef<typeof import('./utils/hash')['hashBytes']>
     readonly hashFile: UnwrapRef<typeof import('./utils/hash')['hashFile']>
@@ -1435,6 +1463,7 @@ declare module 'vue' {
     readonly onServerPrefetch: UnwrapRef<typeof import('vue')['onServerPrefetch']>
     readonly onStartTyping: UnwrapRef<typeof import('@vueuse/core')['onStartTyping']>
     readonly onSwarmChange: UnwrapRef<typeof import('./composables/useSwarm')['onSwarmChange']>
+    readonly onSwarmLive: UnwrapRef<typeof import('./composables/useSwarm')['onSwarmLive']>
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
@@ -1502,6 +1531,7 @@ declare module 'vue' {
     readonly readManifest: UnwrapRef<typeof import('./utils/project')['readManifest']>
     readonly readModel: UnwrapRef<typeof import('./utils/ocr/store')['readModel']>
     readonly readPage: UnwrapRef<typeof import('../shared/utils/ocr')['readPage']>
+    readonly readPaint: UnwrapRef<typeof import('./composables/usePaintSync')['readPaint']>
     readonly readPatch: UnwrapRef<typeof import('./utils/ocr/patches')['readPatch']>
     readonly readPlacedMany: UnwrapRef<typeof import('./utils/placed')['readPlacedMany']>
     readonly readScanSheet: UnwrapRef<typeof import('./utils/paper')['readScanSheet']>
@@ -1523,6 +1553,7 @@ declare module 'vue' {
     readonly refManualReset: UnwrapRef<typeof import('@vueuse/core')['refManualReset']>
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
+    readonly refreshPaint: UnwrapRef<typeof import('./composables/usePaintSync')['refreshPaint']>
     readonly refusalNote: UnwrapRef<typeof import('./utils/ocr/mask')['refusalNote']>
     readonly regionCanvas: UnwrapRef<typeof import('./utils/ocr/manga')['regionCanvas']>
     readonly regionPrompt: UnwrapRef<typeof import('../shared/utils/prompt')['regionPrompt']>
@@ -1560,6 +1591,7 @@ declare module 'vue' {
     readonly segmentedPage: UnwrapRef<typeof import('./utils/ocr/segment')['segmentedPage']>
     readonly sendCast: UnwrapRef<typeof import('./composables/useCast')['sendCast']>
     readonly sendGlossary: UnwrapRef<typeof import('./composables/useGlossary')['sendGlossary']>
+    readonly sendLive: UnwrapRef<typeof import('./composables/useSwarm')['sendLive']>
     readonly serverCast: UnwrapRef<typeof import('./composables/useCast')['serverCast']>
     readonly serverGlossaries: UnwrapRef<typeof import('./composables/useGlossary')['serverGlossaries']>
     readonly serverGlossary: UnwrapRef<typeof import('./composables/useGlossary')['serverGlossary']>
@@ -1744,10 +1776,12 @@ declare module 'vue' {
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
     readonly useLayerCache: UnwrapRef<typeof import('./composables/useLayerCache')['useLayerCache']>
     readonly useLayerClaims: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerClaims']>
+    readonly useLayerPresets: UnwrapRef<typeof import('./composables/useLayerPresets')['useLayerPresets']>
     readonly useLayerRows: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerRows']>
     readonly useLetteringFit: UnwrapRef<typeof import('./composables/useLetteringFit')['useLetteringFit']>
     readonly useLetteringStandard: UnwrapRef<typeof import('./composables/useLetteringStandard')['useLetteringStandard']>
     readonly useLibrary: UnwrapRef<typeof import('./composables/useLibrary')['useLibrary']>
+    readonly useLiveStrokes: UnwrapRef<typeof import('./composables/useLiveStrokes')['useLiveStrokes']>
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
@@ -1780,6 +1814,7 @@ declare module 'vue' {
     readonly usePaintCache: UnwrapRef<typeof import('./composables/usePaintCache')['usePaintCache']>
     readonly usePaintSettingShortcuts: UnwrapRef<typeof import('./composables/usePaintSettings')['usePaintSettingShortcuts']>
     readonly usePaintSettings: UnwrapRef<typeof import('./composables/usePaintSettings')['usePaintSettings']>
+    readonly usePaintSync: UnwrapRef<typeof import('./composables/usePaintSync')['usePaintSync']>
     readonly usePanelDock: UnwrapRef<typeof import('./composables/usePanelDock')['usePanelDock']>
     readonly usePanelLayoutStorage: UnwrapRef<typeof import('./composables/usePanelDock')['usePanelLayoutStorage']>
     readonly usePaper: UnwrapRef<typeof import('./composables/usePaper')['usePaper']>
@@ -1804,6 +1839,7 @@ declare module 'vue' {
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useReadingDirection: UnwrapRef<typeof import('./composables/useReadingDirection')['useReadingDirection']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
+    readonly useRegion: UnwrapRef<typeof import('./composables/useRegion')['useRegion']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
     readonly useRevisions: UnwrapRef<typeof import('./composables/useRevisions')['useRevisions']>
     readonly useRoute: UnwrapRef<typeof import('./composables/nuxt')['useRoute']>
@@ -1828,6 +1864,7 @@ declare module 'vue' {
     readonly useStorageAsync: UnwrapRef<typeof import('@vueuse/core')['useStorageAsync']>
     readonly useStyleTag: UnwrapRef<typeof import('@vueuse/core')['useStyleTag']>
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
+    readonly useSwarm: UnwrapRef<typeof import('./composables/useSwarm')['useSwarm']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>
     readonly useTargetLanguage: UnwrapRef<typeof import('./composables/useTargetLanguage')['useTargetLanguage']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
