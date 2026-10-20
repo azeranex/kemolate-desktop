@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* The main process holds no classes; scanning it only re-sent this file on every main or preload edit. */
+@source not "../../electron";
+
+/*
+ * Colours are tokens, swapped wholesale for dark mode, so components name what a
+ * colour is for (chrome, line, muted) and never a hex value. The window's own
+ * background in electron/main.ts matches `canvas`, so opening never flashes.
+ */
+@theme {
+  --color-canvas: #fafafa;
+  --color-chrome: #f4f4f5;
+  --color-line: #e4e4e7;
+  --color-fg: #18181b;
+  --color-muted: #71717a;
+  --color-hover: rgb(0 0 0 / 0.06);
+  --color-accent: #e11d48;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #18181b;
+    --color-chrome: #111113;
+    --color-line: #27272a;
+    --color-fg: #f4f4f5;
+    --color-muted: #a1a1aa;
+    --color-hover: rgb(255 255 255 / 0.08);
+    --color-accent: #fb7185;
+  }
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  background: var(--color-canvas);
+}
