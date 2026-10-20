@@ -78,6 +78,10 @@ and a later fix in one can be carried to the other. Keep it that way.
     first), the close cleared the file, and nothing was imported. The web build has the same
     code, so it very likely has the same bug.
   - `ProjectDrop.vue` is not here: it wraps the collection page, which is not either.
+  - `utils/export/letters.ts` waits for the faces inlined into a lettering plate's SVG before
+    drawing it (`facesIn`): `decode()` does not, and the first export of a session came out in
+    the fallback face with lines that no longer fitted their balloons clipped away. The web
+    build's file draws at once, so it very likely does the same.
   - `useProviderKeys` is the web build's with the passcode vault taken out: keys are kept by
     the OS (`electron/keys.ts`), so nothing is ever locked. `pages/settings.vue` is the web
     page's key section alone (no passcode, no access tokens), drawn *over* the open

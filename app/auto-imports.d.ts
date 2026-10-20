@@ -39,6 +39,7 @@ declare global {
   const DOCK_SIDES: typeof import('./composables/usePanelDock').DOCK_SIDES
   const EASE_MS: typeof import('./composables/useComic').EASE_MS
   const EFFORT_ORDER: typeof import('./composables/useComic').EFFORT_ORDER
+  const EXPORT_DEFAULTS: typeof import('./composables/usePageExport').EXPORT_DEFAULTS
   const EffectScope: typeof import('vue').EffectScope
   const FAMILIES: typeof import('./utils/ocr/detectors').FAMILIES
   const FONTS: typeof import('../shared/utils/fonts').FONTS
@@ -695,6 +696,7 @@ declare global {
   const useOffsetPagination: typeof import('@vueuse/core').useOffsetPagination
   const useOnline: typeof import('@vueuse/core').useOnline
   const useOpening: typeof import('./composables/useOpening').useOpening
+  const usePageExport: typeof import('./composables/usePageExport').usePageExport
   const usePageLeave: typeof import('@vueuse/core').usePageLeave
   const usePagePosition: typeof import('./composables/usePagePosition').usePagePosition
   const usePaintCache: typeof import('./composables/usePaintCache').usePaintCache
@@ -863,6 +865,9 @@ declare global {
   // @ts-ignore
   export type { OpeningStage, OpeningStep } from './composables/useOpening'
   import('./composables/useOpening')
+  // @ts-ignore
+  export type { ExportFormat, ExportSettings, ExportProgress } from './composables/usePageExport'
+  import('./composables/usePageExport')
   // @ts-ignore
   export type { LocalStroke } from './composables/usePaintCache'
   import('./composables/usePaintCache')
@@ -1066,6 +1071,7 @@ declare module 'vue' {
     readonly DOCK_SIDES: UnwrapRef<typeof import('./composables/usePanelDock')['DOCK_SIDES']>
     readonly EASE_MS: UnwrapRef<typeof import('./composables/useComic')['EASE_MS']>
     readonly EFFORT_ORDER: UnwrapRef<typeof import('./composables/useComic')['EFFORT_ORDER']>
+    readonly EXPORT_DEFAULTS: UnwrapRef<typeof import('./composables/usePageExport')['EXPORT_DEFAULTS']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly FAMILIES: UnwrapRef<typeof import('./utils/ocr/detectors')['FAMILIES']>
     readonly FONTS: UnwrapRef<typeof import('../shared/utils/fonts')['FONTS']>
@@ -1721,6 +1727,7 @@ declare module 'vue' {
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
     readonly useOpening: UnwrapRef<typeof import('./composables/useOpening')['useOpening']>
+    readonly usePageExport: UnwrapRef<typeof import('./composables/usePageExport')['usePageExport']>
     readonly usePageLeave: UnwrapRef<typeof import('@vueuse/core')['usePageLeave']>
     readonly usePagePosition: UnwrapRef<typeof import('./composables/usePagePosition')['usePagePosition']>
     readonly usePaintCache: UnwrapRef<typeof import('./composables/usePaintCache')['usePaintCache']>
