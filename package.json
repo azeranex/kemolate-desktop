@@ -33,6 +33,7 @@
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vitest/coverage-v8": "^4.1.12",
+    "@webgpu/types": "^0.1.74",
     "electron": "^44.9.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9.3",

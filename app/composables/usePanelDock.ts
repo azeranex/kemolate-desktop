@@ -43,6 +43,7 @@ import {
 
 import type { Component, Ref } from 'vue'
 
+import PanelPages from '~/components/panel/Pages.vue'
 import PanelPending from '~/components/panel/Pending.vue'
 
 /**
@@ -63,7 +64,6 @@ const PanelDev = pending('Dev')
 const PanelGlossary = pending('Glossary')
 const PanelLayers = pending('Layers')
 const PanelLettering = pending('Lettering')
-const PanelPages = pending('Pages')
 const PanelText = pending('Text')
 const PanelTransform = pending('Transform')
 const PanelTranslate = pending('Translate')

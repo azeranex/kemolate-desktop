@@ -1,6 +1,6 @@
 /**
  * The main process: one window with no title bar, and the IPC behind the one
- * the page draws itself (`src/components/TitleBar.vue`).
+ * the page draws itself (`app/components/TitleBar.vue`).
  *
  * `titleBarStyle: 'hidden'` rather than `frame: false`. Both remove the title
  * bar, but a hidden one keeps the native frame around it — resize borders, the
@@ -11,7 +11,8 @@
  * move, double-click to maximise, drag to an edge to snap.
  *
  * In development `KEMOLATE_DEV_URL` points at Vite (see `vite.config.ts`); built,
- * the page is loaded from `dist/`.
+ * the page is served from `dist/` at `app://kemolate/` — see `protocol.ts` for why
+ * not from files.
  */
 import type { WindowState } from './preload'
 
@@ -20,8 +21,12 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { APP_ORIGIN, registerAppScheme, serveApp } from './protocol'
+
 const here = path.dirname(fileURLToPath(import.meta.url))
 const devUrl = process.env.KEMOLATE_DEV_URL
+
+registerAppScheme()
 
 /**
  * `--smoke=<file.png>`: open the window, save a capture of it and quit. A way to
@@ -81,7 +86,7 @@ function createWindow () {
   })
 
   if (devUrl) void win.loadURL(devUrl)
-  else void win.loadFile(path.join(here, '../dist/index.html'))
+  else void win.loadURL(`${APP_ORIGIN}/index.html`)
 }
 
 const owner = (sender: Electron.WebContents) => BrowserWindow.fromWebContents(sender)
@@ -102,6 +107,7 @@ ipcMain.on('theme:set', (_event, source: unknown) => {
 })
 
 void app.whenReady().then(() => {
+  if (!devUrl) serveApp(path.join(here, '../dist'))
   createWindow()
   // macOS keeps the app alive with no windows; clicking the dock icon opens one.
   app.on('activate', () => {

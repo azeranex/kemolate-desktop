@@ -7,4 +7,11 @@ declare global {
     /** The preload's bridge — absent when the page is opened in a plain browser. */
     kemolate?: KemolateApi
   }
+
+  /** Nuxt's build-time flags, defined in `vite.config.ts` — see `composables/nuxt.ts`. */
+  interface ImportMeta {
+    readonly client: boolean
+    readonly server: boolean
+    readonly dev: boolean
+  }
 }

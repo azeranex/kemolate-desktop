@@ -44,15 +44,29 @@ and a later fix in one can be carried to the other. Keep it that way.
   `shared/utils`, components by Nuxt's naming, shadcn-vue under the `U` prefix by the names
   each `components/ui/*/index.ts` exports. The aliases (`~`, `@`, `#shared`, `~~`) are the
   web build's. A ported file should need no new imports.
+- **Nuxt's runtime is shimmed, so ported files stay verbatim.** `app/composables/nuxt.ts`
+  provides `useState`, `useRoute`/`useRouter`/`navigateTo` (one in-memory route: `/` or
+  `/w/<id>` — 34 files read `route.params.workspaceId`), `useNuxtApp`, `useCookie` (local
+  storage), `$fetch` (refuses: no server), `useHead`, `onNuxtReady`. `import.meta.client`,
+  `.server` and `.dev` are defined in `vite.config.ts`. Do not hand-convert these in a ported
+  file — the first three files ported (`usePanelDock`, `useTools`, `useColorScheme`) were,
+  before the shim existed, and say so.
 - **What changes is said in the file**, in the house style (decisions, not syntax — see the
-  web build's CLAUDE.md): `useState` → module-level state, `useCookie` → `localStorage`
-  (no server render, so read synchronously before the first paint), `import.meta.dev` →
-  `import.meta.env.DEV`, `import.meta.client` guards dropped.
+  web build's CLAUDE.md).
 - **Unmigrated dependencies get stand-ins, never silent no-ops.** A stand-in is shaped so the
-  original template stays unchanged and reads it truthfully (see `AppMenu.vue`,
-  `usePanelDock`'s `pending()` panels, `useTools`): things that need a chapter disable
-  themselves; things that cannot, say so with a toast. Each stand-in names the line that
-  replaces it.
+  original stays unchanged and reads it truthfully: things that need a chapter disable
+  themselves; things that cannot, say so with a toast. Each stand-in names what replaces it.
+  - Cloud-only, permanent: `useShared` (no shared workspace — every caller already steps
+    around `null`), `useSwarm` (`peerHeader` → `{}`), `utils/strokes.ts` (server stroke
+    calls → "the server would not").
+  - Partial ports at the original path, growing as their dependencies arrive:
+    `canvas/Board.vue` (the view: fit, zoom, pan, wheel, keys — no blocks or plates yet),
+    `composables/useClean.ts` (only what the engine reads), `pages/w/[workspaceId].vue`
+    (opening, restoring, paging, zoom), `server/database/index.ts` (row types only).
+  - Pending UI: `AppMenu.vue`'s composable stand-ins, `usePanelDock`'s `pending()` panels.
+- **Component names follow Nuxt's rule** — `canvas/Engine.vue` is `CanvasEngine`. If a new
+  component resolves under a bare name, check `app/components.d.ts`: the plugin drops folder
+  prefixes when given `globs`, which is why it is configured with `dirs` and `excludeNames`.
 - **Versions match the web build** where both use a package (VueUse 14, zod 4, vitest 4,
   TypeScript 5.x). VueUse 15 already broke a file that had not changed.
 
@@ -73,4 +87,11 @@ not yet a link (the workspace collection has not been migrated).
   what it can ask for. Add a named method there per need — no raw `ipcRenderer`.
 - The Electron build is the inline plugin at the bottom of `vite.config.ts`, not
   vite-plugin-electron or electron-vite. Its header says how dev and build work.
+- The built app is served from `app://kemolate/` (`electron/protocol.ts`), not `file://`:
+  OPFS and IndexedDB need an ordinary, stable origin, and a store is keyed by its origin —
+  **never change the scheme or host**, or everything kept under the old one is lost. It
+  sends the web build's COOP/COEP headers, as does the dev server.
+- Verifying in the real window: drive the built app over CDP
+  (`--remote-debugging-port`); a synthetic drop of `File`s onto the canvas opens a chapter
+  through the same path as dropping loose pages.
 - Electron 44 fetches its binary on first run, not at install.

@@ -2,13 +2,14 @@
 import { PanelLeftIcon, PanelRightIcon } from '@lucide/vue'
 
 /**
- * The workspace shell: an optional tool rail down the left edge, and the canvas
- * column — context bar, work area, status bar — between two resizable docks.
+ * The workspace shell: a brand bar across the top, an optional tool rail down
+ * the left edge, and the canvas column — context bar, work area, status bar —
+ * between two resizable docks.
  *
- * Migrated from the web build's `layouts/workspace.vue`. Its brand bar is not
- * here: in the desktop app the window's own title bar (`TitleBar`) is the strip
- * across the top, and what the brand bar held — the workspace's breadcrumb,
- * actions, notifications, the account — moves into that as each arrives.
+ * Migrated from the web build's `layouts/workspace.vue`. The brand bar is the
+ * window's title bar here (`TitleBar`), which is the same header with window
+ * controls added; the page fills its `toolbar` and `actions` slots through this
+ * layout's, exactly as it filled the brand bar's.
  *
  * The layout owns the frame and nothing else; every region is a slot, so a page
  * fills in the controls it actually has. `rail` falls back to the standard tool
@@ -242,8 +243,21 @@ watch(dragging, (id) => {
 
 <template>
   <UTooltipProvider :delay-duration="350">
-    <!-- Fills what the title bar leaves, rather than the screen: the window is the title bar and this. -->
-    <div class="bg-background text-foreground flex min-h-0 flex-1 flex-col overflow-hidden text-sm">
+    <div class="bg-background text-foreground flex h-screen flex-col overflow-hidden text-sm">
+      <!--
+        The brand bar, which is the window's title bar here — see `TitleBar`.
+        The page's toolbar and actions pass straight through, as they did into
+        the web build's header.
+      -->
+      <TitleBar>
+        <template #toolbar>
+          <slot name="toolbar" />
+        </template>
+        <template #actions>
+          <slot name="actions" />
+        </template>
+      </TitleBar>
+
       <!-- something that happened, said across the full width -->
       <slot name="banner" />
 

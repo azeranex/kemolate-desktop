@@ -51,11 +51,31 @@ export const aliases = {
   '~~': root,
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   resolve: { alias: aliases },
+  /**
+   * Nuxt's build-time flags, which the web build's files test as they are — a
+   * desktop renderer is always the client, never the server, and is in
+   * development exactly when Vite is. See `composables/nuxt.ts` for the runtime
+   * half of the same arrangement.
+   */
+  define: {
+    'import.meta.client': 'true',
+    'import.meta.server': 'false',
+    'import.meta.dev': JSON.stringify(mode === 'development'),
+  },
   plugins: [vue(), tailwindcss(), ...nuxtStyleImports(), electron()],
-  server: { port: 5173, strictPort: true },
-})
+  server: {
+    port: 5173,
+    strictPort: true,
+    // The web build's cross-origin isolation, in dev as in the built app (see
+    // `electron/protocol.ts`): wasm gets SharedArrayBuffer, onnxruntime threads.
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
+  },
+}))
 
 /**
  * Nuxt's auto-imports, recreated, so a file migrated from the web build reads
@@ -111,7 +131,12 @@ function nuxtStyleImports () {
       dts: './app/auto-imports.d.ts',
     }),
     Components({
-      globs: ['app/components/**/*.vue', '!app/components/ui/**'],
+      // `dirs`, not `globs`: given globs at all, the plugin drops the folder
+      // prefix and named `canvas/Engine.vue` `Engine` rather than `CanvasEngine`.
+      // `ui/` is scanned with the rest and its names refused below — the `U`
+      // resolver owns those, under the names their folders export.
+      dirs: ['app/components'],
+      excludeNames: [/^Ui[A-Z]/],
       directoryAsNamespace: true,
       collapseSamePrefixes: true,
       resolvers: [(name: string) => {
