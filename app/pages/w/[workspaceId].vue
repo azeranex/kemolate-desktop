@@ -19,8 +19,10 @@
  * The auto run is the header's first action (`AutoRun`), and the AI cost of the
  * page and of the next press sit in the status bar.
  *
- * Not here yet, each arriving with what it drives: the wait that keeps a page
- * hidden until its cleaning is ready (`composing`); workspace settings. And never, because
+ * The page is held hidden until it can be shown whole (`composing`), and every
+ * other page's preview and sketch is made in the background.
+ *
+ * Not here yet, arriving with what it drives: workspace settings. And never, because
  * the desktop app has no cloud: signing in, the swarm, sharing and moving to
  * the cloud, and the live syncs.
  *
@@ -39,20 +41,24 @@ import {
   Undo2Icon,
 } from '@lucide/vue'
 
+import { patchStands } from '~/composables/useClean'
 import Workspace from '~/layouts/Workspace.vue'
+import { repairOvers } from '~/utils/raster/engine/overs'
+import { fitLevel, fittedHeight } from '~/utils/raster/plan'
+import { cleaningSignature, makePreviews } from '~/utils/raster/previews'
 
 // Walking in from another workspace lets go of the last one's state before any
 // of it can be drawn or written under this one's name — see `useWorkspaceReset`.
 // First, before anything below reads that state.
 useWorkspaceReset()
 
-const { open, pages, title, at, page, selection, epoch, go, zoomAt, resetView } = useComic()
+const { open, pages, title, at, page, selection, epoch, room, go, zoomAt, resetView } = useComic()
 const { kind, pending, restoring, openFolder, restore, reopen, forget, identify } = useLibrary()
 const { tool } = useTools()
 const { restore: restoreBlocks } = useOcr()
 const { restore: restoreCached } = useBlockCache()
 const { restore: restoreLayers } = useLayerCache()
-const { restore: restorePatches, settings: cleanSettings, showKept } = useClean()
+const { restore: restorePatches, settings: cleanSettings, showKept, keepShown, patches: shownRepairs, running: cleaning } = useClean()
 const { restore: restorePlaced, asked: placedAsked } = usePlacedImages()
 const { restore: restoreTarget, target } = useTargetLanguage()
 const { restore: restoreDirection } = useReadingDirection()
@@ -176,8 +182,158 @@ watch(
 // The cleaner is half of every repair's name, so changing it looks them up again.
 watch(() => [cleanSettings.value.model, cleanSettings.value.segmenter], () => { restorePatches() })
 
-// The page on screen's cleaning, from its record of what it last showed — see `useClean.showKept`.
-watch(() => [page.value?.id, page.value?.scan?.hash], () => { showKept(page.value) }, { immediate: true })
+/*
+ * The page on screen's cleaning, from its record of what it last showed — see
+ * `useClean.showKept`. Kept as a promise, because `composing` below waits for
+ * the page the reader lands on to have read its record.
+ */
+let kept: Promise<void> = Promise.resolve()
+
+watch(() => [page.value?.id, page.value?.scan?.hash], () => { kept = showKept(page.value) }, { immediate: true })
+
+/*
+ * The page is shown whole, or not yet — the web build's `composing`, as there.
+ *
+ * On the way in the parts of a page arrive separately: the scan as soon as the
+ * folder is read, the reading a moment later, the repairs from the record a
+ * moment after the hash. Drawn as they came, the printed lettering showed on its
+ * own for a few hundred milliseconds before the cleaning and the translation
+ * covered it — every launch, on the page the reader comes back to.
+ *
+ * So the board stays hidden until the saved page has been turned to, one pass of
+ * the chain above has put the reading back, and the page's record of its
+ * repairs has been read and decoded, with the lettering's faces — or
+ * `COMPOSE_MS` after the page mounted, whichever is first, so a slow disk costs
+ * the reader a flash rather than a blank canvas. After that nothing is held
+ * back: a page turned to is drawn as it comes.
+ */
+const COMPOSE_MS = 3000
+
+const composing = ref(true)
+const composeCap = setTimeout(() => { composing.value = false }, COMPOSE_MS)
+
+watch(placing, async (stillPlacing) => {
+  if (stillPlacing || !composing.value) return
+
+  const wanted = begun + 1
+
+  settle()
+
+  // The page's own reading back is the usual answer, and arrives long before a
+  // fresh pass can. The pass is for the page that has no blocks at all, which
+  // only it can vouch for.
+  await new Promise<void>((resolve) => {
+    const stop = watch([read, composing, () => page.value?.blocks.length], () => {
+      if (!page.value?.blocks.length && read.value < wanted && composing.value) return
+
+      stop()
+      resolve()
+    }, { immediate: true })
+  })
+
+  if (!composing.value) return
+
+  // Decoded as well as read: an image onto a blob that has only just been made
+  // paints a frame or two after it is mounted.
+  const decoded = kept.then(() => Promise.all(
+    Object.values((page.value && shownRepairs.value[page.value.id]) ?? {}).map((repair) => {
+      const image = new Image()
+
+      image.src = repair.url
+
+      return image.decode().catch(() => {})
+    }),
+  ))
+
+  // And the lettering's faces, which started loading as the hidden board laid
+  // the blocks out — see `faceReady` in the board.
+  await Promise.race([Promise.all([decoded, document.fonts.ready]), new Promise((resolve) => setTimeout(resolve, 300))])
+
+  composing.value = false
+})
+
+onBeforeUnmount(() => {
+  clearTimeout(composeCap)
+  // Lets a wait still in the air above give up rather than outlive the page.
+  composing.value = false
+})
+
+/*
+ * Once the first page is on screen, every other page is made ready to be turned
+ * to: a preview of each at the size it is shown at, and its sketch, kept on disk
+ * — see `utils/raster/previews.ts` for why disk and not memory. Nearest the page
+ * on screen first, on a worker of its own, and never while a Clean run has the
+ * machine. Started again, after a second's quiet, when pages gain hashes, the
+ * room changes size or a page's cleaning changes; pages that already have one
+ * are skipped at once. The web build's, as written.
+ */
+const route = useRoute()
+
+let previewing: { stop: () => void } | null = null
+let previewSoon: ReturnType<typeof setTimeout> | undefined
+
+/** A page's repairs, placed — what its cleaning is made of (see `cleaningSignature`). */
+const repairsOfPage = (target: ComicPage) => repairOvers(target, shownRepairs.value[target.id], patchStands)
+
+watch(
+  () => [
+    composing.value,
+    pages.value.map((target) => `${target.scan?.hash ?? ''}:${target.scan?.width ?? 0}`).join(','),
+    room.value.w,
+    room.value.h,
+    pages.value.map((target) => cleaningSignature(repairsOfPage(target))).join(','),
+  ] as const,
+  ([still]) => {
+    clearTimeout(previewSoon)
+    previewing?.stop()
+    previewing = null
+
+    if (still) return
+
+    previewSoon = setTimeout(() => {
+      const from = at.value
+      const dpr = window.devicePixelRatio || 1
+
+      const list = pages.value
+        .map((target, index) => ({ target, index }))
+        .sort((a, b) => Math.abs(a.index - from) - Math.abs(b.index - from))
+        .flatMap(({ target }) => {
+          const scan = target.scan
+
+          if (!scan?.hash || !scan.width || !scan.height) return []
+
+          const own = { width: scan.width, height: scan.height }
+          const fit = fitLevel(own, fittedHeight(room.value, own.width / own.height), dpr)
+
+          return [{ url: scan.url, file: scan.file, hash: scan.hash, page: own, fit, repairs: repairsOfPage(target) }]
+        })
+
+      previewing = makePreviews(String(route.params.workspaceId ?? ''), list, () => cleaning.value)
+    }, 1000)
+  },
+)
+
+onBeforeUnmount(() => {
+  clearTimeout(previewSoon)
+  previewing?.stop()
+})
+
+/*
+ * And the record kept up to date as that page's repairs change — a clean, a
+ * brush correction, `restore` settling. Half a second after they stop, because
+ * a page run shows its repairs a balloon at a time. Without it `showKept` above
+ * had only what the web build had written before the move to the desktop — or
+ * nothing.
+ */
+let keeping: ReturnType<typeof setTimeout> | null = null
+
+watch(() => (page.value ? shownRepairs.value[page.value.id] : null), () => {
+  if (keeping) clearTimeout(keeping)
+
+  const target = page.value
+
+  keeping = setTimeout(() => { keeping = null; keepShown(target) }, 500)
+})
 
 /**
  * Every page gets its hash once it is listed — which is what everything keyed
@@ -270,7 +426,7 @@ function scale (by: number) {
         Laid out but not shown until the page this window was last on has been
         turned to — otherwise page one is drawn for a frame or two first.
       -->
-      <CanvasBoard v-else :class="{ invisible: placing }" />
+      <CanvasBoard v-else :class="{ invisible: placing || composing }" />
     </CanvasDrop>
 
     <template #toolbar>
