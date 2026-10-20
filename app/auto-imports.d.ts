@@ -12,6 +12,8 @@ declare global {
   const ADJUSTMENTS: typeof import('../shared/utils/adjust').ADJUSTMENTS
   const AI_MODELS: typeof import('../shared/utils/models').AI_MODELS
   const AUTO_LINE: typeof import('../shared/utils/lettering').AUTO_LINE
+  const AUTO_STEPS: typeof import('./composables/useAutoRun').AUTO_STEPS
+  const AUTO_STEP_LABELS: typeof import('./composables/useAutoRun').AUTO_STEP_LABELS
   const AnchorBottomIcon: typeof import('./utils/anchorIcons').AnchorBottomIcon
   const AnchorMiddleIcon: typeof import('./utils/anchorIcons').AnchorMiddleIcon
   const AnchorTopIcon: typeof import('./utils/anchorIcons').AnchorTopIcon
@@ -593,6 +595,7 @@ declare global {
   const useAsyncQueue: typeof import('@vueuse/core').useAsyncQueue
   const useAsyncState: typeof import('@vueuse/core').useAsyncState
   const useAttrs: typeof import('vue').useAttrs
+  const useAutoRun: typeof import('./composables/useAutoRun').useAutoRun
   const useBase64: typeof import('@vueuse/core').useBase64
   const useBattery: typeof import('@vueuse/core').useBattery
   const useBlockCache: typeof import('./composables/useBlockCache').useBlockCache
@@ -838,6 +841,9 @@ declare global {
   export type { AiUse, AiTotals } from './composables/useAiUsage'
   import('./composables/useAiUsage')
   // @ts-ignore
+  export type { AutoStep, AutoRange, AutoProgress, AutoOutcome } from './composables/useAutoRun'
+  import('./composables/useAutoRun')
+  // @ts-ignore
   export type { CastRow } from './composables/useCast'
   import('./composables/useCast')
   // @ts-ignore
@@ -1049,6 +1055,8 @@ declare module 'vue' {
     readonly ADJUSTMENTS: UnwrapRef<typeof import('../shared/utils/adjust')['ADJUSTMENTS']>
     readonly AI_MODELS: UnwrapRef<typeof import('../shared/utils/models')['AI_MODELS']>
     readonly AUTO_LINE: UnwrapRef<typeof import('../shared/utils/lettering')['AUTO_LINE']>
+    readonly AUTO_STEPS: UnwrapRef<typeof import('./composables/useAutoRun')['AUTO_STEPS']>
+    readonly AUTO_STEP_LABELS: UnwrapRef<typeof import('./composables/useAutoRun')['AUTO_STEP_LABELS']>
     readonly AnchorBottomIcon: UnwrapRef<typeof import('./utils/anchorIcons')['AnchorBottomIcon']>
     readonly AnchorMiddleIcon: UnwrapRef<typeof import('./utils/anchorIcons')['AnchorMiddleIcon']>
     readonly AnchorTopIcon: UnwrapRef<typeof import('./utils/anchorIcons')['AnchorTopIcon']>
@@ -1630,6 +1638,7 @@ declare module 'vue' {
     readonly useAsyncQueue: UnwrapRef<typeof import('@vueuse/core')['useAsyncQueue']>
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
+    readonly useAutoRun: UnwrapRef<typeof import('./composables/useAutoRun')['useAutoRun']>
     readonly useBase64: UnwrapRef<typeof import('@vueuse/core')['useBase64']>
     readonly useBattery: UnwrapRef<typeof import('@vueuse/core')['useBattery']>
     readonly useBlockCache: UnwrapRef<typeof import('./composables/useBlockCache')['useBlockCache']>

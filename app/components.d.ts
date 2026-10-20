@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppMenu: typeof import('./components/AppMenu.vue')['default']
+    AutoRun: typeof import('./components/AutoRun.vue')['default']
     CanvasBoard: typeof import('./components/canvas/Board.vue')['default']
     CanvasDrop: typeof import('./components/canvas/Drop.vue')['default']
     CanvasEngine: typeof import('./components/canvas/Engine.vue')['default']
@@ -95,6 +96,9 @@ declare module 'vue' {
     UFieldDescription: typeof import('./components/ui/field/FieldDescription.vue')['default']
     UFieldGroup: typeof import('./components/ui/field/FieldGroup.vue')['default']
     UFieldLabel: typeof import('./components/ui/field/FieldLabel.vue')['default']
+    UFieldLegend: typeof import('./components/ui/field/FieldLegend.vue')['default']
+    UFieldSeparator: typeof import('./components/ui/field/FieldSeparator.vue')['default']
+    UFieldSet: typeof import('./components/ui/field/FieldSet.vue')['default']
     UInput: typeof import('./components/ui/input/Input.vue')['default']
     UKbd: typeof import('./components/ui/kbd/Kbd.vue')['default']
     UMenubar: typeof import('./components/ui/menubar/Menubar.vue')['default']

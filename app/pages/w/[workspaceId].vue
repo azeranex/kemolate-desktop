@@ -16,9 +16,11 @@
  * reading direction, AI ledger, glossary and cast; and a project file handed
  * over to be opened here.
  *
+ * The auto run is the header's first action (`AutoRun`), and the AI cost of the
+ * page and of the next press sit in the status bar.
+ *
  * Not here yet, each arriving with what it drives: the wait that keeps a page
- * hidden until its cleaning is ready (`composing`); the auto run and the AI
- * cost tally in the status bar; workspace settings. And never, because
+ * hidden until its cleaning is ready (`composing`); workspace settings. And never, because
  * the desktop app has no cloud: signing in, the swarm, sharing and moving to
  * the cloud, and the live syncs.
  *
@@ -56,7 +58,14 @@ const { restore: restoreTarget, target } = useTargetLanguage()
 const { restore: restoreDirection } = useReadingDirection()
 const { load: loadGlossary } = useGlossary()
 const { load: loadCast } = useCast()
-const { restore: restoreUsage } = useAiUsage()
+const { restore: restoreUsage, total: pageCost } = useAiUsage()
+
+/*
+ * What the next press is expected to cost, for the status bar. Safe to ask for
+ * here: `useTranslate` registers no watcher of its own, so a second call beside
+ * the Translate panel's is two reads of the same state — see the web build.
+ */
+const { estimate } = useTranslate()
 const { restore: restorePosition, placing } = usePagePosition()
 const { claim: claimProject } = useProjectFile()
 
@@ -326,6 +335,20 @@ function scale (by: number) {
       </div>
     </template>
 
+    <!-- what it can do to that -->
+    <template #actions>
+      <!--
+        The pipeline end to end, first among the actions because it is the one
+        that does what all the others are for — see `AutoRun`, which owns every
+        decision about it including whether there is anything to run. The web
+        build's people and sharing controls follow it there; the desktop app has
+        neither, so only the rule before the title bar's own icons does.
+      -->
+      <AutoRun />
+
+      <div class="bg-border h-6 w-px flex-none" />
+    </template>
+
     <!-- the tool that is out — its settings join it with the paint engine -->
     <template #context>
       <span class="text-foreground font-medium">{{ label }}</span>
@@ -349,6 +372,23 @@ function scale (by: number) {
       </template>
 
       <div class="flex-1" />
+
+      <!--
+        What the models have cost on this page, and what the next press is
+        expected to — the web build's pair, as there: `~` on the estimate, which
+        is arithmetic over a prompt not yet sent, and `≥` on a total with
+        unpriced calls in it, which is a floor rather than a bill.
+      -->
+      <template v-if="estimate || pageCost.calls">
+        <span v-if="estimate" class="text-muted-foreground hidden font-mono whitespace-nowrap tabular-nums @4xl:inline">
+          {{ estimate.force ? 'next · again' : 'next' }} ~${{ estimate.cost.toFixed(4) }}
+        </span>
+        <span v-if="estimate && pageCost.calls" class="bg-border hidden h-4 w-px @4xl:block" />
+        <span v-if="pageCost.calls" class="hidden font-mono whitespace-nowrap tabular-nums @4xl:inline">
+          page {{ pageCost.unpriced ? '≥' : '' }}${{ pageCost.cost.toFixed(4) }}
+        </span>
+        <div class="bg-border hidden h-4 w-px @4xl:block" />
+      </template>
 
       <!--
         Which of the two ways the pages are being held. Worth a line: working on
