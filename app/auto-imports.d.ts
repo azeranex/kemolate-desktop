@@ -202,6 +202,7 @@ declare global {
   const debouncedWatch: typeof import('@vueuse/core').debouncedWatch
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
+  const deletesSelection: typeof import('./composables/useDeleteShortcut').deletesSelection
   const detBoxFor: typeof import('./utils/ocr/segment').detBoxFor
   const detLeanFor: typeof import('./utils/ocr/segment').detLeanFor
   const detLines: typeof import('./utils/ocr/segment').detLines
@@ -611,6 +612,7 @@ declare global {
   const useDebounce: typeof import('@vueuse/core').useDebounce
   const useDebounceFn: typeof import('@vueuse/core').useDebounceFn
   const useDebouncedRefHistory: typeof import('@vueuse/core').useDebouncedRefHistory
+  const useDeleteShortcut: typeof import('./composables/useDeleteShortcut').useDeleteShortcut
   const useDeviceMotion: typeof import('@vueuse/core').useDeviceMotion
   const useDeviceOrientation: typeof import('@vueuse/core').useDeviceOrientation
   const useDevicePixelRatio: typeof import('@vueuse/core').useDevicePixelRatio
@@ -1205,6 +1207,7 @@ declare module 'vue' {
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
+    readonly deletesSelection: UnwrapRef<typeof import('./composables/useDeleteShortcut')['deletesSelection']>
     readonly detBoxFor: UnwrapRef<typeof import('./utils/ocr/segment')['detBoxFor']>
     readonly detLeanFor: UnwrapRef<typeof import('./utils/ocr/segment')['detLeanFor']>
     readonly detLines: UnwrapRef<typeof import('./utils/ocr/segment')['detLines']>
@@ -1614,6 +1617,7 @@ declare module 'vue' {
     readonly useDebounce: UnwrapRef<typeof import('@vueuse/core')['useDebounce']>
     readonly useDebounceFn: UnwrapRef<typeof import('@vueuse/core')['useDebounceFn']>
     readonly useDebouncedRefHistory: UnwrapRef<typeof import('@vueuse/core')['useDebouncedRefHistory']>
+    readonly useDeleteShortcut: UnwrapRef<typeof import('./composables/useDeleteShortcut')['useDeleteShortcut']>
     readonly useDeviceMotion: UnwrapRef<typeof import('@vueuse/core')['useDeviceMotion']>
     readonly useDeviceOrientation: UnwrapRef<typeof import('@vueuse/core')['useDeviceOrientation']>
     readonly useDevicePixelRatio: UnwrapRef<typeof import('@vueuse/core')['useDevicePixelRatio']>

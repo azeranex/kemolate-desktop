@@ -13,8 +13,8 @@
  * - `useRoute` / `useRouter` / `navigateTo` — the desktop app has no URLs, but
  *   it still has *which workspace is open*, and the web build reads that off the
  *   route (`route.params.workspaceId`, 34 times). So there is one route, held in
- *   memory, and the two paths the app can be at: `/` (the collection of
- *   workspaces) and `/w/<id>`. `App.vue` draws whichever one it is.
+ *   memory, and the paths the app can be at: `/` (the collection of
+ *   workspaces), `/settings` and `/w/<id>`. `App.vue` draws whichever one it is.
  * - `useNuxtApp` — a stable object per app. `useComic` keys its view state on
  *   it; nothing reads anything off it.
  * - `useCookie` — a ref kept in local storage, as JSON, under the cookie's name.
@@ -68,24 +68,31 @@ export function useRoute (): DesktopRoute {
   return route
 }
 
+/** The paths the desktop app has besides a workspace. */
+const PLACES = new Set(['/', '/settings'])
+
 /**
- * Go somewhere. Only the paths the desktop app has are understood — `/` and
- * `/w/<id>` — and anything else (the web build's `/signin`, `/account`) is
- * refused aloud rather than turned into a blank screen.
+ * Go somewhere. Only the paths the desktop app has are understood — `/`,
+ * `/settings` and `/w/<id>` — and anything else (the web build's `/signin`,
+ * `/account`) is refused aloud rather than turned into a blank screen.
  */
 export async function navigateTo (to: string | { path?: string, query?: Record<string, string | undefined> }) {
   const target = typeof to === 'string' ? to : (to.path ?? route.path)
   const [path = '/', search = ''] = target.split('?')
   const workspace = /^\/w\/([^/]+)$/.exec(path)
 
-  if (path !== '/' && !workspace) {
+  if (!PLACES.has(path) && !workspace) {
     console.warn(`[kemolate] No such place in the desktop app: ${target}`)
     return
   }
 
   route.path = path
   route.fullPath = target
-  route.params = workspace ? { workspaceId: decodeURIComponent(workspace[1]!) } : {}
+  // Settings is drawn *over* the open workspace (see `App.vue`), so the
+  // workspace it covers is still the one open: its id stays on the route. Taken
+  // off, every composable that watches `route.params.workspaceId` would read a
+  // look at Settings as the workspace closing — and resetting.
+  if (path !== '/settings') route.params = workspace ? { workspaceId: decodeURIComponent(workspace[1]!) } : {}
   route.query = typeof to === 'string'
     ? Object.fromEntries(new URLSearchParams(search))
     : { ...(to.query ?? {}) }

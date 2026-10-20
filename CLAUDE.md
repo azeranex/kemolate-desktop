@@ -70,12 +70,15 @@ and a later fix in one can be carried to the other. Keep it that way.
     `pages/w/[workspaceId].vue`
     (opening, restoring, the reading and repairs restore, paging, zoom),
     `server/database/index.ts` (row types only).
-  - Until the desktop key store exists: `useProviderKeys` (refuses aloud — the Google Vision
-    reader and the AI translate engines ask; the Google translate engine needs no key).
+  - `useProviderKeys` is the web build's with the passcode vault taken out: keys are kept by
+    the OS (`electron/keys.ts`), so nothing is ever locked. `pages/settings.vue` is the web
+    page's key section alone (no passcode, no access tokens), drawn *over* the open
+    workspace — see `App.vue` and the page's header for why it stops every key press.
   - `panel/Translate.vue` hides "Undo that run" without a server (`shared`): run revisions are
     kept only server-side, and `revertRun` on a local workspace reverts nothing, silently.
     That is a web build bug as well, reached there only by local workspaces.
-  - Pending UI: `AppMenu.vue`'s composable stand-ins, `usePanelDock`'s `pending()` panels.
+  - Pending UI: `AppMenu.vue`'s stand-ins for the project file, export, layer presets and
+    balloon debug; `usePanelDock`'s `pending()` panels.
 - **Component names follow Nuxt's rule** — `canvas/Engine.vue` is `CanvasEngine`. If a new
   component resolves under a bare name, check `app/components.d.ts`: the plugin drops folder
   prefixes when given `globs`, which is why it is configured with `dirs` and `excludeNames`.
@@ -88,9 +91,10 @@ and a later fix in one can be carried to the other. Keep it that way.
 
 From `shared/`: `abilities`, `socials`, and the `auth`, `invite`, `token`, `vault` schemas —
 accounts and the server-sealed key vault are cloud concerns. (`roles` came across after all:
-it is pure, and `useOcr` asks `atLeast` on its cloud branch.) Provider keys
-will live in the OS credential store instead. The header has no account menu, and the mark is
-not yet a link (the workspace collection has not been migrated).
+it is pure, and `useOcr` asks `atLeast` on its cloud branch.) Provider keys live in the OS
+credential store instead (`electron/keys.ts`), and Settings is File › Settings… (Ctrl+,)
+rather than the account menu. The header has no account menu, and the mark is not yet a link
+(the workspace collection has not been migrated).
 
 ## Electron
 
@@ -99,7 +103,12 @@ not yet a link (the workspace collection has not been migrated).
   (`.app-titlebar`) takes every control in it back out. Windows/Linux draw their own window
   controls at the right; macOS keeps the traffic lights at the left.
 - The renderer is sandboxed with context isolation; `electron/preload.ts` is the whole of
-  what it can ask for. Add a named method there per need — no raw `ipcRenderer`.
+  what it can ask for. Add a named method there per need — no raw `ipcRenderer`. A handler
+  that hands back anything secret checks the asking frame is the app's origin (`trusted` in
+  `main.ts`).
+- Provider keys: `keys.json` in the profile, each key encrypted by `safeStorage` (DPAPI,
+  Keychain, the Linux keyring). There is no write in the clear — where the OS has no real
+  encryption (Linux's `basic_text`), saving refuses and Settings says why.
 - The Electron build is the inline plugin at the bottom of `vite.config.ts`, not
   vite-plugin-electron or electron-vite. Its header says how dev and build work.
 - The built app is served from `https://app.kemolate.invalid/` (`electron/protocol.ts`),

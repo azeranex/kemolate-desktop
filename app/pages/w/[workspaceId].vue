@@ -16,7 +16,7 @@
  *
  * Not here yet, each arriving with what it drives: the layer, glossary and
  * cast restores, and the wait that keeps a page hidden until its cleaning is
- * ready (`composing`); undo and redo;
+ * ready (`composing`);
  * the auto run and the AI cost tally; workspace settings. And never, because
  * the desktop app has no cloud: signing in, the swarm, sharing and moving to
  * the cloud, and the live syncs.
@@ -47,6 +47,16 @@ const { restore: restorePatches, settings: cleanSettings, showKept } = useClean(
 const { restore: restorePosition, placing } = usePagePosition()
 
 const label = computed(() => TOOLS.find((t) => t.id === tool.value)?.label ?? 'Select')
+
+const { canUndo, canRedo, undo, redo } = useUndo()
+
+// Cmd+Z across the whole workspace — the stacks live in `useUndo`, keyed by
+// workspace, so they survive page turns and belong to nobody but this browser.
+useUndoShortcuts()
+
+// And Delete/Backspace on the selection, which is the key everybody reaches for
+// before they look for a button — see `useDeleteShortcut`.
+useDeleteShortcut()
 
 onMounted(() => restore().then(() => restorePosition()))
 
@@ -219,11 +229,29 @@ function scale (by: number) {
 
         <div class="bg-border h-5 w-px flex-none" />
 
-        <!-- Undo and redo arrive with what they take back; greyed until then. -->
-        <UButton variant="ghost" size="icon-sm" disabled aria-label="Undo" title="Undo (Ctrl+Z)">
+        <!--
+          Undo and redo — the web build's buttons. Greyed when there is nothing
+          to take back, which is the one way the app can say so before you
+          press and wonder.
+        -->
+        <UButton
+          variant="ghost"
+          size="icon-sm"
+          :disabled="!canUndo"
+          aria-label="Undo"
+          title="Undo (Ctrl+Z)"
+          @click="undo()"
+        >
           <Undo2Icon class="size-4" />
         </UButton>
-        <UButton variant="ghost" size="icon-sm" disabled aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+        <UButton
+          variant="ghost"
+          size="icon-sm"
+          :disabled="!canRedo"
+          aria-label="Redo"
+          title="Redo (Ctrl+Shift+Z)"
+          @click="redo()"
+        >
           <Redo2Icon class="size-4" />
         </UButton>
 

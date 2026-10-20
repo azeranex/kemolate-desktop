@@ -21,6 +21,7 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serveKeys } from './keys'
 import { APP_ORIGIN, serveApp } from './protocol'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -99,6 +100,21 @@ ipcMain.on('window:toggle-maximize', (event) => {
   else win.maximize()
 })
 ipcMain.on('window:close', (event) => owner(event.sender)?.close())
+
+/**
+ * Whether a call came from the app's own page — the origin it is served from,
+ * or Vite's in development — and not from anything else a frame might load.
+ * Asked by the handlers that hand back something secret (`keys.ts`).
+ */
+const appOrigin = devUrl ? new URL(devUrl).origin : APP_ORIGIN
+
+function trusted (event: Electron.IpcMainInvokeEvent) {
+  const url = event.senderFrame?.url
+
+  return Boolean(url) && new URL(url!).origin === appOrigin
+}
+
+serveKeys(trusted)
 
 // Checked, because it arrives from the page: anything but the three names is ignored.
 ipcMain.on('theme:set', (_event, source: unknown) => {

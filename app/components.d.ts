@@ -76,6 +76,7 @@ declare module 'vue' {
     UFieldDescription: typeof import('./components/ui/field/FieldDescription.vue')['default']
     UFieldGroup: typeof import('./components/ui/field/FieldGroup.vue')['default']
     UFieldLabel: typeof import('./components/ui/field/FieldLabel.vue')['default']
+    UInput: typeof import('./components/ui/input/Input.vue')['default']
     UKbd: typeof import('./components/ui/kbd/Kbd.vue')['default']
     UMenubar: typeof import('./components/ui/menubar/Menubar.vue')['default']
     UMenubarCheckboxItem: typeof import('./components/ui/menubar/MenubarCheckboxItem.vue')['default']

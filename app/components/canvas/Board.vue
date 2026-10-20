@@ -45,7 +45,7 @@ import { sheetInView } from '~/utils/view'
 
 const {
   page, pages, at, zoom, pan, room, eased, go, zoomAt, resetView,
-  selection, select, blockShown, blockPickable, framedBox, styleOf, setDown,
+  selection, select, selectAll, blockShown, blockPickable, framedBox, styleOf, setDown,
 } = useComic()
 
 const { tool } = useTools()
@@ -293,7 +293,25 @@ const spaceHeld = ref(false)
 const dragFrom = shallowRef<{ x: number, y: number, pan: { x: number, y: number } } | null>(null)
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
-  if (event.key === ' ' && !claimed(event)) spaceHeld.value = true
+  if (claimed(event)) return
+
+  // Select All and Escape, from the web board's handler as written: All takes
+  // everything the stack leaves within reach; Escape lets go of everything.
+  if (event.key.toLowerCase() === 'a' && addsToSelection(event) && !event.shiftKey && !event.altKey) {
+    event.preventDefault()
+    selectAll()
+
+    return
+  }
+
+  if (event.key === 'Escape' && selection.value.length) {
+    event.preventDefault()
+    select(null)
+
+    return
+  }
+
+  if (event.key === ' ') spaceHeld.value = true
 })
 useEventListener(window, 'keyup', (event: KeyboardEvent) => {
   if (event.key === ' ') spaceHeld.value = false
