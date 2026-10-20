@@ -43,6 +43,7 @@ import {
 
 import type { Component, Ref } from 'vue'
 
+import PanelAlign from '~/components/panel/Align.vue'
 import PanelBlocks from '~/components/panel/Blocks.vue'
 import PanelCast from '~/components/panel/Cast.vue'
 import PanelDetect from '~/components/panel/Detect.vue'
@@ -51,6 +52,7 @@ import PanelLettering from '~/components/panel/Lettering.vue'
 import PanelPages from '~/components/panel/Pages.vue'
 import PanelPending from '~/components/panel/Pending.vue'
 import PanelText from '~/components/panel/Text.vue'
+import PanelTransform from '~/components/panel/Transform.vue'
 import PanelTranslate from '~/components/panel/Translate.vue'
 
 /**
@@ -62,11 +64,9 @@ function pending (label: string): Component {
   return defineComponent({ name: `Pending${label.replace(/\W/g, '')}`, render: () => h(PanelPending, { label }) })
 }
 
-const PanelAlign = pending('Align')
 const PanelBlockImages = pending('Block images')
 const PanelDev = pending('Dev')
 const PanelLayers = pending('Layers')
-const PanelTransform = pending('Transform')
 
 export type DockSide = 'left' | 'right'
 

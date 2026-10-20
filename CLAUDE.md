@@ -63,9 +63,6 @@ and a later fix in one can be carried to the other. Keep it that way.
   - Nuxt's `<NuxtLink>` is `components/NuxtLink.vue`: an anchor that goes through
     `navigateTo`.
   - Partial ports at the original path, growing as their dependencies arrive:
-    `canvas/Board.vue` (the view — fit, zoom, pan, wheel, keys — the paper and fitting
-    watches, and block outlines standing in for `blockChrome`; no grips, numbers, text
-    editor or tool gestures yet),
     `canvas/Sheet.vue` (everything that shows — art and repairs, lettering, placed pictures,
     hit areas — without `CanvasMask`, the mask and region brushes or `CanvasPaint`, so no
     retouching or sheet is drawn),
