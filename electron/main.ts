@@ -46,9 +46,10 @@ function createWindow () {
     show: false,
     title: 'Kemolate',
     // Painted before the page is, so opening never flashes the wrong colour.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#18181b' : '#fafafa',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0a0a0a' : '#ffffff',
     titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 14, y: 11 },
+    // Centred in the 56px header the page draws (`TitleBar`), at the left where macOS keeps them.
+    trafficLightPosition: { x: 18, y: 21 },
     webPreferences: {
       preload: path.join(here, 'preload.cjs'),
       contextIsolation: true,
@@ -94,6 +95,11 @@ ipcMain.on('window:toggle-maximize', (event) => {
   else win.maximize()
 })
 ipcMain.on('window:close', (event) => owner(event.sender)?.close())
+
+// Checked, because it arrives from the page: anything but the three names is ignored.
+ipcMain.on('theme:set', (_event, source: unknown) => {
+  if (source === 'system' || source === 'light' || source === 'dark') nativeTheme.themeSource = source
+})
 
 void app.whenReady().then(() => {
   createWindow()

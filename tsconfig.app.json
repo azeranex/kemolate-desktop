@@ -12,7 +12,11 @@
     "noUnusedParameters": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "~/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "electron/preload.ts"]
 }

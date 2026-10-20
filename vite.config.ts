@@ -26,13 +26,89 @@ import type { Plugin, ResolvedConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { spawn } from 'node:child_process'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
 import { defineConfig, build as viteBuild } from 'vite'
 
+// Forward slashes even on Windows: these paths are written into generated
+// imports, where a backslash is an escape and `X:\repos` arrives as `X:epos`.
+const src = fileURLToPath(new URL('./src', import.meta.url)).replaceAll('\\', '/')
+
 export default defineConfig({
-  plugins: [vue(), tailwindcss(), electron()],
+  resolve: {
+    // Both of the web build's spellings, so a file carried across keeps its imports.
+    alias: { '@': src, '~': src },
+  },
+  plugins: [vue(), tailwindcss(), ...nuxtStyleImports(), electron()],
   server: { port: 5173, strictPort: true },
 })
+
+/**
+ * Nuxt's auto-imports, recreated, so a file migrated from the web build reads
+ * the same here as it did there — Kemolate's components and composables lean
+ * on them everywhere, and adding hundreds of imports by hand would make every
+ * ported file a diff against its original instead of a copy of it.
+ *
+ * - Vue's and VueUse's functions, and everything exported from the top level of
+ *   `composables/` and `utils/`, types included (`DockSide` in a prop type).
+ * - Components by Nuxt's rule: a folder is a prefix, and a prefix the file name
+ *   already starts with is not repeated — `dock/DockColumn.vue` is `DockColumn`,
+ *   `panel/Blocks.vue` is `PanelBlocks`.
+ * - shadcn-vue's components under the web build's `U` prefix — `UButton`,
+ *   `UAccordionItem` — whichever folder of `components/ui` holds them.
+ */
+function nuxtStyleImports () {
+  const uiDir = `${src}/components/ui`
+
+  /**
+   * Every shadcn-vue component by the name its folder's `index.ts` exports it
+   * under — which is what the web build's Nuxt module registers, and is not
+   * always the file's name: `sonner/index.ts` exports `Sonner.vue` as `Toaster`,
+   * so the app writes `<UToaster>`. File names are the fallback, for a folder
+   * whose index does not re-export a component.
+   */
+  const scan = () => new Map(readdirSync(uiDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((dir) => {
+      const folder = `${uiDir}/${dir.name}`
+      const byFile = readdirSync(folder)
+        .filter((file) => file.endsWith('.vue'))
+        .map((file) => [file.slice(0, -4), `${folder}/${file}`] as const)
+      const index = existsSync(`${folder}/index.ts`) ? readFileSync(`${folder}/index.ts`, 'utf8') : ''
+      const byExport = [...index.matchAll(/export \{ default as (\w+) \} from '\.\/(\w+)\.vue'/g)]
+        .map(([, name, file]) => [name!, `${folder}/${file}.vue`] as const)
+      return [...byFile, ...byExport]
+    }))
+
+  // Read again on a miss: the list was taken once, at config load, so a
+  // component added while `pnpm dev` ran (`shadcn-vue add`) stayed unresolved
+  // until a restart — `UMenubar` rendered as an unknown element.
+  let ui = scan()
+  const find = (name: string) => ui.get(name) ?? (ui = scan()).get(name)
+
+  return [
+    AutoImport({
+      imports: ['vue', '@vueuse/core'],
+      dirs: ['./src/composables', './src/utils'],
+      dirsScanOptions: { types: true },
+      vueTemplate: true,
+      dts: './src/auto-imports.d.ts',
+    }),
+    Components({
+      globs: ['src/components/**/*.vue', '!src/components/ui/**'],
+      directoryAsNamespace: true,
+      collapseSamePrefixes: true,
+      resolvers: [(name: string) => {
+        const file = name.startsWith('U') ? find(name.slice(1)) : undefined
+        return file ? { from: file } : undefined
+      }],
+      dts: './src/components.d.ts',
+    }),
+  ]
+}
 
 /** The Electron processes' entries, and the format each has to be in. */
 const ENTRIES = [

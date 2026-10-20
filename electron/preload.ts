@@ -16,8 +16,14 @@ export interface WindowState {
   focused: boolean
 }
 
+export type ThemeSource = 'system' | 'light' | 'dark'
+
 const api = {
   platform: process.platform,
+  theme: {
+    /** The page's colour-scheme choice, for the parts of the window Electron draws itself. */
+    set: (source: ThemeSource) => ipcRenderer.send('theme:set', source),
+  },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
     toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),

@@ -1,0 +1,356 @@
+/*
+ * Kemolate's interface theme — app/assets/css/tailwind.css in the web build,
+ * carried across as it is apart from where two things come from:
+ *
+ * - DM Sans is bundled (@fontsource-variable) rather than pulled from Google.
+ *   A desktop app opens offline, and its CSP allows nothing from elsewhere.
+ * - shadcn-vue's own stylesheet is vendored beside this file — see shadcn.css.
+ */
+@import '@fontsource-variable/dm-sans';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './shadcn.css';
+
+/* The main process holds no classes; scanning it only re-sent this file on every main or preload edit. */
+@source not "../../../electron";
+
+/*
+ * The title bar is the window's caption — a drag region (see `TitleBar.vue`) —
+ * and a control inside a drag region does not receive clicks at all. So every
+ * interactive thing in it is excluded here, once, rather than by each control:
+ * the toolbar is filled by pages that know nothing about windows, and a button
+ * that forgot would simply be dead. `[data-no-drag]` is the way out for anything
+ * clickable that is none of these.
+ */
+.app-titlebar :is(button, a, input, select, textarea, [role='button'], [role='menuitem'], [role='combobox'], [data-no-drag]) {
+  -webkit-app-region: no-drag;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  /*
+   * Mixed from the text colour rather than named outright, so it holds its
+   * weight against whichever background is under it: `--border` is a tenth of
+   * white in the dark theme, which is right for a hairline between two panels
+   * and all but invisible as the one thing you are meant to grab.
+   */
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 22%, transparent);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.841 0.238 128.85);
+  --primary-foreground: oklch(0.405 0.101 131.063);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.897 0.196 126.665);
+  --chart-2: oklch(0.768 0.233 130.85);
+  --chart-3: oklch(0.648 0.2 131.684);
+  --chart-4: oklch(0.532 0.157 131.589);
+  --chart-5: oklch(0.453 0.124 130.933);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.648 0.2 131.684);
+  --sidebar-primary-foreground: oklch(0.986 0.031 120.757);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.768 0.233 130.85);
+  --primary-foreground: oklch(0.405 0.101 131.063);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.897 0.196 126.665);
+  --chart-2: oklch(0.768 0.233 130.85);
+  --chart-3: oklch(0.648 0.2 131.684);
+  --chart-4: oklch(0.532 0.157 131.589);
+  --chart-5: oklch(0.453 0.124 130.933);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.768 0.233 130.85);
+  --sidebar-primary-foreground: oklch(0.274 0.072 132.109);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: 'DM Sans Variable', sans-serif;
+  --font-heading: var(--font-sans);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    @apply font-sans;
+  }
+
+  /*
+   * Every scrollbar, small, with no track behind it.
+   *
+   * On `*` rather than on the root because only one of the two properties
+   * inherits: `scrollbar-color` does, `scrollbar-width` does not — so the root
+   * alone would tint every bar and narrow none of them.
+   *
+   * `thin` is the whole of what the standard properties offer, and it is not
+   * very thin: measured here, a default bar is fifteen pixels and `thin` is
+   * eleven. The pseudo-elements below take an exact width instead, so this rule
+   * is really for Firefox, which has no pseudo-elements to take one from.
+   */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  /*
+   * WebKit and Blink, where a bar can be given a width outright.
+   *
+   * The standard properties are handed back to `auto` first, and that is not
+   * tidying: a non-auto `scrollbar-width` is exactly what turns the
+   * pseudo-elements off, so leaving `thin` set would cost every rule below it.
+   * That is worth knowing because comic-translator sets both, which is why the
+   * geometry it describes — the one being matched here — is not the geometry it
+   * actually renders.
+   *
+   * Six visible pixels, from a ten-pixel bar with two of transparent border
+   * either side and the background clipped to what is left. Drawn that way
+   * rather than simply declared six wide so the thumb has room to sit in
+   * without touching what it is scrolling, which is what stops a thin bar
+   * reading as an edge on the panel rather than a control over it.
+   *
+   * A track is drawn whether or not there is anything to scroll past, so it is
+   * left transparent: these bars sit inside panels a few hundred pixels wide,
+   * and a permanent channel down the edge of one reads as a border that has
+   * gone wrong.
+   */
+  @supports selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: auto;
+      scrollbar-color: auto;
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      background-clip: content-box;
+      border: 2px solid transparent;
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in oklab, var(--foreground) 38%, transparent);
+      background-clip: content-box;
+    }
+  }
+}
+
+/*
+ * Switching color scheme rides a View Transition: the incoming theme is clipped
+ * to a circle opening out of the toggle, drawn over the outgoing one. The
+ * default cross-fade is turned off here — two palettes fading through each
+ * other pass through a washed-out middle — and the geometry is animated from
+ * ColorScheme.vue, the only place the origin of the switch is known.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 0;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
+}
+/*
+ * The inspector's density for `Field`.
+ *
+ * There are two kinds of surface here and they want different type. A form —
+ * a dialog, a popover, the sign-in page — is read: the label and the sentence
+ * under it *are* the content, and shadcn's defaults are right for it. The
+ * docked panels are scanned instead: a narrow column holding a dozen groups
+ * where the controls are what you look at and the labels are markers telling
+ * you which control is which. Set at `text-sm` with the default gaps, that
+ * column becomes twice as tall and reads as a settings page rather than an
+ * inspector.
+ *
+ * So the structure is `Field` everywhere — one implementation of label,
+ * control, description and their alignment — and only the type changes, once,
+ * here. Before this it was twenty-five hand-typed `text-[10px] uppercase`
+ * strings, which is exactly how a third size crept in: `text-[11px]` for a
+ * description in one panel, `text-sm` in another, and nothing to say which was
+ * intended.
+ *
+ * ## Why this is not in a layer
+ *
+ * Tailwind's utilities are a cascade layer, and a later layer beats an earlier
+ * one whatever the specificity — so `@layer components` here would lose to the
+ * `text-sm` that `FieldDescription` sets on itself, however many attribute
+ * selectors this used. Unlayered declarations outrank every layered one, which
+ * is the one place these can sit and win. The same reason the view-transition
+ * rules above are unlayered.
+ */
+[data-slot='field-group'][data-density='panel'] {
+  gap: --spacing(3);
+}
+
+[data-density='panel'] [data-slot='field-set'],
+[data-density='panel'] [data-slot='field-group'] {
+  gap: --spacing(3);
+}
+
+[data-density='panel'] [data-slot='field'] {
+  gap: --spacing(1.5);
+}
+
+/*
+ * `FieldTitle` shares this slot with `FieldLabel`, so both follow.
+ *
+ * `:not([data-density])` is how a row opts out, and it has to exist: these
+ * rules are unlayered so that they beat the components' own utilities, which
+ * also means they beat a `class` written at the call site — the first switch
+ * row to want its label at the ordinary size got ten-pixel caps instead, and no
+ * amount of `text-sm` on the element could say otherwise. Declaring
+ * `data-density="form"` on the label is the way out, and it reads as what it
+ * is rather than as a fight with specificity.
+ */
+[data-density='panel'] [data-slot='field-label']:not([data-density]),
+[data-density='panel'] [data-slot='field-legend']:not([data-density]) {
+  font-size: 10px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  /*
+   * `Label` sets `font-medium` for a form, where a label carries weight
+   * against the field it names. At ten pixels in caps that reads as emphasis
+   * the panels never had, so it goes back to normal — matched against what was
+   * there rather than chosen, because twenty-five labels quietly gaining
+   * weight is not a change anybody asked for.
+   */
+  font-weight: 400;
+}
+
+/* The legend's own margin is for a form's spacing; the group's gap does it here. */
+[data-density='panel'] [data-slot='field-legend'] {
+  margin-bottom: 0;
+}
+
+[data-density='panel'] [data-slot='field-description']:not([data-density]) {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/*
+ * Popovers — the workspace's settings, what Auto runs — at a size between the
+ * panels' and a form's. They are forms, so names keep their case and weight,
+ * but they open over the page from a header button and were set at `text-sm`
+ * throughout: the Auto popover ran half the height of the window. The long
+ * explanations are behind `InfoTip`s now; what is left is names and short
+ * states, and those read at this size.
+ */
+[data-density='popover'] [data-slot='field-group'],
+[data-density='popover'][data-slot='field-group'],
+[data-density='popover'] [data-slot='field-set'] {
+  gap: --spacing(3);
+}
+
+[data-density='popover'] [data-slot='field'] {
+  gap: --spacing(1.5);
+}
+
+[data-density='popover'] [data-slot='field-label']:not([data-density]),
+[data-density='popover'] [data-slot='field-legend']:not([data-density]) {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+[data-density='popover'] [data-slot='field-legend'] {
+  margin-bottom: 0;
+}
+
+[data-density='popover'] [data-slot='field-description']:not([data-density]) {
+  font-size: 12px;
+  line-height: 1.45;
+}
