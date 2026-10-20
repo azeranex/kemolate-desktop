@@ -47,6 +47,7 @@ import PanelBlocks from '~/components/panel/Blocks.vue'
 import PanelDetect from '~/components/panel/Detect.vue'
 import PanelPages from '~/components/panel/Pages.vue'
 import PanelPending from '~/components/panel/Pending.vue'
+import PanelTranslate from '~/components/panel/Translate.vue'
 
 /**
  * A section's body until its panel has been migrated. Each one is replaced by
@@ -66,7 +67,6 @@ const PanelLayers = pending('Layers')
 const PanelLettering = pending('Lettering')
 const PanelText = pending('Text')
 const PanelTransform = pending('Transform')
-const PanelTranslate = pending('Translate')
 
 export type DockSide = 'left' | 'right'
 

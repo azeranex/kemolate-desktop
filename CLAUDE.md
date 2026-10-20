@@ -70,8 +70,11 @@ and a later fix in one can be carried to the other. Keep it that way.
     `pages/w/[workspaceId].vue`
     (opening, restoring, the reading and repairs restore, paging, zoom),
     `server/database/index.ts` (row types only).
-  - Until the desktop key store exists: `useProviderKeys` (refuses aloud; only the Google
-    Vision reader asks).
+  - Until the desktop key store exists: `useProviderKeys` (refuses aloud — the Google Vision
+    reader and the AI translate engines ask; the Google translate engine needs no key).
+  - `panel/Translate.vue` hides "Undo that run" without a server (`shared`): run revisions are
+    kept only server-side, and `revertRun` on a local workspace reverts nothing, silently.
+    That is a web build bug as well, reached there only by local workspaces.
   - Pending UI: `AppMenu.vue`'s composable stand-ins, `usePanelDock`'s `pending()` panels.
 - **Component names follow Nuxt's rule** — `canvas/Engine.vue` is `CanvasEngine`. If a new
   component resolves under a bare name, check `app/components.d.ts`: the plugin drops folder
@@ -118,3 +121,6 @@ not yet a link (the workspace collection has not been migrated).
   (`--remote-debugging-port`); a synthetic drop of `File`s onto the canvas opens a chapter
   through the same path as dropping loose pages.
 - Electron 44 fetches its binary on first run, not at install.
+- The page's CSP is the meta tag in `index.html`. `connect-src` names the two services the
+  renderer talks to directly — `translate.googleapis.com` (the Google engine) and
+  `openrouter.ai` (the AI engines and the model list); a new one has to be added there.

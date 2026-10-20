@@ -1,0 +1,26 @@
+<script setup lang="ts">
+import { reactiveOmit } from '@vueuse/core'
+import { ComboboxTrigger, useForwardProps } from 'reka-ui'
+
+import type { ComboboxTriggerProps } from 'reka-ui'
+import type { HTMLAttributes } from 'vue'
+
+import { cn } from '@/utils/cn'
+
+const props = defineProps<ComboboxTriggerProps & { class?: HTMLAttributes['class'] }>()
+
+const delegatedProps = reactiveOmit(props, 'class')
+
+const forwarded = useForwardProps(delegatedProps)
+</script>
+
+<template>
+  <ComboboxTrigger
+    data-slot="combobox-trigger"
+    v-bind="forwarded"
+    :class="cn('[&_svg:not([class*=size-])]:size-4', props.class)"
+    tabindex="0"
+  >
+    <slot />
+  </ComboboxTrigger>
+</template>
