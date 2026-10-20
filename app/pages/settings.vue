@@ -143,9 +143,17 @@ async function forget (provider: string, label: string) {
 
 const root = useTemplateRef<HTMLElement>('root')
 
-/** Back to the workspace this page was opened over — see `App.vue`, which keeps it. */
+/**
+ * Back to the workspace this page was opened over — see `App.vue`, which keeps
+ * it, and the route, which keeps its id while Settings is up — or to the list
+ * when it was opened from there.
+ */
+const route = useRoute()
+
 function back () {
-  void navigateTo('/')
+  const id = route.params.workspaceId
+
+  void navigateTo(id ? `/w/${encodeURIComponent(id)}` : '/')
 }
 
 /**

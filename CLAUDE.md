@@ -59,7 +59,9 @@ and a later fix in one can be carried to the other. Keep it that way.
   - Cloud-only, permanent: `useShared` (no shared workspace — every caller already steps
     around `null`), `useSwarm`, `useBlockSync`, `useLiveSync` (their exports used on the
     server-row branch only), `utils/strokes.ts` (server stroke
-    calls → "the server would not").
+    calls → "the server would not"), `useUserSession` (nobody is ever signed in).
+  - Nuxt's `<NuxtLink>` is `components/NuxtLink.vue`: an anchor that goes through
+    `navigateTo`.
   - Partial ports at the original path, growing as their dependencies arrive:
     `canvas/Board.vue` (the view — fit, zoom, pan, wheel, keys — the paper and fitting
     watches, and block outlines standing in for `blockChrome`; no grips, numbers, text
@@ -77,7 +79,11 @@ and a later fix in one can be carried to the other. Keep it that way.
     web build's version, Import closed the dialog (reka's `DialogClose` runs its own click
     first), the close cleared the file, and nothing was imported. The web build has the same
     code, so it very likely has the same bug.
-  - `ProjectDrop.vue` is not here: it wraps the collection page, which is not either.
+  - `pages/index.vue`, the list of workspaces: local workspaces only, its server branches
+    never reached, its wording about signing in and "this browser" made true here. A launch
+    lands in the last workspace (`App.vue`); the mark goes to the list. Leaving for the list
+    unmounts the workspace as in the web build, and `useWorkspaceReset` lets go of its
+    state when another is opened; Settings is drawn over the workspace instead.
   - `utils/export/letters.ts` waits for the faces inlined into a lettering plate's SVG before
     drawing it (`facesIn`): `decode()` does not, and the first export of a session came out in
     the fallback face with lines that no longer fitted their balloons clipped away. The web
@@ -107,8 +113,7 @@ From `shared/`: `abilities`, `socials`, and the `auth`, `invite`, `token`, `vaul
 accounts and the server-sealed key vault are cloud concerns. (`roles` came across after all:
 it is pure, and `useOcr` asks `atLeast` on its cloud branch.) Provider keys live in the OS
 credential store instead (`electron/keys.ts`), and Settings is File › Settings… (Ctrl+,)
-rather than the account menu. The header has no account menu, and the mark is not yet a link
-(the workspace collection has not been migrated).
+rather than the account menu. The header has no account menu.
 
 ## Electron
 
@@ -144,6 +149,14 @@ rather than the account menu. The header has no account menu, and the mark is no
   (`--remote-debugging-port`); a synthetic drop of `File`s onto the canvas opens a chapter
   through the same path as dropping loose pages.
 - Electron 44 fetches its binary on first run, not at install.
+- The window opens at 1920 × 1080 (or the work area, if smaller) the first time, and where it
+  was after that — size, place, maximised, full screen — from `window.json` in the profile
+  (`electron/windowState.ts`). Set with `setBounds`, and a read within two pixels of where it
+  was put is taken as that place: either half alone left the window growing a few pixels a
+  launch with the hidden title bar at 125%.
+- A component used in a template but never brought across renders its slot inline rather
+  than failing — the Detect panel's `InfoTip` did, as five lines beside a switch. Check
+  `app/components.d.ts` when a ported panel lays out oddly.
 - The page's CSP is the meta tag in `index.html`. `connect-src` names the two services the
   renderer talks to directly — `translate.googleapis.com` (the Google engine) and
   `openrouter.ai` (the AI engines and the model list); a new one has to be added there.

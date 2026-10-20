@@ -38,3 +38,6 @@ export function settled (_epoch: number, _pageId: string, _rows: number[]) {}
 export function uploadChapterBlocks (): Promise<void> {
   return Promise.resolve()
 }
+
+/** Forget which rows were agreed, on leaving a workspace (`useWorkspaceReset`). Nothing was. */
+export function forgetAgreed () {}

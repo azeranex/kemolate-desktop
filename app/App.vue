@@ -3,13 +3,17 @@
  * The app's root: whichever page the route is at, and what belongs to the app
  * rather than to any page — the toaster, as in the web build's `app.vue`.
  *
- * Three places to be, as `composables/nuxt.ts` describes: a workspace
- * (`/w/<id>`, the web build's `pages/w/[workspaceId].vue`), Settings
- * (`/settings`), and the collection of workspaces (`/`). The collection page has
- * not been migrated, so at `/` the app does what it would have been asked to do
- * there: go back to the workspace that was open, or else open the one used most
- * recently, or make a new one — the web build's "New workspace", which is a
- * fresh id and nothing more until a chapter is opened in it.
+ * Three places to be, as `composables/nuxt.ts` describes: the collection of
+ * workspaces (`/`, the web build's `pages/index.vue`), one workspace (`/w/<id>`,
+ * its `pages/w/[workspaceId].vue`), and Settings (`/settings`).
+ *
+ * ## Where a launch lands
+ *
+ * In the last workspace opened, rather than in the list — a desktop program
+ * comes back to the document you had open, and the list is a press of the mark
+ * away. Only on the way in: `/` afterwards is the list, which is how another
+ * chapter is reached or a new one started. A first launch with nothing to come
+ * back to lands in the list, whose empty state says what to do.
  *
  * ## Settings is drawn over the workspace, not instead of it
  *
@@ -19,31 +23,43 @@
  * what a page load costs anyway. In a window that never reloads it is seconds
  * spent for having looked at a setting. So the workspace page stays mounted,
  * hidden, while Settings is shown, and coming back is just showing it again.
+ * The list is not drawn over it: leaving for the list is leaving the chapter,
+ * as in the web build, and a chapter chosen there is mounted afresh.
  *
  * The workspace page is keyed on its workspace, as the web build's
  * `definePageMeta({ key })` keys it on the route, so moving to *another*
- * workspace still mounts its page afresh.
+ * workspace mounts its page afresh — and `useWorkspaceReset` lets go of the
+ * last one's state.
  */
+import CollectionPage from './pages/index.vue'
 import WorkspacePage from './pages/w/[workspaceId].vue'
 import SettingsPage from './pages/settings.vue'
 
 useHead({ title: 'Kemolate' })
 
 const route = useRoute()
-const { latest, create } = useWorkspaces()
+const { latest } = useWorkspaces()
 
-/** The workspace last shown — kept while Settings is up, so it can stay mounted behind it. */
+/** The workspace on screen, or behind Settings. Null in the list. */
 const workspace = ref<string | null>(null)
 
-watch(() => route.params.workspaceId, (id) => {
+watch(() => [route.path, route.params.workspaceId] as const, ([path, id]) => {
   if (id) workspace.value = id
+  else if (path === '/') workspace.value = null
 }, { immediate: true })
 
-watch(() => route.path, async (path) => {
-  if (path !== '/') return
+/** Whether the app has decided where a launch lands — see the header. */
+const arrived = ref(false)
 
-  await navigateTo(`/w/${workspace.value ?? (await latest()) ?? create()}`)
-}, { immediate: true })
+onMounted(async () => {
+  if (route.path === '/') {
+    const last = await latest().catch(() => null)
+
+    if (last) await navigateTo(`/w/${last}`)
+  }
+
+  arrived.value = true
+})
 
 const settings = computed(() => route.path === '/settings')
 
@@ -56,9 +72,13 @@ const { resolved } = useColorScheme()
 </script>
 
 <template>
-  <WorkspacePage v-if="workspace" v-show="!settings" :key="workspace" />
+  <template v-if="arrived">
+    <WorkspacePage v-if="workspace" v-show="!settings" :key="workspace" />
 
-  <SettingsPage v-if="settings" />
+    <CollectionPage v-else-if="!settings" />
+
+    <SettingsPage v-if="settings" />
+  </template>
 
   <!--
     Mounted once, at the root, because a toast outlives whatever raised it.

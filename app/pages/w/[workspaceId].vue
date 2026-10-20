@@ -39,6 +39,11 @@ import {
 
 import Workspace from '~/layouts/Workspace.vue'
 
+// Walking in from another workspace lets go of the last one's state before any
+// of it can be drawn or written under this one's name — see `useWorkspaceReset`.
+// First, before anything below reads that state.
+useWorkspaceReset()
+
 const { open, pages, title, at, page, selection, epoch, go, zoomAt, resetView } = useComic()
 const { kind, pending, restoring, openFolder, restore, reopen, forget, identify } = useLibrary()
 const { tool } = useTools()

@@ -26,11 +26,9 @@
  * Opened outside Electron — the dev server in a plain browser — there is no
  * `window.kemolate`, and the bar is the web build's header and nothing more.
  *
- * ## Not here (yet)
+ * ## Not here
  *
- * The account menu: the desktop app has no accounts. And the mark is not a link
- * yet — in the web build it went to the collection of workspaces, which has not
- * been migrated.
+ * The account menu: the desktop app has no accounts.
  */
 import type { WindowState } from '../../electron/preload'
 
@@ -69,8 +67,10 @@ onBeforeUnmount(() => unsubscribe?.())
       controls ? 'pr-0' : 'pr-3',
     ]"
   >
-    <!-- The mark. -->
-    <Logo :size="32" class="flex-none" />
+    <!-- The mark, which goes to the list of workspaces — as in the web build. -->
+    <NuxtLink to="/" aria-label="Workspaces" title="Workspaces" class="flex-none">
+      <Logo :size="32" />
+    </NuxtLink>
 
     <!--
       File, Edit and View, beside the mark — where a desktop program keeps its

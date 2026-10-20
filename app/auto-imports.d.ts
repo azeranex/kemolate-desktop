@@ -197,6 +197,7 @@ declare global {
   const createSharedComposable: typeof import('@vueuse/core').createSharedComposable
   const createTemplatePromise: typeof import('@vueuse/core').createTemplatePromise
   const createUnrefFn: typeof import('@vueuse/core').createUnrefFn
+  const createWorkspace: typeof import('./composables/useShared').createWorkspace
   const cropOut: typeof import('./utils/images').cropOut
   const cssTransform: typeof import('../shared/utils/transform').cssTransform
   const customFrom: typeof import('../shared/utils/lettering').customFrom
@@ -243,6 +244,7 @@ declare global {
   const foldCast: typeof import('../shared/utils/cast').foldCast
   const foldTerms: typeof import('../shared/utils/glossary').foldTerms
   const fontStack: typeof import('../shared/utils/fonts').fontStack
+  const forgetAgreed: typeof import('./composables/useBlockSync').forgetAgreed
   const forgetAgreedTranslations: typeof import('./composables/useTranslationSync').forgetAgreedTranslations
   const forgetHistory: typeof import('./utils/history').forgetHistory
   const formatBytes: typeof import('./utils/bytes').formatBytes
@@ -459,6 +461,7 @@ declare global {
   const rememberedHashes: typeof import('./utils/hash').rememberedHashes
   const removeIn: typeof import('./utils/opfs').removeIn
   const renamePatch: typeof import('./composables/useClean').renamePatch
+  const renameWorkspace: typeof import('./composables/useShared').renameWorkspace
   const renditionOf: typeof import('./utils/rendition').renditionOf
   const repairFor: typeof import('../shared/utils/repairs').repairFor
   const repairsAreQuick: typeof import('./utils/ocr/clean').repairsAreQuick
@@ -779,6 +782,7 @@ declare global {
   const useUndoShortcuts: typeof import('./composables/useUndo').useUndoShortcuts
   const useUrlSearchParams: typeof import('@vueuse/core').useUrlSearchParams
   const useUserMedia: typeof import('@vueuse/core').useUserMedia
+  const useUserSession: typeof import('./composables/useUserSession').useUserSession
   const useVModel: typeof import('@vueuse/core').useVModel
   const useVModels: typeof import('@vueuse/core').useVModels
   const useVibrate: typeof import('@vueuse/core').useVibrate
@@ -792,6 +796,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core').useWindowFocus
   const useWindowScroll: typeof import('@vueuse/core').useWindowScroll
   const useWindowSize: typeof import('@vueuse/core').useWindowSize
+  const useWorkspaceReset: typeof import('./composables/useWorkspaceReset').useWorkspaceReset
   const useWorkspaces: typeof import('./composables/useWorkspaces').useWorkspaces
   const validPoints: typeof import('../shared/utils/lettering').validPoints
   const verticalOf: typeof import('../shared/utils/lettering').verticalOf
@@ -1229,6 +1234,7 @@ declare module 'vue' {
     readonly createSharedComposable: UnwrapRef<typeof import('@vueuse/core')['createSharedComposable']>
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
+    readonly createWorkspace: UnwrapRef<typeof import('./composables/useShared')['createWorkspace']>
     readonly cropOut: UnwrapRef<typeof import('./utils/images')['cropOut']>
     readonly cssTransform: UnwrapRef<typeof import('../shared/utils/transform')['cssTransform']>
     readonly customFrom: UnwrapRef<typeof import('../shared/utils/lettering')['customFrom']>
@@ -1275,6 +1281,7 @@ declare module 'vue' {
     readonly foldCast: UnwrapRef<typeof import('../shared/utils/cast')['foldCast']>
     readonly foldTerms: UnwrapRef<typeof import('../shared/utils/glossary')['foldTerms']>
     readonly fontStack: UnwrapRef<typeof import('../shared/utils/fonts')['fontStack']>
+    readonly forgetAgreed: UnwrapRef<typeof import('./composables/useBlockSync')['forgetAgreed']>
     readonly forgetAgreedTranslations: UnwrapRef<typeof import('./composables/useTranslationSync')['forgetAgreedTranslations']>
     readonly forgetHistory: UnwrapRef<typeof import('./utils/history')['forgetHistory']>
     readonly formatBytes: UnwrapRef<typeof import('./utils/bytes')['formatBytes']>
@@ -1491,6 +1498,7 @@ declare module 'vue' {
     readonly rememberedHashes: UnwrapRef<typeof import('./utils/hash')['rememberedHashes']>
     readonly removeIn: UnwrapRef<typeof import('./utils/opfs')['removeIn']>
     readonly renamePatch: UnwrapRef<typeof import('./composables/useClean')['renamePatch']>
+    readonly renameWorkspace: UnwrapRef<typeof import('./composables/useShared')['renameWorkspace']>
     readonly renditionOf: UnwrapRef<typeof import('./utils/rendition')['renditionOf']>
     readonly repairFor: UnwrapRef<typeof import('../shared/utils/repairs')['repairFor']>
     readonly repairsAreQuick: UnwrapRef<typeof import('./utils/ocr/clean')['repairsAreQuick']>
@@ -1809,6 +1817,7 @@ declare module 'vue' {
     readonly useUndoShortcuts: UnwrapRef<typeof import('./composables/useUndo')['useUndoShortcuts']>
     readonly useUrlSearchParams: UnwrapRef<typeof import('@vueuse/core')['useUrlSearchParams']>
     readonly useUserMedia: UnwrapRef<typeof import('@vueuse/core')['useUserMedia']>
+    readonly useUserSession: UnwrapRef<typeof import('./composables/useUserSession')['useUserSession']>
     readonly useVModel: UnwrapRef<typeof import('@vueuse/core')['useVModel']>
     readonly useVModels: UnwrapRef<typeof import('@vueuse/core')['useVModels']>
     readonly useVibrate: UnwrapRef<typeof import('@vueuse/core')['useVibrate']>
@@ -1821,6 +1830,7 @@ declare module 'vue' {
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
+    readonly useWorkspaceReset: UnwrapRef<typeof import('./composables/useWorkspaceReset')['useWorkspaceReset']>
     readonly useWorkspaces: UnwrapRef<typeof import('./composables/useWorkspaces')['useWorkspaces']>
     readonly validPoints: UnwrapRef<typeof import('../shared/utils/lettering')['validPoints']>
     readonly verticalOf: UnwrapRef<typeof import('../shared/utils/lettering')['verticalOf']>

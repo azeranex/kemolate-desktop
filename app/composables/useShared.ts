@@ -73,6 +73,18 @@ export function rowOfPage (rows: RemotePage[], page: ComicPage): RemotePage | un
   return rows.find((row) => row.path === pathOfPage(page))
 }
 
+/**
+ * Rename a workspace on the server, for its owner — the collection page offers
+ * it only on a row with a role, which no workspace here has. Answers as a rename
+ * that was not made.
+ */
+export async function renameWorkspace (_publicId: string, _name: string): Promise<boolean> {
+  return false
+}
+
+/** Make a workspace's row on the server — called only when signed in, which nobody is here. */
+export async function createWorkspace (_publicId: string, _name: string, _targetLocale?: string | null) {}
+
 export function useShared () {
   const shared = useState<SharedWorkspace | null>('shared-workspace', () => null)
   const asking = useState('shared-asking', () => false)
