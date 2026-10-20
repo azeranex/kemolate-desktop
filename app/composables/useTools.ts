@@ -186,57 +186,71 @@ export const REGION_TOOLS = new Set<ToolId>(['translate-region', 'read-region'])
  */
 export const STROKE_TOOLS = new Set<ToolId>([...PAINT_TOOLS, 'mask', ...REGION_TOOLS])
 
-/**
- * Select, because it is the one tool that changes nothing by being out.
- *
- * At module level: what Nuxt's `useState` gave the web build — one value for
- * every component that asks.
- */
-const tool = ref<ToolId>('select')
-
-/*
- * ## Not yet migrated
- *
- * The web build's `useTools` also answers two questions about the page —
- * `painting` and `stroking`, below in comments — and has `setTool` select the
- * mask row when the mask brush is picked. All three read the layer engine
- * (`useComic`: `layers`, `layerSelection`, `inked`), which has not come across
- * yet. They return with it, unchanged; until then a tool is only which one is
- * out, which is everything the rail and the context bar need.
- */
 export function useTools () {
-  /*
-   * (From the web build, waiting on `useComic` — see the note above.)
-   *
-   * `painting`: whether the pointer belongs to the paint canvas right now. Two
-   * conditions, and the second is the layer engine's: a paint tool out, and a
-   * row selected that can actually hold the mark — see `inked`.
-   *
-   *   const painting = computed(() => PAINT_TOOLS.has(tool.value) && Boolean(inked.value))
-   *
-   * `stroking`: whether any tool that draws has the pointer — see `STROKE_TOOLS`.
-   *
-   *   const stroking = computed(() =>
-   *     painting.value || tool.value === 'mask' || REGION_TOOLS.has(tool.value))
-   */
+  /** Select, because it is the one tool that changes nothing by being out. */
+  const tool = useState<ToolId>('tool', () => 'select')
+
+  const { layers, layerSelection, inked } = useComic()
 
   /**
-   * Reaching for a tool.
+   * Whether the pointer belongs to the paint canvas right now.
    *
-   * In the web build, reaching for the mask brush also selects the mask row:
-   * the mask has exactly one row it could ever be painted on, so picking its
-   * brush says which layer you are working on as plainly as clicking the row
-   * would. That half arrives with the layer engine:
+   * Two conditions, and the second is the layer engine's: a paint tool out, and
+   * a row selected that can actually hold the mark — see `inked`, which is
+   * where that question lives. Kept there rather than worked out by the canvas
+   * and again by the board, which is how the two came to disagree — with the
+   * cleaned plate locked, one of them made the blocks pointer-transparent
+   * while the other refused the stroke, and the page took no press at all.
    *
-   *   if (id !== 'mask') return
-   *   const row = inkLayer(layers.value, 'mask')
-   *   if (row) layerSelection.value = row.id
+   * It used to ask only whether the cleaned plate was open, which was the same
+   * question while the cleaned plate was the only thing paint could land on.
+   * With blank layers it stopped being: the brush was armed over a group, and
+   * armed meant painting the repair.
+   */
+  const painting = computed(() => PAINT_TOOLS.has(tool.value) && Boolean(inked.value))
+
+  /**
+   * Whether any tool that draws has the pointer — see `STROKE_TOOLS`.
+   *
+   * Not `STROKE_TOOLS.has(tool)` outright, and that is the whole reason this is
+   * written out: a paint tool only has the pointer once there is a row that
+   * will take the mark, which is `painting`'s question. The mask brush and the
+   * region brushes have no such gate — one paints the mask and the others paint
+   * nothing at all — so having the tool out is the whole of it.
+   */
+  const stroking = computed(() =>
+    painting.value || tool.value === 'mask' || REGION_TOOLS.has(tool.value))
+
+  /**
+   * Reaching for a tool, and — for the mask brush — the layer that goes with
+   * it.
+   *
+   * The mask has exactly one row it could ever be painted on, so reaching for
+   * its brush says which layer you are working on as plainly as clicking the
+   * row would. Selecting it costs nothing and settles the question the panel
+   * would otherwise be answering wrongly: the mask brush works whatever is
+   * highlighted, so without this you corrected the mask while the panel said
+   * you were on Dialogue.
+   *
+   * Deliberately only the mask. A paint tool has as many possible homes as
+   * there are sheets and no way to know which you meant, so it waits to be
+   * told — which is the whole reason the selection gates it.
+   *
+   * The row is selected whether or not it will take the stroke. A locked mask
+   * refuses the brush, and highlighting it is how you find out why rather than
+   * being left with a tool that does nothing for no visible reason.
    */
   function setTool (id: ToolId) {
     tool.value = id
+
+    if (id !== 'mask') return
+
+    const row = inkLayer(layers.value, 'mask')
+
+    if (row) layerSelection.value = row.id
   }
 
-  return { tool, setTool }
+  return { tool, painting, stroking, setTool }
 }
 
 /**

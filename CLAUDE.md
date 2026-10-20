@@ -61,8 +61,12 @@ and a later fix in one can be carried to the other. Keep it that way.
     server-row branch only), `utils/strokes.ts` (server stroke
     calls → "the server would not").
   - Partial ports at the original path, growing as their dependencies arrive:
-    `canvas/Board.vue` (the view — fit, zoom, pan, wheel, keys — and block boxes; no plates,
-    grips or lettering yet, so a cleaned page does not show its repairs),
+    `canvas/Board.vue` (the view — fit, zoom, pan, wheel, keys — the paper and fitting
+    watches, and block outlines standing in for `blockChrome`; no grips, numbers, text
+    editor or tool gestures yet),
+    `canvas/Sheet.vue` (everything that shows — art and repairs, lettering, placed pictures,
+    hit areas — without `CanvasMask`, the mask and region brushes or `CanvasPaint`, so no
+    retouching or sheet is drawn),
     `pages/w/[workspaceId].vue`
     (opening, restoring, the reading and repairs restore, paging, zoom),
     `server/database/index.ts` (row types only).

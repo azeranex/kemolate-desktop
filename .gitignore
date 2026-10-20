@@ -4,3 +4,9 @@ dist-electron/
 out/
 *.log
 .data/
+
+# Anime Ace (Blambot) — the dialogue face. Its licence forbids redistributing
+# the files, so they live on the machine and never in history: drop the
+# Anime Ace 3 BB .otf files into app/assets/fonts/ as animeace3_{reg,bld,ital,bldital}.otf.
+# Without them the dialogue falls back to Shantell Sans. See app/assets/css/fonts.css.
+app/assets/fonts/animeace*

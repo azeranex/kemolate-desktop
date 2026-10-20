@@ -20,13 +20,19 @@
  * - the keys: arrows and Page Up/Down turn, Home/End go to the ends, 0 fits,
  *   +/− zoom.
  *
- * And the blocks: each one's box, outlined in its type's colour while hovered
- * or picked, and a click picks it — the sheet's hit areas and the board's
- * outlines (see `blockLook`), without the grips, numbers or lettering yet.
+ * What is on the page is `CanvasSheet`'s, as in the web build: the plates in
+ * their pile — the art and its repairs (the engine's run), the lettering, placed
+ * pictures — and every block's hit area. The board keeps what the web board
+ * keeps for it: the paper under each block (`usePaper.restock`) and the fitted
+ * sizes (`useLetteringFit.refit`), watched exactly as there.
  *
- * Drawn without the plates: the engine is given no rows over the scan, which is
- * what a page with nothing read or cleaned is. Space or the middle button drags
- * the view, standing in for the board's own drag until the tools come across.
+ * And the blocks' chrome: each one's box outlined in its type's colour while
+ * hovered or picked (see `blockLook`) — standing in for the web board's
+ * `blockChrome` overlay, without its grips or numbers yet. A click picks.
+ *
+ * Space or the middle button drags the view, standing in for the board's own
+ * drag until the tools come across. There is no text editor yet, so the sheet
+ * is never told a block is being typed into.
  */
 import type { Block } from '~/composables/useComic'
 import type { LetterSpace } from '~/utils/letterCss'
@@ -39,8 +45,13 @@ import { sheetInView } from '~/utils/view'
 
 const {
   page, pages, at, zoom, pan, room, eased, go, zoomAt, resetView,
-  selection, select, blockShown, blockPickable, framedBox,
+  selection, select, blockShown, blockPickable, framedBox, styleOf, setDown,
 } = useComic()
+
+const { tool } = useTools()
+
+/** Whether the Text tool is out — the sheet's hit areas take a text cursor. */
+const texting = computed(() => tool.value === 'text')
 
 const dims = computed(() => (page.value ? pageSize(page.value) : { width: 0, height: 0 }))
 
@@ -50,6 +61,52 @@ const unit = computed(() => {
 
   return tall ? pageHeight.value / tall : 0
 })
+
+/* ---------- the lettering's two watches, from the web board ---------- */
+
+const { refit, faces, ready: fitsReady } = useLetteringFit()
+
+const { restock: restockPaper } = usePaper()
+
+/**
+ * Keep the colour under each block current — the web board's watch, as
+ * written. Keyed on the block's *own* box, which the ring is taken around, and
+ * on the scan's URL rather than the page's id; see `usePaper`.
+ */
+watch(
+  () => (page.value?.blocks ?? [])
+    .map((block) => {
+      const box = blockBoxOf(block)
+
+      return [block.id, box.x, box.y, box.w, box.h].join(',')
+    })
+    .join('|') + `@${page.value?.scan?.url}`,
+  () => { restockPaper(page.value) },
+  { immediate: true },
+)
+
+/**
+ * Keep the auto-fitted sizes current — the web board's watch, as written.
+ * Before the render (`flush: 'pre'`), or the first frame of every page is drawn
+ * at a guess and corrected a frame later; `faces` and `fitsReady` are in the key
+ * so a face landing, or kept sizes being read back, fit again. See the web
+ * board for the argument in full.
+ */
+const { standard: letterStandard } = useLetteringStandard()
+const letterTarget = useState('workspace-target', () => 'en')
+
+watch(
+  () => (page.value?.blocks ?? []).map((block) => {
+    const style = styleOf(block)
+    const box = letterBoxOf(block)
+
+    return [block.id, block.translation || block.source, box.w, box.h,
+      style.font, block.type, style.size, style.line, style.spacing, style.bold, style.italic,
+      setDown(block), style.shape, style.points?.join(','), style.anchor].join('|')
+  }).join('\n') + `@${dims.value.width}x${dims.value.height}#${faces.value}:${fitsReady.value}~${letterStandard.value}~${letterTarget.value}`,
+  () => refit(page.value, styleOf, setDown),
+  { immediate: true, flush: 'pre' },
+)
 
 /* ---------- the blocks ---------- */
 
@@ -86,6 +143,11 @@ function blockLook (block: Block) {
 /** A click on a block picks it; Shift or Ctrl/Cmd adds it to what is picked — see `addsToSelection`. */
 function onBlock (id: string, event: MouseEvent) {
   select(id, { add: addsToSelection(event) || event.shiftKey })
+}
+
+function onHover (id: string, over: boolean) {
+  if (over) hovered.value = id
+  else if (hovered.value === id) hovered.value = null
 }
 
 const viewport = useTemplateRef<HTMLElement>('viewport')
@@ -313,22 +375,25 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
         class="relative flex-none select-none"
         :style="{ height: `${pageHeight}px`, width: `${pageHeight * ratio}px` }"
       >
-        <CanvasPageArt :page="page" :view="viewOf" :rows="[]" :stand-in="true" />
+        <CanvasSheet
+          :page="page"
+          :unit="unit"
+          :view="viewOf"
+          :editing="null"
+          :gripped="false"
+          :texting="texting"
+          @pick="onBlock"
+          @hover="onHover"
+        />
 
-        <button
-          v-for="(block, index) in page.blocks"
+        <!-- The chrome: outlines only, so the sheet's hit areas take every press. -->
+        <div
+          v-for="block in page.blocks"
           v-show="blockShown(block)"
-          :key="block.id"
-          type="button"
-          :data-block="block.id"
-          class="absolute rounded-[2px] border-[1.5px] transition-opacity"
-          :class="[BLOCK_TONE[block.type], !blockPickable(block) && 'pointer-events-none']"
+          :key="`chrome-${block.id}`"
+          class="pointer-events-none absolute rounded-[2px] border-[1.5px] transition-opacity"
+          :class="BLOCK_TONE[block.type]"
           :style="blockLook(block)"
-          :aria-label="`Block ${index + 1}, ${block.type}`"
-          :aria-pressed="selection.includes(block.id)"
-          @pointerenter="hovered = block.id"
-          @pointerleave="hovered === block.id && (hovered = null)"
-          @click="onBlock(block.id, $event)"
         />
       </div>
     </div>

@@ -1,0 +1,121 @@
+/*
+ * The faces a page is lettered in — see `shared/utils/fonts`, which is the list
+ * these declarations exist to satisfy.
+ *
+ * Every one of them is bundled rather than fetched. That is the same rule the
+ * scans follow: a chapter is lettered in the reader's own browser, and a face
+ * that arrived over the network would make the page look one way online and
+ * another way off it — and would put a round trip in front of the first frame
+ * of type, which is exactly when a wrong measurement gets written down (see
+ * `useLetteringFit`, which re-measures once the faces have actually landed).
+ *
+ * It is a separate stylesheet from `tailwind.css` because these are the
+ * *page's* faces, not the interface's. The interface's is DM Sans, which
+ * `tailwind.css` still pulls from Google — a different decision about a
+ * different thing, and one this file deliberately leaves alone.
+ */
+
+/* Latin-only faces both, which is why the stacks in `shared/utils/fonts` never
+   name one on its own: a translation can easily hold a character neither has a
+   glyph for, and a missing glyph should fall through to another comic face
+   rather than to whatever the browser calls serif. */
+@import '@fontsource-variable/shantell-sans';
+@import '@fontsource-variable/caveat';
+@import '@fontsource/bangers';
+@import '@fontsource/luckiest-guy';
+@import '@fontsource/permanent-marker';
+
+/* Comic Neue ships one file per cut rather than a variable axis, so the bold
+   and the italic have to be asked for by name — without these the browser
+   slants and smears the regular instead of using the drawn ones. */
+@import '@fontsource/comic-neue/400.css';
+@import '@fontsource/comic-neue/700.css';
+@import '@fontsource/comic-neue/400-italic.css';
+@import '@fontsource/comic-neue/700-italic.css';
+
+/*
+ * The two that came from files rather than from npm.
+ *
+ * Anime Ace 3 is the dialogue face — what a translated balloon is set in unless
+ * somebody says otherwise. Outrun Future is the display face behind Retro FX.
+ *
+ * Anime Ace 3 rather than the 2.0 it replaced, for its bold. 2.0 shipped three
+ * files, and the one labelled Bold — upright, by its own metadata — is drawn
+ * leaning, so a line set bold came out italic with no way to have it straight.
+ * 3 has all four cuts, each drawn as it says. It is called "Anime Ace 3" here
+ * rather than taking the old name over, because fitted sizes are remembered by
+ * the font stack (`useLetteringFit`): under the old name every balloon would
+ * have reused a size measured in the old, differently-proportioned letters.
+ * Blambot's terms travel with the files — see the licence note in the font's
+ * download, which does not allow redistributing them.
+ *
+ * Drawn at 120% (`size-adjust`). Anime Ace 3's letters are smaller for their
+ * size than 2.0's — measured at the same size, capitals a fifth shorter and a
+ * line about a sixth narrower — and most lines in a lettered chapter have a
+ * size typed in, which would all have come out a fifth smaller overnight. At
+ * 120% a line is as long as it was, so it breaks where it did, with capitals
+ * about 5% shorter. The size a reader sees in the panel is unchanged; only what
+ * it draws is. Changing this changes every face's measurements, so the kept
+ * fits have to go with it — see `FITS_VERSION` in `useLetteringFit`.
+ * Paths are relative rather than aliased: Vite resolves both, and a relative
+ * one cannot be broken by a change to the alias table.
+ */
+@font-face {
+  font-family: 'Anime Ace 3';
+  src: url('../fonts/animeace3_reg.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  size-adjust: 120%;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anime Ace 3';
+  src: url('../fonts/animeace3_bld.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  size-adjust: 120%;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anime Ace 3';
+  src: url('../fonts/animeace3_ital.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  size-adjust: 120%;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anime Ace 3';
+  src: url('../fonts/animeace3_bldital.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  size-adjust: 120%;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Outrun Future';
+  src: url('../fonts/outrun_future.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Outrun Future';
+  src: url('../fonts/outrun_future_bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Outrun Future';
+  src: url('../fonts/outrun_future_bold_italic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}

@@ -641,6 +641,7 @@ declare global {
   const usePaintCache: typeof import('./composables/usePaintCache').usePaintCache
   const usePanelDock: typeof import('./composables/usePanelDock').usePanelDock
   const usePanelLayoutStorage: typeof import('./composables/usePanelDock').usePanelLayoutStorage
+  const usePaper: typeof import('./composables/usePaper').usePaper
   const useParallax: typeof import('@vueuse/core').useParallax
   const useParentElement: typeof import('@vueuse/core').useParentElement
   const usePatchMap: typeof import('./composables/useClean').usePatchMap
@@ -1569,6 +1570,7 @@ declare module 'vue' {
     readonly usePaintCache: UnwrapRef<typeof import('./composables/usePaintCache')['usePaintCache']>
     readonly usePanelDock: UnwrapRef<typeof import('./composables/usePanelDock')['usePanelDock']>
     readonly usePanelLayoutStorage: UnwrapRef<typeof import('./composables/usePanelDock')['usePanelLayoutStorage']>
+    readonly usePaper: UnwrapRef<typeof import('./composables/usePaper')['usePaper']>
     readonly useParallax: UnwrapRef<typeof import('@vueuse/core')['useParallax']>
     readonly useParentElement: UnwrapRef<typeof import('@vueuse/core')['useParentElement']>
     readonly usePatchMap: UnwrapRef<typeof import('./composables/useClean')['usePatchMap']>

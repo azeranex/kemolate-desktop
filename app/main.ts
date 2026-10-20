@@ -6,6 +6,9 @@ import App from './App.vue'
 // in the web build's nuxt.config, so the theme's rules win where they meet.
 import 'vue-sonner/style.css'
 import './assets/css/tailwind.css'
+// The page's own faces, after the interface's — as in the web build's
+// nuxt.config; see the header of `fonts.css`.
+import './assets/css/fonts.css'
 
 // Light or dark is `useColorScheme`'s, set during the app's own setup — before
 // the first paint, since its choice is read synchronously from local storage.
