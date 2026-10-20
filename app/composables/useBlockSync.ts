@@ -13,6 +13,9 @@
  *   it is not sent back. Nothing to note.
  * - `rewriting` — hold a page's rows while a whole-page write is out. Never
  *   called without a row; answers as a write that changed nothing.
+ * - `uploadChapterBlocks` — give every row-less block a row, for a chapter
+ *   becoming a cloud workspace or an import into one. Called only under a
+ *   shared workspace; there are no rows to give.
  */
 import type { ComicPage } from '~/composables/useComic'
 
@@ -31,3 +34,7 @@ export function rewriting (_epoch: number, _here: ComicPage) {
  * not read them as new. Tracks server rows, and a local page has none.
  */
 export function settled (_epoch: number, _pageId: string, _rows: number[]) {}
+
+export function uploadChapterBlocks (): Promise<void> {
+  return Promise.resolve()
+}

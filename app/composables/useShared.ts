@@ -81,6 +81,9 @@ export function useShared () {
     shared,
     asking,
     push: async (_list?: ComicPage[]) => {},
+    // Tell the server what the chapter is made of — editors of a shared
+    // workspace only; returns at once without one, as the web build's does.
+    syncPages: async () => {},
     pageRowOf: (_target: ComicPage): number | null => null,
     forgetPage: (_rowId: number) => {},
     setTarget: async (_locale: string) => {},

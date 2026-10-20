@@ -41,34 +41,26 @@ import {
 
 const { pages, selection, selectAll, removeBlock, zoomAt, resetView } = useComic()
 const { openFolder, openFiles } = useLibrary()
+const { busy: packing, save } = useProjectFile()
 const { undo, redo, canUndo, canRedo } = useUndo()
 
 /*
  * ## Stand-ins, until what the rest of the menus drive is migrated
  *
- * In the web build these come from `useProjectFile`, `useLayerPresets`,
- * `usePageExport` and `useBalloonDebug`, which have not come across yet. Each
- * line below stands in for one of them, shaped so the template — the web
- * build's — reads it truthfully: no project being packed, nothing to export, no
- * presets this reader may write. So every item that needs one is disabled by
- * its own condition. Open project has no condition — it is how a chapter gets
- * open — so it says, when pressed, that it has not arrived, rather than doing
- * nothing. As each composable lands, its stand-in goes and its line comes back:
+ * In the web build these come from `useLayerPresets`, `usePageExport` and
+ * `useBalloonDebug`, which have not come across yet. Each line below stands in
+ * for one of them, shaped so the template — the web build's — reads it
+ * truthfully: nothing to export, no presets this reader may write. So every item
+ * that needs one is disabled by its own condition. As each composable lands, its
+ * stand-in goes and its line comes back:
  *
- *   const { busy: packing, save } = useProjectFile()
  *   const { presets, active, apply, writable } = useLayerPresets()
  *   const { last, recall, run, running } = usePageExport()
  *   const { on: balloonDebug } = useBalloonDebug()
  *
- * and with them the `<ProjectImport>` and `<ExportDialog>` at the foot of the
- * template, and the watch on the route that recalls this workspace's last export.
+ * and with them the `<ExportDialog>` at the foot of the template, and the watch
+ * on the route that recalls this workspace's last export.
  */
-function notYet (what: string) {
-  return () => { toast.info(`${what} has not been migrated to the desktop app yet.`) }
-}
-
-const packing = ref(false)
-const save = () => {}
 // The four presets by their real ids and names (`LAYER_PRESETS`), greyed as for
 // a reader who may not write them.
 const presets = [
@@ -85,7 +77,7 @@ const run = (_options: unknown) => {}
 const running = ref(false)
 const balloonDebug = ref(false)
 
-const importer = ref<{ choose: () => void } | null>({ choose: notYet('Opening a project') })
+const importer = ref<{ choose: () => void } | null>(null)
 const exporting = ref(false)
 
 /** ⌘ where it is ⌘, Ctrl elsewhere — as the bindings themselves decide. */
@@ -233,5 +225,6 @@ function deleteSelection () {
     </UMenubarMenu>
   </UMenubar>
 
-  <!-- `<ProjectImport ref="importer" />` and `<ExportDialog v-model:open="exporting" />` return with their composables. -->
+  <ProjectImport ref="importer" />
+  <!-- `<ExportDialog v-model:open="exporting" />` returns with `usePageExport`. -->
 </template>

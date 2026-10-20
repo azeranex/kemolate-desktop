@@ -69,7 +69,15 @@ and a later fix in one can be carried to the other. Keep it that way.
     retouching or sheet is drawn),
     `pages/w/[workspaceId].vue`
     (opening, restoring, the reading and repairs restore, paging, zoom),
-    `server/database/index.ts` (row types only).
+    `server/database/index.ts` (row types only),
+    `composables/useLayerSync.ts` (the helpers others import — `useLayerClaims`, `stackOf`,
+    `serverStacks` — without `useLayerSync()` itself; a local workspace's stacks are
+    `useLayerCache`'s).
+  - `ProjectImport.vue` keeps the dialog's openness apart from the file it asks about. In the
+    web build's version, Import closed the dialog (reka's `DialogClose` runs its own click
+    first), the close cleared the file, and nothing was imported. The web build has the same
+    code, so it very likely has the same bug.
+  - `ProjectDrop.vue` is not here: it wraps the collection page, which is not either.
   - `useProviderKeys` is the web build's with the passcode vault taken out: keys are kept by
     the OS (`electron/keys.ts`), so nothing is ever locked. `pages/settings.vue` is the web
     page's key section alone (no passcode, no access tokens), drawn *over* the open

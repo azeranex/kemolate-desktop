@@ -215,6 +215,7 @@ declare global {
   const detectorBackend: typeof import('./utils/ocr/detector').detectorBackend
   const detectorBytes: typeof import('./utils/ocr/detectors').detectorBytes
   const distorted: typeof import('../shared/utils/transform').distorted
+  const download: typeof import('./utils/download').download
   const dropHistory: typeof import('./utils/history').dropHistory
   const dropLayer: typeof import('../shared/utils/layers').dropLayer
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
@@ -300,6 +301,7 @@ declare global {
   const keepCastLocally: typeof import('./composables/useCast').keepCastLocally
   const keepChapterLocally: typeof import('./composables/useBlockCache').keepChapterLocally
   const keepGlossaryLocally: typeof import('./composables/useGlossary').keepGlossaryLocally
+  const keepLayersLocally: typeof import('./composables/useLayerCache').keepLayersLocally
   const keepPlaced: typeof import('./utils/placed').keepPlaced
   const labEndpoint: typeof import('./utils/ocr/lab').labEndpoint
   const layerEditable: typeof import('../shared/utils/layers').layerEditable
@@ -472,6 +474,7 @@ declare global {
   const roomsFor: typeof import('./utils/ocr/rooms').roomsFor
   const rowOf: typeof import('./utils/ocr/blocks').rowOf
   const rowOfPage: typeof import('./composables/useShared').rowOfPage
+  const safeName: typeof import('./utils/zip').safeName
   const saveRun: typeof import('./composables/useTranslationSync').saveRun
   const scaled: typeof import('../shared/utils/transform').scaled
   const scriptForLang: typeof import('../shared/utils/lang').scriptForLang
@@ -486,6 +489,7 @@ declare global {
   const serverCast: typeof import('./composables/useCast').serverCast
   const serverGlossaries: typeof import('./composables/useGlossary').serverGlossaries
   const serverGlossary: typeof import('./composables/useGlossary').serverGlossary
+  const serverStacks: typeof import('./composables/useLayerSync').serverStacks
   const sessionFor: typeof import('./utils/ocr/onnx').sessionFor
   const settled: typeof import('./composables/useBlockSync').settled
   const shallowReactive: typeof import('vue').shallowReactive
@@ -510,6 +514,7 @@ declare global {
   const snapped: typeof import('../shared/utils/transform').snapped
   const speechLike: typeof import('../shared/utils/ocr').speechLike
   const squeezed: typeof import('../shared/utils/lettering').squeezed
+  const stackOf: typeof import('./composables/useLayerSync').stackOf
   const standardApplies: typeof import('../shared/utils/lettering').standardApplies
   const standardUids: typeof import('../shared/utils/layers').standardUids
   const standingPrompt: typeof import('../shared/utils/prompt').standingPrompt
@@ -562,6 +567,8 @@ declare global {
   const unref: typeof import('vue').unref
   const unrefElement: typeof import('@vueuse/core').unrefElement
   const until: typeof import('@vueuse/core').until
+  const unzip: typeof import('./utils/zip').unzip
+  const uploadChapterBlocks: typeof import('./composables/useBlockSync').uploadChapterBlocks
   const uploadChapterTranslations: typeof import('./composables/useTranslationSync').uploadChapterTranslations
   const uprightRegion: typeof import('./utils/ocr/deskew').uprightRegion
   const useActiveElement: typeof import('@vueuse/core').useActiveElement
@@ -655,6 +662,9 @@ declare global {
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
+  const useLayerCache: typeof import('./composables/useLayerCache').useLayerCache
+  const useLayerClaims: typeof import('./composables/useLayerSync').useLayerClaims
+  const useLayerRows: typeof import('./composables/useLayerSync').useLayerRows
   const useLetteringFit: typeof import('./composables/useLetteringFit').useLetteringFit
   const useLetteringStandard: typeof import('./composables/useLetteringStandard').useLetteringStandard
   const useLibrary: typeof import('./composables/useLibrary').useLibrary
@@ -707,6 +717,7 @@ declare global {
   const usePreferredReducedMotion: typeof import('@vueuse/core').usePreferredReducedMotion
   const usePreferredReducedTransparency: typeof import('@vueuse/core').usePreferredReducedTransparency
   const usePrevious: typeof import('@vueuse/core').usePrevious
+  const useProjectFile: typeof import('./composables/useProjectFile').useProjectFile
   const useProviderKeys: typeof import('./composables/useProviderKeys').useProviderKeys
   const useRafFn: typeof import('@vueuse/core').useRafFn
   const useReadingDirection: typeof import('./composables/useReadingDirection').useReadingDirection
@@ -806,6 +817,7 @@ declare global {
   const writeModel: typeof import('./utils/ocr/store').writeModel
   const writePatch: typeof import('./utils/ocr/patches').writePatch
   const writePlaced: typeof import('./utils/placed').writePlaced
+  const zip: typeof import('./utils/zip').zip
 }
 // for type re-export
 declare global {
@@ -917,6 +929,9 @@ declare global {
   // @ts-ignore
   export type { BoardView } from './utils/view'
   import('./utils/view')
+  // @ts-ignore
+  export type { ZipEntry } from './utils/zip'
+  import('./utils/zip')
   // @ts-ignore
   export type { Room, Balloon } from './utils/ocr/balloon'
   import('./utils/ocr/balloon')
@@ -1227,6 +1242,7 @@ declare module 'vue' {
     readonly detectorBackend: UnwrapRef<typeof import('./utils/ocr/detector')['detectorBackend']>
     readonly detectorBytes: UnwrapRef<typeof import('./utils/ocr/detectors')['detectorBytes']>
     readonly distorted: UnwrapRef<typeof import('../shared/utils/transform')['distorted']>
+    readonly download: UnwrapRef<typeof import('./utils/download')['download']>
     readonly dropHistory: UnwrapRef<typeof import('./utils/history')['dropHistory']>
     readonly dropLayer: UnwrapRef<typeof import('../shared/utils/layers')['dropLayer']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
@@ -1312,6 +1328,7 @@ declare module 'vue' {
     readonly keepCastLocally: UnwrapRef<typeof import('./composables/useCast')['keepCastLocally']>
     readonly keepChapterLocally: UnwrapRef<typeof import('./composables/useBlockCache')['keepChapterLocally']>
     readonly keepGlossaryLocally: UnwrapRef<typeof import('./composables/useGlossary')['keepGlossaryLocally']>
+    readonly keepLayersLocally: UnwrapRef<typeof import('./composables/useLayerCache')['keepLayersLocally']>
     readonly keepPlaced: UnwrapRef<typeof import('./utils/placed')['keepPlaced']>
     readonly labEndpoint: UnwrapRef<typeof import('./utils/ocr/lab')['labEndpoint']>
     readonly layerEditable: UnwrapRef<typeof import('../shared/utils/layers')['layerEditable']>
@@ -1484,6 +1501,7 @@ declare module 'vue' {
     readonly roomsFor: UnwrapRef<typeof import('./utils/ocr/rooms')['roomsFor']>
     readonly rowOf: UnwrapRef<typeof import('./utils/ocr/blocks')['rowOf']>
     readonly rowOfPage: UnwrapRef<typeof import('./composables/useShared')['rowOfPage']>
+    readonly safeName: UnwrapRef<typeof import('./utils/zip')['safeName']>
     readonly saveRun: UnwrapRef<typeof import('./composables/useTranslationSync')['saveRun']>
     readonly scaled: UnwrapRef<typeof import('../shared/utils/transform')['scaled']>
     readonly scriptForLang: UnwrapRef<typeof import('../shared/utils/lang')['scriptForLang']>
@@ -1498,6 +1516,7 @@ declare module 'vue' {
     readonly serverCast: UnwrapRef<typeof import('./composables/useCast')['serverCast']>
     readonly serverGlossaries: UnwrapRef<typeof import('./composables/useGlossary')['serverGlossaries']>
     readonly serverGlossary: UnwrapRef<typeof import('./composables/useGlossary')['serverGlossary']>
+    readonly serverStacks: UnwrapRef<typeof import('./composables/useLayerSync')['serverStacks']>
     readonly sessionFor: UnwrapRef<typeof import('./utils/ocr/onnx')['sessionFor']>
     readonly settled: UnwrapRef<typeof import('./composables/useBlockSync')['settled']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
@@ -1522,6 +1541,7 @@ declare module 'vue' {
     readonly snapped: UnwrapRef<typeof import('../shared/utils/transform')['snapped']>
     readonly speechLike: UnwrapRef<typeof import('../shared/utils/ocr')['speechLike']>
     readonly squeezed: UnwrapRef<typeof import('../shared/utils/lettering')['squeezed']>
+    readonly stackOf: UnwrapRef<typeof import('./composables/useLayerSync')['stackOf']>
     readonly standardApplies: UnwrapRef<typeof import('../shared/utils/lettering')['standardApplies']>
     readonly standardUids: UnwrapRef<typeof import('../shared/utils/layers')['standardUids']>
     readonly standingPrompt: UnwrapRef<typeof import('../shared/utils/prompt')['standingPrompt']>
@@ -1574,6 +1594,8 @@ declare module 'vue' {
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
+    readonly unzip: UnwrapRef<typeof import('./utils/zip')['unzip']>
+    readonly uploadChapterBlocks: UnwrapRef<typeof import('./composables/useBlockSync')['uploadChapterBlocks']>
     readonly uploadChapterTranslations: UnwrapRef<typeof import('./composables/useTranslationSync')['uploadChapterTranslations']>
     readonly uprightRegion: UnwrapRef<typeof import('./utils/ocr/deskew')['uprightRegion']>
     readonly useActiveElement: UnwrapRef<typeof import('@vueuse/core')['useActiveElement']>
@@ -1667,6 +1689,9 @@ declare module 'vue' {
     readonly useIntervalFn: UnwrapRef<typeof import('@vueuse/core')['useIntervalFn']>
     readonly useKeyModifier: UnwrapRef<typeof import('@vueuse/core')['useKeyModifier']>
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
+    readonly useLayerCache: UnwrapRef<typeof import('./composables/useLayerCache')['useLayerCache']>
+    readonly useLayerClaims: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerClaims']>
+    readonly useLayerRows: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerRows']>
     readonly useLetteringFit: UnwrapRef<typeof import('./composables/useLetteringFit')['useLetteringFit']>
     readonly useLetteringStandard: UnwrapRef<typeof import('./composables/useLetteringStandard')['useLetteringStandard']>
     readonly useLibrary: UnwrapRef<typeof import('./composables/useLibrary')['useLibrary']>
@@ -1718,6 +1743,7 @@ declare module 'vue' {
     readonly usePreferredReducedMotion: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedMotion']>
     readonly usePreferredReducedTransparency: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedTransparency']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
+    readonly useProjectFile: UnwrapRef<typeof import('./composables/useProjectFile')['useProjectFile']>
     readonly useProviderKeys: UnwrapRef<typeof import('./composables/useProviderKeys')['useProviderKeys']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useReadingDirection: UnwrapRef<typeof import('./composables/useReadingDirection')['useReadingDirection']>
@@ -1815,5 +1841,6 @@ declare module 'vue' {
     readonly writeModel: UnwrapRef<typeof import('./utils/ocr/store')['writeModel']>
     readonly writePatch: UnwrapRef<typeof import('./utils/ocr/patches')['writePatch']>
     readonly writePlaced: UnwrapRef<typeof import('./utils/placed')['writePlaced']>
+    readonly zip: UnwrapRef<typeof import('./utils/zip')['zip']>
   }
 }

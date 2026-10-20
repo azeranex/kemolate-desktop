@@ -11,13 +11,14 @@
  * was last on (`usePagePosition`); the pager and the page picker; the zoom in
  * the status bar; and the page's name and size.
  *
- * And what has been done to it coming back: the reading and the repairs, by
- * the web build's `restoreChain` (below).
+ * And what has been done to it coming back: the reading, the layer stacks and
+ * the repairs, by the web build's `restoreChain` (below); the target language,
+ * reading direction, AI ledger, glossary and cast; and a project file handed
+ * over to be opened here.
  *
- * Not here yet, each arriving with what it drives: the layer, glossary and
- * cast restores, and the wait that keeps a page hidden until its cleaning is
- * ready (`composing`);
- * the auto run and the AI cost tally; workspace settings. And never, because
+ * Not here yet, each arriving with what it drives: the wait that keeps a page
+ * hidden until its cleaning is ready (`composing`); the auto run and the AI
+ * cost tally in the status bar; workspace settings. And never, because
  * the desktop app has no cloud: signing in, the swarm, sharing and moving to
  * the cloud, and the live syncs.
  *
@@ -43,8 +44,16 @@ const { kind, pending, restoring, openFolder, restore, reopen, forget, identify 
 const { tool } = useTools()
 const { restore: restoreBlocks } = useOcr()
 const { restore: restoreCached } = useBlockCache()
+const { restore: restoreLayers } = useLayerCache()
 const { restore: restorePatches, settings: cleanSettings, showKept } = useClean()
+const { restore: restorePlaced, asked: placedAsked } = usePlacedImages()
+const { restore: restoreTarget, target } = useTargetLanguage()
+const { restore: restoreDirection } = useReadingDirection()
+const { load: loadGlossary } = useGlossary()
+const { load: loadCast } = useCast()
+const { restore: restoreUsage } = useAiUsage()
 const { restore: restorePosition, placing } = usePagePosition()
+const { claim: claimProject } = useProjectFile()
 
 const label = computed(() => TOOLS.find((t) => t.id === tool.value)?.label ?? 'Select')
 
@@ -58,15 +67,42 @@ useUndoShortcuts()
 // before they look for a button — see `useDeleteShortcut`.
 useDeleteShortcut()
 
-onMounted(() => restore().then(() => restorePosition()))
+/*
+ * The way in — the web build's gather, with the halves a local workspace has:
+ * what was open, and beside it this machine's last target language, reading
+ * direction and AI ledger, none of which waits on the pages. Then back to the
+ * page this window was on, and last of all a project file handed over to be
+ * opened here (`useProjectFile.claim`) — after the restore, which is what
+ * lowers `restoring`; see the web build.
+ */
+onMounted(() => Promise.all([restore(), restoreTarget(), restoreDirection(), restoreUsage()])
+  .then(() => restorePosition())
+  .then(() => claimProject()))
+
+/*
+ * The chapter's glossary, which goes out with every page put through the model,
+ * and its cast — read here rather than by the panels that draw them, because a
+ * run reads both and those panels may never have been opened. The glossary on
+ * the target language too: its target half is written in one. See the web
+ * build, where both also wait on the workspace's standing; a local workspace has
+ * nothing to wait on.
+ */
+watch(target, () => { loadGlossary() }, { immediate: true })
+loadCast()
+
+/*
+ * The bytes behind the pictures a stack refers to — see `usePlacedImages`, and
+ * the web build for why it is watched here rather than chained.
+ */
+watch(placedAsked, () => { restorePlaced() }, { immediate: true })
 
 /*
  * What has been done to the chapter comes back after the chapter does — the web
  * build's `restoreChain`, with the steps a local workspace has: the reading
  * (`useOcr.restore`, which is the server's copy and returns at once without
  * one, then this machine's own, `useBlockCache.restore`), and the repairs
- * (`useClean.restore`). The web build's page-list sync, swarm announce and
- * layer restore are not here yet or not at all — see the header.
+ * (`useClean.restore`), with the layer stacks between them. The web build's
+ * page-list sync and swarm announce are not here at all — see the header.
  *
  * One chain at a time; a trigger that lands mid-run asks for one more pass
  * rather than a second chain racing the first.
@@ -98,6 +134,10 @@ async function restoreChain () {
 
   await restoreBlocks()
   await restoreCached()
+
+  // A local workspace's layer stacks, which nothing else keeps — see
+  // `useLayerCache`.
+  await restoreLayers()
 
   read.value = pass
 
