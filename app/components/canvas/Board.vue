@@ -20,19 +20,73 @@
  * - the keys: arrows and Page Up/Down turn, Home/End go to the ends, 0 fits,
  *   +/− zoom.
  *
+ * And the blocks: each one's box, outlined in its type's colour while hovered
+ * or picked, and a click picks it — the sheet's hit areas and the board's
+ * outlines (see `blockLook`), without the grips, numbers or lettering yet.
+ *
  * Drawn without the plates: the engine is given no rows over the scan, which is
  * what a page with nothing read or cleaned is. Space or the middle button drags
  * the view, standing in for the board's own drag until the tools come across.
  */
+import type { Block } from '~/composables/useComic'
+import type { LetterSpace } from '~/utils/letterCss'
 import type { BoardView } from '~/utils/view'
 import type { ScanView } from '~/utils/raster/plan'
 
+import { boxPlaced } from '~/utils/letterCss'
 import { fittedHeight } from '~/utils/raster/plan'
 import { sheetInView } from '~/utils/view'
 
-const { page, pages, at, zoom, pan, room, eased, go, zoomAt, resetView } = useComic()
+const {
+  page, pages, at, zoom, pan, room, eased, go, zoomAt, resetView,
+  selection, select, blockShown, blockPickable, framedBox,
+} = useComic()
 
 const dims = computed(() => (page.value ? pageSize(page.value) : { width: 0, height: 0 }))
+
+/** What one scan pixel is worth on the sheet as laid out — the board's `unit`. */
+const unit = computed(() => {
+  const tall = dims.value.height
+
+  return tall ? pageHeight.value / tall : 0
+})
+
+/* ---------- the blocks ---------- */
+
+/**
+ * The page as the sheet lays boxes out on it — `CanvasSheet`'s `space` — so a
+ * block's box is placed by `boxPlaced`, turned and bent with it, exactly where
+ * the web build's hit area sits.
+ */
+const space = computed<LetterSpace>(() => ({ page: dims.value, unit: unit.value }))
+
+const hovered = ref<string | null>(null)
+
+/**
+ * A block's box: the sheet's hit area and, while it is hovered or picked, the
+ * board's outline (`blockChrome`) in the block's type colour (`BLOCK_TONE`) —
+ * drawn here as the hit area's own border rather than as a separate overlay,
+ * which is the same outline wherever the box is a turned or bent rectangle,
+ * since `boxPlaced` applies the same transform to both.
+ */
+function blockLook (block: Block) {
+  const picked = selection.value.includes(block.id)
+  const hover = hovered.value === block.id
+  const dim = (blockPickable(block) ? 1 : 0.25) * (block.hidden ? 0.4 : 1)
+
+  return {
+    ...boxPlaced(framedBox(block), space.value),
+    zIndex: CHROME_Z,
+    opacity: picked || hover ? dim : 0,
+    borderStyle: block.hidden ? 'dashed' : 'solid',
+    backgroundColor: `color-mix(in oklab, currentColor ${picked ? 10 : 5}%, transparent)`,
+  }
+}
+
+/** A click on a block picks it; Shift or Ctrl/Cmd adds it to what is picked — see `addsToSelection`. */
+function onBlock (id: string, event: MouseEvent) {
+  select(id, { add: addsToSelection(event) || event.shiftKey })
+}
 
 const viewport = useTemplateRef<HTMLElement>('viewport')
 
@@ -260,6 +314,22 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
         :style="{ height: `${pageHeight}px`, width: `${pageHeight * ratio}px` }"
       >
         <CanvasPageArt :page="page" :view="viewOf" :rows="[]" :stand-in="true" />
+
+        <button
+          v-for="(block, index) in page.blocks"
+          v-show="blockShown(block)"
+          :key="block.id"
+          type="button"
+          :data-block="block.id"
+          class="absolute rounded-[2px] border-[1.5px] transition-opacity"
+          :class="[BLOCK_TONE[block.type], !blockPickable(block) && 'pointer-events-none']"
+          :style="blockLook(block)"
+          :aria-label="`Block ${index + 1}, ${block.type}`"
+          :aria-pressed="selection.includes(block.id)"
+          @pointerenter="hovered = block.id"
+          @pointerleave="hovered === block.id && (hovered = null)"
+          @click="onBlock(block.id, $event)"
+        />
       </div>
     </div>
   </div>

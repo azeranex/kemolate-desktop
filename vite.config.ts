@@ -26,12 +26,14 @@ import type { Plugin, ResolvedConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { spawn } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { defineConfig, build as viteBuild } from 'vite'
+
+import { answerModel, MODEL_HEADERS } from './server/models.ts'
 
 // Forward slashes even on Windows: these paths are written into generated
 // imports, where a backslash is an escape and `X:\repos` arrives as `X:epos`.
@@ -65,6 +67,36 @@ export default defineConfig(({ mode }) => ({
     'import.meta.dev': JSON.stringify(mode === 'development'),
   },
   plugins: [vue(), tailwindcss(), ...nuxtStyleImports(), electron()],
+  build: {
+    rolldownOptions: {
+      output: {
+        /**
+         * Each ONNX runtime in a chunk of its own, and the bundler's helpers in
+         * a third.
+         *
+         * Both runtimes move inference into a worker (`wasm.proxy`, see
+         * `utils/ocr/onnx.ts`), and start that worker from *their own module's
+         * URL*. Bundled as it fell, each runtime's chunk imported the bundler's
+         * interop helpers from the app's main chunk — so the worker loaded the
+         * whole app, which reached for `document` and died, and every model
+         * failed with "no available backend found … [object ErrorEvent]". In
+         * their own chunks, a worker loads a runtime and nothing else; the
+         * helpers' chunk is the one thing they import, and it runs nothing.
+         *
+         * The app's runtime is `onnxruntime-web` (`ortOnce`); transformers.js
+         * brings `onnxruntime-web/webgpu` — two instances on purpose, see the
+         * web build's CLAUDE.md.
+         */
+        codeSplitting: {
+          groups: [
+            { name: 'rolldown-runtime', test: /^\0rolldown\/runtime\.js$/ },
+            { name: 'ort', test: /onnxruntime-web[\\/]dist[\\/]ort\.bundle\.min\.mjs$/ },
+            { name: 'ort-webgpu', test: /onnxruntime-web[\\/]dist[\\/]ort\.webgpu\.bundle\.min\.mjs$/ },
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     strictPort: true,
@@ -125,7 +157,7 @@ function nuxtStyleImports () {
     AutoImport({
       imports: ['vue', '@vueuse/core'],
       // `shared/utils` as well, which Nuxt auto-imports into the app too.
-      dirs: ['./app/composables', './app/utils', './shared/utils'],
+      dirs: ['./app/composables', './app/utils', './app/utils/ocr', './shared/utils'],
       dirsScanOptions: { types: true },
       vueTemplate: true,
       dts: './app/auto-imports.d.ts',
@@ -159,6 +191,27 @@ const ENTRIES = [
 type Entry = typeof ENTRIES[number]
 
 const OUT_DIR = 'dist-electron'
+
+/** The web build's cross-origin isolation, for everything served beside the page. */
+const ISOLATION = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'credentialless',
+} as const
+
+/** The ONNX runtime's wasm builds and their loaders — what `ort.env.wasm.wasmPaths` points at. */
+const ORT_FILE = /^ort-wasm[\w.-]*\.(?:wasm|mjs)$/
+
+/**
+ * Where the pinned onnxruntime-web keeps them — the one copy both runtimes
+ * load, since transformers.js is pinned to the same version (see
+ * `utils/ocr/onnx.ts`). Found through the app's own dependency, so it is the
+ * version in `package.json` and not whichever a hoisting happened to pick.
+ */
+function ortDist () {
+  const entry = createRequire(import.meta.url).resolve('onnxruntime-web').replaceAll('\\', '/')
+
+  return `${entry.slice(0, entry.lastIndexOf('/dist/'))}/dist`
+}
 
 /** Node's built-ins and Electron itself are provided at runtime, never bundled. */
 const EXTERNAL = ['electron', ...builtinModules, ...builtinModules.map((m) => `node:${m}`)]
@@ -212,6 +265,27 @@ function electron (): Plugin {
     },
 
     configureServer (server) {
+      // The two things the built app's `app://` handler answers besides the
+      // page (see `electron/protocol.ts`), answered here in development: model
+      // weights through the store in `.data/models` — the web build's location —
+      // and the ONNX runtime's own wasm and loaders, straight from the package.
+      server.middlewares.use('/api/models', async (request, response) => {
+        const answer = await answerModel(`${config.root}/.data/models`, (request.url ?? '').split('?')[0]!.slice(1))
+
+        response.statusCode = answer.status
+        for (const [name, value] of Object.entries({ ...MODEL_HEADERS, ...ISOLATION })) response.setHeader(name, value)
+        if (answer.body) response.setHeader('Content-Length', String(answer.body.byteLength))
+        response.end(answer.body ?? answer.message)
+      })
+      server.middlewares.use('/ort', (request, response, next) => {
+        const file = (request.url ?? '').split('?')[0]!.slice(1)
+
+        if (!ORT_FILE.test(file)) return next()
+        response.setHeader('Content-Type', file.endsWith('.wasm') ? 'application/wasm' : 'text/javascript')
+        for (const [name, value] of Object.entries(ISOLATION)) response.setHeader(name, value)
+        response.end(readFileSync(`${ortDist()}/${file}`))
+      })
+
       const electronPath = createRequire(import.meta.url)('electron') as string
       const watchers: Watching[] = []
       let app: ChildProcess | null = null
@@ -312,6 +386,13 @@ function electron (): Plugin {
     // In a build, the renderer has been written: build main and preload for production.
     async closeBundle () {
       if (config.command === 'serve') return stopDev?.()
+      // The runtime's wasm and loaders beside the page, at `/ort/` — loaded
+      // from here rather than the CDN the web build points at, which the CSP
+      // refuses and an offline machine cannot reach.
+      mkdirSync(`${config.root}/dist/ort`, { recursive: true })
+      for (const file of readdirSync(ortDist()).filter((name) => ORT_FILE.test(name))) {
+        copyFileSync(`${ortDist()}/${file}`, `${config.root}/dist/ort/${file}`)
+      }
       for (const entry of ENTRIES) await buildEntry(config, entry, false)
     },
   }

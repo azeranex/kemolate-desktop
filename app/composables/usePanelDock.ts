@@ -43,6 +43,8 @@ import {
 
 import type { Component, Ref } from 'vue'
 
+import PanelBlocks from '~/components/panel/Blocks.vue'
+import PanelDetect from '~/components/panel/Detect.vue'
 import PanelPages from '~/components/panel/Pages.vue'
 import PanelPending from '~/components/panel/Pending.vue'
 
@@ -57,9 +59,7 @@ function pending (label: string): Component {
 
 const PanelAlign = pending('Align')
 const PanelBlockImages = pending('Block images')
-const PanelBlocks = pending('Blocks')
 const PanelCast = pending('Cast')
-const PanelDetect = pending('Detect')
 const PanelDev = pending('Dev')
 const PanelGlossary = pending('Glossary')
 const PanelLayers = pending('Layers')

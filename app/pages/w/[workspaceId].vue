@@ -11,9 +11,12 @@
  * was last on (`usePagePosition`); the pager and the page picker; the zoom in
  * the status bar; and the page's name and size.
  *
- * Not here yet, each arriving with what it drives: the reading, cleaning and
- * translation restores in the web build's `restoreChain`, and the waits that
- * keep a page hidden until its cleaning is ready (`composing`); undo and redo;
+ * And what has been done to it coming back: the reading and the repairs, by
+ * the web build's `restoreChain` (below).
+ *
+ * Not here yet, each arriving with what it drives: the layer, glossary and
+ * cast restores, and the wait that keeps a page hidden until its cleaning is
+ * ready (`composing`); undo and redo;
  * the auto run and the AI cost tally; workspace settings. And never, because
  * the desktop app has no cloud: signing in, the swarm, sharing and moving to
  * the cloud, and the live syncs.
@@ -38,11 +41,79 @@ import Workspace from '~/layouts/Workspace.vue'
 const { open, pages, title, at, page, selection, epoch, go, zoomAt, resetView } = useComic()
 const { kind, pending, restoring, openFolder, restore, reopen, forget, identify } = useLibrary()
 const { tool } = useTools()
+const { restore: restoreBlocks } = useOcr()
+const { restore: restoreCached } = useBlockCache()
+const { restore: restorePatches, settings: cleanSettings, showKept } = useClean()
 const { restore: restorePosition, placing } = usePagePosition()
 
 const label = computed(() => TOOLS.find((t) => t.id === tool.value)?.label ?? 'Select')
 
 onMounted(() => restore().then(() => restorePosition()))
+
+/*
+ * What has been done to the chapter comes back after the chapter does — the web
+ * build's `restoreChain`, with the steps a local workspace has: the reading
+ * (`useOcr.restore`, which is the server's copy and returns at once without
+ * one, then this machine's own, `useBlockCache.restore`), and the repairs
+ * (`useClean.restore`). The web build's page-list sync, swarm announce and
+ * layer restore are not here yet or not at all — see the header.
+ *
+ * One chain at a time; a trigger that lands mid-run asks for one more pass
+ * rather than a second chain racing the first.
+ */
+let running: Promise<void> | null = null
+let again = false
+let begun = 0
+const read = ref(0)
+
+function settle (): Promise<void> {
+  if (running) {
+    again = true
+
+    return running
+  }
+
+  running = (async () => {
+    do {
+      again = false
+      await restoreChain()
+    } while (again)
+  })().finally(() => { running = null })
+
+  return running
+}
+
+async function restoreChain () {
+  const pass = ++begun
+
+  await restoreBlocks()
+  await restoreCached()
+
+  read.value = pass
+
+  await restorePatches()
+}
+
+/*
+ * Run it as the pages arrive, as their hashes land — everything kept is filed
+ * by hash, so a page without one has nothing to look up yet — and whenever the
+ * chapter is opened again (`epoch`), which the counts cannot see: reopening
+ * gives the same pages back as new objects with no blocks on them.
+ */
+watch(
+  [
+    () => pages.value.length,
+    () => pages.value.filter((entry) => entry.scan?.hash).length,
+    epoch,
+  ],
+  () => { settle() },
+)
+
+// The cleaner is half of every repair's name, so changing it looks them up again.
+watch(() => [cleanSettings.value.model, cleanSettings.value.segmenter], () => { restorePatches() })
+
+// The page on screen's cleaning, from its record of what it last showed — see `useClean.showKept`.
+watch(() => [page.value?.id, page.value?.scan?.hash], () => { showKept(page.value) }, { immediate: true })
 
 /**
  * Every page gets its hash once it is listed — which is what everything keyed

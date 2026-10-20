@@ -57,23 +57,31 @@ and a later fix in one can be carried to the other. Keep it that way.
   original stays unchanged and reads it truthfully: things that need a chapter disable
   themselves; things that cannot, say so with a toast. Each stand-in names what replaces it.
   - Cloud-only, permanent: `useShared` (no shared workspace — every caller already steps
-    around `null`), `useSwarm` (`peerHeader` → `{}`), `utils/strokes.ts` (server stroke
+    around `null`), `useSwarm`, `useBlockSync`, `useLiveSync` (their exports used on the
+    server-row branch only), `utils/strokes.ts` (server stroke
     calls → "the server would not").
   - Partial ports at the original path, growing as their dependencies arrive:
-    `canvas/Board.vue` (the view: fit, zoom, pan, wheel, keys — no blocks or plates yet),
-    `composables/useClean.ts` (only what the engine reads), `pages/w/[workspaceId].vue`
-    (opening, restoring, paging, zoom), `server/database/index.ts` (row types only).
+    `canvas/Board.vue` (the view — fit, zoom, pan, wheel, keys — and block boxes; no plates,
+    grips or lettering yet, so a cleaned page does not show its repairs),
+    `pages/w/[workspaceId].vue`
+    (opening, restoring, the reading and repairs restore, paging, zoom),
+    `server/database/index.ts` (row types only).
+  - Until the desktop key store exists: `useProviderKeys` (refuses aloud; only the Google
+    Vision reader asks).
   - Pending UI: `AppMenu.vue`'s composable stand-ins, `usePanelDock`'s `pending()` panels.
 - **Component names follow Nuxt's rule** — `canvas/Engine.vue` is `CanvasEngine`. If a new
   component resolves under a bare name, check `app/components.d.ts`: the plugin drops folder
   prefixes when given `globs`, which is why it is configured with `dirs` and `excludeNames`.
 - **Versions match the web build** where both use a package (VueUse 14, zod 4, vitest 4,
-  TypeScript 5.x). VueUse 15 already broke a file that had not changed.
+  TypeScript 5.x). VueUse 15 already broke a file that had not changed. transformers.js is
+  pinned **exactly** (4.2.0) because it must resolve the same `onnxruntime-web`
+  (1.26.0-dev) the app pins — a caret range pulled 4.3.1 and a second runtime version.
 
 ## Left out, deliberately
 
-From `shared/`: `abilities`, `roles`, `socials`, and the `auth`, `invite`, `token`, `vault`
-schemas — accounts, roles and the server-sealed key vault are cloud concerns. Provider keys
+From `shared/`: `abilities`, `socials`, and the `auth`, `invite`, `token`, `vault` schemas —
+accounts and the server-sealed key vault are cloud concerns. (`roles` came across after all:
+it is pure, and `useOcr` asks `atLeast` on its cloud branch.) Provider keys
 will live in the OS credential store instead. The header has no account menu, and the mark is
 not yet a link (the workspace collection has not been migrated).
 
@@ -87,10 +95,21 @@ not yet a link (the workspace collection has not been migrated).
   what it can ask for. Add a named method there per need — no raw `ipcRenderer`.
 - The Electron build is the inline plugin at the bottom of `vite.config.ts`, not
   vite-plugin-electron or electron-vite. Its header says how dev and build work.
-- The built app is served from `app://kemolate/` (`electron/protocol.ts`), not `file://`:
-  OPFS and IndexedDB need an ordinary, stable origin, and a store is keyed by its origin —
-  **never change the scheme or host**, or everything kept under the old one is lost. It
-  sends the web build's COOP/COEP headers, as does the dev server.
+- The built app is served from `https://app.kemolate.invalid/` (`electron/protocol.ts`),
+  not `file://`: OPFS and IndexedDB need an ordinary, stable origin, and a store is keyed by
+  its origin — **never change the scheme or host**, or everything kept under the old one is
+  lost. `https` rather than a custom scheme because transformers.js refuses to check that a
+  file exists on anything but `http:`/`https:` (it was `app://kemolate` until that broke
+  every tokenizer). Only that host is intercepted; `.invalid` never resolves. It sends the
+  web build's COOP/COEP headers, as does the dev server.
+- The same origin answers `/api/models/*` (the web build's model route — `server/models.ts`,
+  cached under the app's profile; `.data/models` in dev) and `/ort/*` (ONNX runtime files,
+  copied into `dist/ort/` by the build). `utils/ocr/onnx.ts` points both runtimes at `/ort/`
+  instead of the web build's CDN — its one deliberate change.
+- Each ONNX runtime must stay in **a chunk of its own** (`build.rolldownOptions` in
+  `vite.config.ts`): the runtime starts its worker from its own module URL, and a runtime
+  chunk that imports the app's main chunk loads the whole app in the worker — "no available
+  backend found … [object ErrorEvent]".
 - Verifying in the real window: drive the built app over CDP
   (`--remote-debugging-port`); a synthetic drop of `File`s onto the canvas opens a chapter
   through the same path as dropping loose pages.

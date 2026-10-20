@@ -1,0 +1,8 @@
+# Postinstall scripts, decided — pnpm otherwise refuses to run anything until
+# they are. The same choices as the web build's: onnxruntime-node arrives with
+# transformers.js and is Node-side, as is sharp — the renderer uses neither, so nothing
+# needs compiling; protobufjs's script is harmless.
+allowBuilds:
+  onnxruntime-node: false
+  protobufjs: true
+  sharp: false

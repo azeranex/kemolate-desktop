@@ -125,6 +125,15 @@ export async function $fetch<T = unknown> (url: string, _options?: unknown): Pro
   throw new Error(`The desktop app has no server — nothing answers ${url}.`)
 }
 
+/**
+ * The web build's runtime config. Read in one place (`utils/ocr/lab.ts`, for an
+ * optional address of the OCR bench server) and already guarded there; nothing
+ * is configured here, so it is empty.
+ */
+export function useRuntimeConfig () {
+  return { public: {} as Record<string, unknown> }
+}
+
 export function useHead (head: { title?: string }) {
   if (head.title) document.title = head.title
 }

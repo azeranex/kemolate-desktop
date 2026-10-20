@@ -19,22 +19,35 @@ declare global {
   const CAST_GENDERS: typeof import('../shared/utils/cast').CAST_GENDERS
   const CHROME_Z: typeof import('../shared/utils/layers').CHROME_Z
   const CJK: typeof import('../shared/utils/ocr').CJK
+  const CLEANERS: typeof import('./utils/ocr/clean').CLEANERS
   const COLUMN_WIDTH: typeof import('./composables/usePanelDock').COLUMN_WIDTH
   const CORNERS: typeof import('../shared/utils/transform').CORNERS
   const DAB_STEP: typeof import('../shared/utils/raster').DAB_STEP
   const DAB_STEP_SMOOTH: typeof import('../shared/utils/raster').DAB_STEP_SMOOTH
+  const DEFAULT_BUILD: typeof import('./utils/ocr/detectors').DEFAULT_BUILD
   const DEFAULT_MODEL: typeof import('../shared/utils/models').DEFAULT_MODEL
   const DEFAULT_STACK: typeof import('../shared/utils/layers').DEFAULT_STACK
+  const DETECTORS: typeof import('./utils/ocr/detectors').DETECTORS
+  const DETECTORS_BY_ID: typeof import('./utils/ocr/detectors').DETECTORS_BY_ID
+  const DETECTOR_DEFAULT_SINCE: typeof import('./composables/useOcr').DETECTOR_DEFAULT_SINCE
+  const DETECTOR_HALF_MODEL: typeof import('./utils/ocr/detector').DETECTOR_HALF_MODEL
+  const DETECTOR_MODEL: typeof import('./utils/ocr/detector').DETECTOR_MODEL
+  const DIRECTIONS: typeof import('./composables/useReadingDirection').DIRECTIONS
   const DOCK_SIDES: typeof import('./composables/usePanelDock').DOCK_SIDES
   const EASE_MS: typeof import('./composables/useComic').EASE_MS
   const EFFORT_ORDER: typeof import('./composables/useComic').EFFORT_ORDER
   const EffectScope: typeof import('vue').EffectScope
+  const FAMILIES: typeof import('./utils/ocr/detectors').FAMILIES
   const FONTS: typeof import('../shared/utils/fonts').FONTS
   const FONTS_BY_KEY: typeof import('../shared/utils/fonts').FONTS_BY_KEY
   const HANDLES: typeof import('../shared/utils/transform').HANDLES
+  const HYPHENATE: typeof import('./utils/letterCss').HYPHENATE
   const IMAGE_KINDS: typeof import('./utils/images').IMAGE_KINDS
   const INK_DARK: typeof import('../shared/utils/lettering').INK_DARK
   const INK_LIGHT: typeof import('../shared/utils/lettering').INK_LIGHT
+  const INPAINTERS: typeof import('./utils/ocr/clean').INPAINTERS
+  const KEMOLATE_OCR_BETA_FILES: typeof import('./utils/ocr/manga').KEMOLATE_OCR_BETA_FILES
+  const KEMOLATE_OCR_BETA_MODEL: typeof import('./utils/ocr/manga').KEMOLATE_OCR_BETA_MODEL
   const LANGUAGES: typeof import('../shared/utils/prompt').LANGUAGES
   const LANGUAGE_OPTIONS: typeof import('../shared/utils/prompt').LANGUAGE_OPTIONS
   const LAYER_PRESETS: typeof import('../shared/utils/layers').LAYER_PRESETS
@@ -42,6 +55,10 @@ declare global {
   const LETTERING_RANGE: typeof import('../shared/utils/lettering').LETTERING_RANGE
   const LETTERING_WRAP: typeof import('../shared/utils/lettering').LETTERING_WRAP
   const LETTER_SHAPES: typeof import('../shared/utils/lettering').LETTER_SHAPES
+  const LINE_BOX: typeof import('./utils/letterCss').LINE_BOX
+  const MANGA_OCR_2025_MODEL: typeof import('./utils/ocr/manga').MANGA_OCR_2025_MODEL
+  const MANGA_OCR_MODEL: typeof import('./utils/ocr/manga').MANGA_OCR_MODEL
+  const MASK_RECIPE: typeof import('./utils/ocr/patches').MASK_RECIPE
   const MAX_CAST: typeof import('../shared/utils/cast').MAX_CAST
   const MAX_CAST_LENGTH: typeof import('../shared/utils/cast').MAX_CAST_LENGTH
   const MAX_CAST_TAGS: typeof import('../shared/utils/cast').MAX_CAST_TAGS
@@ -51,7 +68,10 @@ declare global {
   const MAX_TERM_LENGTH: typeof import('../shared/utils/glossary').MAX_TERM_LENGTH
   const MIN_COLUMN_WIDTH: typeof import('./composables/usePanelDock').MIN_COLUMN_WIDTH
   const NO_CAST: typeof import('../shared/utils/prompt').NO_CAST
+  const NO_CLEANER: typeof import('./utils/ocr/clean').NO_CLEANER
   const OPENING_ORDER: typeof import('./composables/useOpening').OPENING_ORDER
+  const PADDLE_DET_MODELS: typeof import('./utils/ocr/paddle').PADDLE_DET_MODELS
+  const PADDLE_TUNING: typeof import('./utils/ocr/paddle').PADDLE_TUNING
   const PAGE_RATIO: typeof import('./composables/useComic').PAGE_RATIO
   const PAINT_TOOLS: typeof import('./composables/useTools').PAINT_TOOLS
   const PANEL_SECTIONS: typeof import('./composables/usePanelDock').PANEL_SECTIONS
@@ -63,6 +83,8 @@ declare global {
   const PULL: typeof import('../shared/utils/transform').PULL
   const RAIL_WIDTH: typeof import('./composables/usePanelDock').RAIL_WIDTH
   const RANGE_WIDTH: typeof import('../shared/utils/lettering').RANGE_WIDTH
+  const READERS: typeof import('./utils/ocr/readers').READERS
+  const READERS_BY_ID: typeof import('./utils/ocr/readers').READERS_BY_ID
   const REASONING_EFFORTS: typeof import('../shared/utils/prompt').REASONING_EFFORTS
   const REASONING_FOR: typeof import('../shared/utils/prompt').REASONING_FOR
   const REGION_TOOLS: typeof import('./composables/useTools').REGION_TOOLS
@@ -72,44 +94,68 @@ declare global {
   const SQUEEZE_FLOOR: typeof import('../shared/utils/lettering').SQUEEZE_FLOOR
   const STANDING_IN_TONE: typeof import('./composables/useComic').STANDING_IN_TONE
   const STROKE_TOOLS: typeof import('./composables/useTools').STROKE_TOOLS
+  const SUPER: typeof import('./utils/letterCss').SUPER
   const TIGHT_LINE: typeof import('../shared/utils/lettering').TIGHT_LINE
   const TIGHT_SPACING: typeof import('../shared/utils/lettering').TIGHT_SPACING
   const TOOLS: typeof import('./composables/useTools').TOOLS
   const TOOL_GROUPS: typeof import('./composables/useTools').TOOL_GROUPS
   const TRANSLATE_ENGINES: typeof import('./composables/useComic').TRANSLATE_ENGINES
   const UNTITLED: typeof import('./composables/useComic').UNTITLED
+  const VERDICT_COLOUR: typeof import('./utils/ocr/trace').VERDICT_COLOUR
   const WORKSPACE_OWNED: typeof import('./utils/idbKeys').WORKSPACE_OWNED
+  const WORKSPACE_ROLES: typeof import('../shared/utils/roles').WORKSPACE_ROLES
   const ZOOM_RANGE: typeof import('./composables/useComic').ZOOM_RANGE
+  const abandonClean: typeof import('./composables/useClean').abandonClean
   const addIn: typeof import('./utils/opfs').addIn
+  const addsToSelection: typeof import('./utils/input').addsToSelection
   const adjustCurve: typeof import('../shared/utils/adjust').adjustCurve
   const adjustLut: typeof import('../shared/utils/adjust').adjustLut
   const adoptLegacy: typeof import('./utils/opfs').adoptLegacy
+  const agreeArrived: typeof import('./composables/useLiveSync').agreeArrived
+  const agreed: typeof import('./composables/useBlockSync').agreed
   const angleTo: typeof import('../shared/utils/transform').angleTo
   const announceLocal: typeof import('./composables/useLocalChanges').announceLocal
   const appendStroke: typeof import('./utils/strokes').appendStroke
   const applyLut: typeof import('../shared/utils/adjust').applyLut
   const askAgain: typeof import('../shared/utils/glossary').askAgain
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
+  const atLeast: typeof import('../shared/utils/roles').atLeast
+  const autoMask: typeof import('./utils/ocr/mask').autoMask
+  const autoMaskOver: typeof import('./utils/ocr/mask').autoMaskOver
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
   const backgroundDecoders: typeof import('./utils/resources').backgroundDecoders
+  const balloonDetector: typeof import('./utils/ocr/detectors').balloonDetector
+  const balloonGroups: typeof import('./utils/ocr/blocks').balloonGroups
+  const balloonIn: typeof import('./utils/ocr/balloon').balloonIn
   const batchPagePrompt: typeof import('../shared/utils/prompt').batchPagePrompt
   const batchSize: typeof import('./utils/resources').batchSize
+  const bentIn: typeof import('./utils/letterCss').bentIn
+  const betaFiles: typeof import('./utils/ocr/manga').betaFiles
+  const betaPrecision: typeof import('./utils/ocr/manga').betaPrecision
   const blankImage: typeof import('./utils/images').blankImage
   const blockBoxOf: typeof import('./composables/useComic').blockBoxOf
+  const blockOutline: typeof import('./utils/ocr/mask').blockOutline
   const blockState: typeof import('./composables/useUndo').blockState
   const boxOf: typeof import('../shared/utils/ocr').boxOf
+  const boxPlaced: typeof import('./utils/letterCss').boxPlaced
+  const buildsOf: typeof import('./utils/ocr/detectors').buildsOf
   const canPickFolder: typeof import('./utils/images').canPickFolder
   const castKey: typeof import('../shared/utils/cast').castKey
   const castTags: typeof import('../shared/utils/cast').castTags
+  const centreFit: typeof import('./utils/ocr/mask').centreFit
   const centredReadingOrder: typeof import('../shared/utils/ocr').centredReadingOrder
   const claimed: typeof import('./utils/keys').claimed
   const clampDeg: typeof import('../shared/utils/transform').clampDeg
   const clampZoom: typeof import('./composables/useComic').clampZoom
   const cleanCastText: typeof import('../shared/utils/cast').cleanCastText
+  const cleanPage: typeof import('./utils/ocr/clean').cleanPage
   const cleanTerm: typeof import('../shared/utils/glossary').cleanTerm
+  const cleanerRuns: typeof import('./utils/ocr/clean').cleanerRuns
   const clear: typeof import('./utils/opfs').clear
+  const clearAround: typeof import('./utils/ocr/balloon').clearAround
   const clearNuxtState: typeof import('./composables/nuxt').clearNuxtState
   const clipBase: typeof import('../shared/utils/layers').clipBase
+  const clipEdit: typeof import('./utils/ocr/mask').clipEdit
   const cn: typeof import('./utils/cn').cn
   const comparePaths: typeof import('./utils/images').comparePaths
   const computed: typeof import('vue').computed
@@ -145,31 +191,56 @@ declare global {
   const debouncedWatch: typeof import('@vueuse/core').debouncedWatch
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
+  const detBoxFor: typeof import('./utils/ocr/segment').detBoxFor
+  const detLeanFor: typeof import('./utils/ocr/segment').detLeanFor
+  const detLines: typeof import('./utils/ocr/segment').detLines
+  const detectWith: typeof import('./utils/ocr/detectors').detectWith
+  const detectWithComic: typeof import('./utils/ocr/detector').detectWithComic
+  const detectWithPaddle: typeof import('./utils/ocr/paddle').detectWithPaddle
+  const detectorBackend: typeof import('./utils/ocr/detector').detectorBackend
+  const detectorBytes: typeof import('./utils/ocr/detectors').detectorBytes
   const distorted: typeof import('../shared/utils/transform').distorted
   const dropLayer: typeof import('../shared/utils/layers').dropLayer
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
+  const editsForTile: typeof import('./utils/ocr/mask').editsForTile
   const effectScope: typeof import('vue').effectScope
+  const effectiveMask: typeof import('./utils/ocr/mask').effectiveMask
+  const engineBytes: typeof import('./utils/ocr/paddle-rec').engineBytes
   const estimateCost: typeof import('../shared/utils/models').estimateCost
   const estimateSize: typeof import('../shared/utils/lettering').estimateSize
   const estimateTokens: typeof import('../shared/utils/tokens').estimateTokens
   const exportEncoders: typeof import('./utils/resources').exportEncoders
   const extendRef: typeof import('@vueuse/core').extendRef
   const faceOf: typeof import('../shared/utils/fonts').faceOf
+  const familyOf: typeof import('./utils/ocr/detectors').familyOf
+  const featherOf: typeof import('./utils/ocr/clean').featherOf
+  const fencesOf: typeof import('./utils/ocr/rooms').fencesOf
+  const fetchModel: typeof import('./utils/ocr/onnx').fetchModel
   const findLayer: typeof import('../shared/utils/layers').findLayer
+  const fitAt: typeof import('./utils/lettering').fitAt
+  const fitSize: typeof import('./utils/lettering').fitSize
+  const fitStandard: typeof import('./utils/lettering').fitStandard
+  const flatContext: typeof import('./utils/ocr/clean').flatContext
+  const flatFill: typeof import('./utils/ocr/clean').flatFill
   const foldCast: typeof import('../shared/utils/cast').foldCast
   const foldTerms: typeof import('../shared/utils/glossary').foldTerms
   const fontStack: typeof import('../shared/utils/fonts').fontStack
+  const formatBytes: typeof import('./utils/bytes').formatBytes
   const framedBoxOf: typeof import('./composables/useComic').framedBoxOf
   const framesLettering: typeof import('./composables/useComic').framesLettering
+  const fullLabel: typeof import('./utils/ocr/detectors').fullLabel
+  const fullPrecision: typeof import('./utils/ocr/detector').fullPrecision
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
+  const glyphCentres: typeof import('./utils/ocr/mask').glyphCentres
   const gridCopy: typeof import('../shared/utils/raster').gridCopy
   const grownBounds: typeof import('../shared/utils/raster').grownBounds
   const h: typeof import('vue').h
   const hashBytes: typeof import('./utils/hash').hashBytes
   const hashFile: typeof import('./utils/hash').hashFile
   const hashLanes: typeof import('./utils/resources').hashLanes
+  const heldOcrSettings: typeof import('./composables/useOcr').heldOcrSettings
   const hexOf: typeof import('../shared/utils/raster').hexOf
   const idb: typeof import('./utils/idb').idb
   const idbKey: typeof import('./utils/idbKeys').idbKey
@@ -183,15 +254,21 @@ declare global {
   const inReadingOrder: typeof import('./utils/images').inReadingOrder
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
+  const inkAngle: typeof import('./utils/ocr/mask').inkAngle
   const inkLayer: typeof import('../shared/utils/layers').inkLayer
   const inkOn: typeof import('../shared/utils/lettering').inkOn
+  const inkOnly: typeof import('./utils/ocr/mask').inkOnly
+  const inkRect: typeof import('./utils/ocr/mask').inkRect
+  const inkSize: typeof import('./utils/lettering').inkSize
   const inkedLayer: typeof import('../shared/utils/layers').inkedLayer
   const inking: typeof import('../shared/utils/lettering').inking
+  const insideOutline: typeof import('./utils/ocr/mask').insideOutline
   const isCastGender: typeof import('../shared/utils/cast').isCastGender
   const isDefined: typeof import('@vueuse/core').isDefined
   const isDistorted: typeof import('../shared/utils/transform').isDistorted
   const isLanguage: typeof import('../shared/utils/prompt').isLanguage
   const isOffline: typeof import('./composables/useComic').isOffline
+  const isOnGpu: typeof import('./utils/ocr/onnx').isOnGpu
   const isPng: typeof import('../shared/utils/repairs').isPng
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
@@ -199,18 +276,30 @@ declare global {
   const isRef: typeof import('vue').isRef
   const isShallow: typeof import('vue').isShallow
   const jsonFrom: typeof import('../shared/utils/prompt').jsonFrom
+  const keepChapterLocally: typeof import('./composables/useBlockCache').keepChapterLocally
   const keepPlaced: typeof import('./utils/placed').keepPlaced
+  const labEndpoint: typeof import('./utils/ocr/lab').labEndpoint
   const layerEditable: typeof import('../shared/utils/layers').layerEditable
   const layerInk: typeof import('../shared/utils/layers').layerInk
   const layerRemovable: typeof import('../shared/utils/layers').layerRemovable
+  const leaked: typeof import('./utils/ocr/balloon').leaked
+  const learnedInk: typeof import('./utils/ocr/mask').learnedInk
   const letterBoxOf: typeof import('./composables/useComic').letterBoxOf
+  const letterPlaced: typeof import('./utils/letterCss').letterPlaced
+  const letterSet: typeof import('./utils/letterCss').letterSet
   const letteringFor: typeof import('../shared/utils/lettering').letteringFor
   const letteringOf: typeof import('../shared/utils/lettering').letteringOf
   const letteringRange: typeof import('../shared/utils/lettering').letteringRange
+  const listPatches: typeof import('./utils/ocr/patches').listPatches
+  const loadFace: typeof import('./utils/lettering').loadFace
+  const localModel: typeof import('./utils/ocr/onnx').localModel
+  const localSurface: typeof import('./composables/useBlockCache').localSurface
+  const localise: typeof import('./composables/useBlockCache').localise
   const locateLayer: typeof import('../shared/utils/layers').locateLayer
   const luminanceOf: typeof import('../shared/utils/lettering').luminanceOf
   const lutTable: typeof import('../shared/utils/adjust').lutTable
   const makeDestructurable: typeof import('@vueuse/core').makeDestructurable
+  const mangaPrecision: typeof import('./utils/ocr/manga').mangaPrecision
   const mapped: typeof import('../shared/utils/transform').mapped
   const markRaw: typeof import('vue').markRaw
   const matrixOf: typeof import('../shared/utils/transform').matrixOf
@@ -218,6 +307,7 @@ declare global {
   const modelLabel: typeof import('../shared/utils/models').modelLabel
   const nameOf: typeof import('../shared/utils/prompt').nameOf
   const navigateTo: typeof import('./composables/nuxt').navigateTo
+  const nearlyLevel: typeof import('./utils/ocr/paddle-rec').nearlyLevel
   const needsTranslation: typeof import('../shared/utils/lang').needsTranslation
   const newAdjustLayer: typeof import('../shared/utils/layers').newAdjustLayer
   const newAdjustment: typeof import('../shared/utils/adjust').newAdjustment
@@ -244,37 +334,56 @@ declare global {
   const onScopeDispose: typeof import('vue').onScopeDispose
   const onServerPrefetch: typeof import('vue').onServerPrefetch
   const onStartTyping: typeof import('@vueuse/core').onStartTyping
+  const onSwarmChange: typeof import('./composables/useSwarm').onSwarmChange
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const ontoTile: typeof import('./utils/ocr/mask').ontoTile
   const openPlates: typeof import('../shared/utils/layers').openPlates
   const opfsDir: typeof import('./utils/opfs').opfsDir
+  const opfsModelCache: typeof import('./utils/ocr/store').opfsModelCache
   const opfsNames: typeof import('./utils/opfs').opfsNames
   const opfsRead: typeof import('./utils/opfs').opfsRead
   const opfsUsable: typeof import('./utils/opfs').opfsUsable
   const opfsWrite: typeof import('./utils/opfs').opfsWrite
+  const orientedIn: typeof import('./utils/letterCss').orientedIn
+  const ortOnce: typeof import('./utils/ocr/onnx').ortOnce
+  const paddedBox: typeof import('./utils/ocr/clean').paddedBox
   const pagePrompt: typeof import('../shared/utils/prompt').pagePrompt
   const pageScript: typeof import('../shared/utils/lang').pageScript
   const pageSize: typeof import('./composables/useComic').pageSize
+  const paintFill: typeof import('./utils/ocr/trace').paintFill
   const paintLayers: typeof import('../shared/utils/layers').paintLayers
   const paintOrder: typeof import('../shared/utils/layers').paintOrder
+  const paintOver: typeof import('./utils/ocr/clean').paintOver
+  const paperAt: typeof import('./utils/paper').paperAt
   const parseRect: typeof import('../shared/utils/repairs').parseRect
+  const partsWithin: typeof import('./utils/ocr/mask').partsWithin
+  const patchKey: typeof import('./utils/ocr/patches').patchKey
+  const patchMade: typeof import('./utils/ocr/patches').patchMade
+  const patchRecipe: typeof import('./utils/ocr/patches').patchRecipe
+  const patchScan: typeof import('./utils/ocr/patches').patchScan
   const patchStands: typeof import('./composables/useClean').patchStands
+  const patchSuperseded: typeof import('./utils/ocr/patches').patchSuperseded
   const pathOfPage: typeof import('./composables/useShared').pathOfPage
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
   const peerHeader: typeof import('./composables/useSwarm').peerHeader
   const persist: typeof import('./utils/opfs').persist
+  const pick: typeof import('./utils/input').pick
   const pickFolder: typeof import('./utils/images').pickFolder
   const pickImage: typeof import('./utils/images').pickImage
   const pickImages: typeof import('./utils/images').pickImages
   const pickedName: typeof import('./utils/images').pickedName
+  const pixelsIn: typeof import('./utils/letterCss').pixelsIn
   const placedExtension: typeof import('./utils/placed').placedExtension
   const plateAdjusts: typeof import('../shared/utils/layers').plateAdjusts
   const plateOf: typeof import('./composables/useComic').plateOf
   const plateStates: typeof import('../shared/utils/layers').plateStates
+  const proseParts: typeof import('./utils/ocr/prose').proseParts
   const provide: typeof import('vue').provide
   const provideLocal: typeof import('@vueuse/core').provideLocal
   const quadMatrix: typeof import('../shared/utils/transform').quadMatrix
+  const quadWorthy: typeof import('./utils/ocr/deskew').quadWorthy
   const rad: typeof import('../shared/utils/transform').rad
   const reactify: typeof import('@vueuse/core').reactify
   const reactifyObject: typeof import('@vueuse/core').reactifyObject
@@ -283,10 +392,22 @@ declare global {
   const reactiveOmit: typeof import('@vueuse/core').reactiveOmit
   const reactivePick: typeof import('@vueuse/core').reactivePick
   const readBack: typeof import('./utils/opfs').readBack
+  const readBatch: typeof import('./utils/ocr/manga').readBatch
   const readBlock: typeof import('../shared/utils/ocr').readBlock
+  const readLines: typeof import('./utils/ocr/paddle-rec').readLines
+  const readModel: typeof import('./utils/ocr/store').readModel
   const readPage: typeof import('../shared/utils/ocr').readPage
+  const readPatch: typeof import('./utils/ocr/patches').readPatch
   const readPlacedMany: typeof import('./utils/placed').readPlacedMany
+  const readScanSheet: typeof import('./utils/paper').readScanSheet
+  const readSheet: typeof import('./utils/paper').readSheet
   const readThumb: typeof import('./utils/thumbs').readThumb
+  const readWithLab: typeof import('./utils/ocr/lab').readWithLab
+  const readWithMangaOcr: typeof import('./utils/ocr/manga').readWithMangaOcr
+  const readWithPaddleOcr: typeof import('./utils/ocr/paddle-rec').readWithPaddleOcr
+  const readWithReader: typeof import('./utils/ocr/readers').readWithReader
+  const readWithVision: typeof import('./utils/ocr/vision').readWithVision
+  const readerBytes: typeof import('./utils/ocr/readers').readerBytes
   const readingOrder: typeof import('../shared/utils/ocr').readingOrder
   const readonly: typeof import('vue').readonly
   const readsVertical: typeof import('../shared/utils/lettering').readsVertical
@@ -297,29 +418,49 @@ declare global {
   const refManualReset: typeof import('@vueuse/core').refManualReset
   const refThrottled: typeof import('@vueuse/core').refThrottled
   const refWithControl: typeof import('@vueuse/core').refWithControl
+  const refusalNote: typeof import('./utils/ocr/mask').refusalNote
+  const regionCanvas: typeof import('./utils/ocr/manga').regionCanvas
   const regionPrompt: typeof import('../shared/utils/prompt').regionPrompt
   const remember: typeof import('./utils/remember').remember
   const remembered: typeof import('./utils/remember').remembered
   const rememberedHashes: typeof import('./utils/hash').rememberedHashes
   const removeIn: typeof import('./utils/opfs').removeIn
+  const renamePatch: typeof import('./composables/useClean').renamePatch
   const renditionOf: typeof import('./utils/rendition').renditionOf
   const repairFor: typeof import('../shared/utils/repairs').repairFor
+  const repairsAreQuick: typeof import('./utils/ocr/clean').repairsAreQuick
   const resolveComponent: typeof import('vue').resolveComponent
   const resolveSurface: typeof import('./utils/strokes').resolveSurface
+  const restoreKeys: typeof import('./composables/useClean').restoreKeys
   const retractStroke: typeof import('./utils/strokes').retractStroke
   const reverseOf: typeof import('../shared/utils/lettering').reverseOf
+  const rewriting: typeof import('./composables/useBlockSync').rewriting
   const rgbOf: typeof import('../shared/utils/raster').rgbOf
+  const roomBoxOf: typeof import('./utils/ocr/blocks').roomBoxOf
+  const roomGain: typeof import('./utils/ocr/balloon').roomGain
+  const roomVerdicts: typeof import('./utils/ocr/rooms').roomVerdicts
+  const roomsFor: typeof import('./utils/ocr/rooms').roomsFor
+  const rowOf: typeof import('./utils/ocr/blocks').rowOf
+  const rowOfPage: typeof import('./composables/useShared').rowOfPage
   const scaled: typeof import('../shared/utils/transform').scaled
   const scriptForLang: typeof import('../shared/utils/lang').scriptForLang
   const scriptOf: typeof import('../shared/utils/lang').scriptOf
   const scriptsIn: typeof import('../shared/utils/lang').scriptsIn
+  const segFor: typeof import('./utils/ocr/segment').segFor
+  const segmentPage: typeof import('./utils/ocr/segment').segmentPage
+  const segmentedAlready: typeof import('./utils/ocr/segment').segmentedAlready
+  const segmentedPage: typeof import('./utils/ocr/segment').segmentedPage
+  const sessionFor: typeof import('./utils/ocr/onnx').sessionFor
+  const settled: typeof import('./composables/useBlockSync').settled
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
   const shapeFloats: typeof import('../shared/utils/lettering').shapeFloats
   const shapeFor: typeof import('../shared/utils/lettering').shapeFor
   const shapeOutline: typeof import('../shared/utils/lettering').shapeOutline
+  const shapeParts: typeof import('./utils/letterCss').shapeParts
   const shapeSpans: typeof import('../shared/utils/lettering').shapeSpans
+  const shareInFlight: typeof import('./composables/useMaskEdits').shareInFlight
   const sheetCorner: typeof import('./utils/view').sheetCorner
   const sheetInView: typeof import('./utils/view').sheetInView
   const sheetToView: typeof import('./utils/view').sheetToView
@@ -337,21 +478,35 @@ declare global {
   const straighten: typeof import('../shared/utils/raster').straighten
   const strokesOn: typeof import('./utils/strokes').strokesOn
   const successorOf: typeof import('../shared/utils/models').successorOf
+  const suggestGroups: typeof import('./utils/ocr/balloons').suggestGroups
+  const superIn: typeof import('./utils/letterCss').superIn
+  const sweepStaleRecipes: typeof import('./utils/ocr/patches').sweepStaleRecipes
   const syncRef: typeof import('@vueuse/core').syncRef
   const syncRefs: typeof import('@vueuse/core').syncRefs
   const templateRef: typeof import('@vueuse/core').templateRef
+  const textOnlyInk: typeof import('./utils/ocr/mask').textOnlyInk
   const throttledRef: typeof import('@vueuse/core').throttledRef
   const throttledWatch: typeof import('@vueuse/core').throttledWatch
   const thumbFor: typeof import('./utils/thumbs').thumbFor
   const tidyText: typeof import('../shared/utils/ocr').tidyText
+  const tileSize: typeof import('./utils/ocr/clean').tileSize
+  const tiltedQuad: typeof import('./utils/ocr/deskew').tiltedQuad
+  const toBlocks: typeof import('./utils/ocr/blocks').toBlocks
   const toBoxed: typeof import('../shared/utils/transform').toBoxed
+  const toDraft: typeof import('./utils/ocr/blocks').toDraft
+  const toDrafts: typeof import('./utils/ocr/blocks').toDrafts
+  const toLetterBox: typeof import('./utils/ocr/blocks').toLetterBox
+  const toLetterPatch: typeof import('./utils/ocr/blocks').toLetterPatch
   const toOriented: typeof import('../shared/utils/transform').toOriented
+  const toPatch: typeof import('./utils/ocr/blocks').toPatch
   const toRaw: typeof import('vue').toRaw
   const toReactive: typeof import('@vueuse/core').toReactive
   const toRef: typeof import('vue').toRef
   const toRefs: typeof import('vue').toRefs
   const toValue: typeof import('vue').toValue
   const toast: typeof import('./utils/toast').toast
+  const traceFill: typeof import('./utils/ocr/trace').traceFill
+  const transformersOnce: typeof import('./utils/ocr/onnx').transformersOnce
   const transposed: typeof import('../shared/utils/transform').transposed
   const triggerRef: typeof import('vue').triggerRef
   const tryOnBeforeMount: typeof import('@vueuse/core').tryOnBeforeMount
@@ -364,6 +519,7 @@ declare global {
   const unref: typeof import('vue').unref
   const unrefElement: typeof import('@vueuse/core').unrefElement
   const until: typeof import('@vueuse/core').until
+  const uprightRegion: typeof import('./utils/ocr/deskew').uprightRegion
   const useActiveElement: typeof import('@vueuse/core').useActiveElement
   const useAnimate: typeof import('@vueuse/core').useAnimate
   const useArrayDifference: typeof import('@vueuse/core').useArrayDifference
@@ -383,11 +539,15 @@ declare global {
   const useAttrs: typeof import('vue').useAttrs
   const useBase64: typeof import('@vueuse/core').useBase64
   const useBattery: typeof import('@vueuse/core').useBattery
+  const useBlockCache: typeof import('./composables/useBlockCache').useBlockCache
+  const useBlockMerge: typeof import('./composables/useBlockMerge').useBlockMerge
   const useBluetooth: typeof import('@vueuse/core').useBluetooth
   const useBreakpoints: typeof import('@vueuse/core').useBreakpoints
   const useBroadcastChannel: typeof import('@vueuse/core').useBroadcastChannel
   const useBrowserLocation: typeof import('@vueuse/core').useBrowserLocation
   const useCached: typeof import('@vueuse/core').useCached
+  const useClean: typeof import('./composables/useClean').useClean
+  const useCleanSettings: typeof import('./composables/useClean').useCleanSettings
   const useClipboard: typeof import('@vueuse/core').useClipboard
   const useClipboardItems: typeof import('@vueuse/core').useClipboardItems
   const useCloned: typeof import('@vueuse/core').useCloned
@@ -447,16 +607,20 @@ declare global {
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
+  const useLetteringFit: typeof import('./composables/useLetteringFit').useLetteringFit
+  const useLetteringStandard: typeof import('./composables/useLetteringStandard').useLetteringStandard
   const useLibrary: typeof import('./composables/useLibrary').useLibrary
   const useLiveAnnouncer: typeof import('@vueuse/core').useLiveAnnouncer
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
   const useMagicKeys: typeof import('@vueuse/core').useMagicKeys
   const useManualRefHistory: typeof import('@vueuse/core').useManualRefHistory
+  const useMaskEdits: typeof import('./composables/useMaskEdits').useMaskEdits
   const useMediaControls: typeof import('@vueuse/core').useMediaControls
   const useMediaQuery: typeof import('@vueuse/core').useMediaQuery
   const useMemoize: typeof import('@vueuse/core').useMemoize
   const useMemory: typeof import('@vueuse/core').useMemory
   const useModel: typeof import('vue').useModel
+  const useModelMachine: typeof import('./composables/useModelMachine').useModelMachine
   const useMounted: typeof import('@vueuse/core').useMounted
   const useMouse: typeof import('@vueuse/core').useMouse
   const useMouseInElement: typeof import('@vueuse/core').useMouseInElement
@@ -468,6 +632,7 @@ declare global {
   const useNow: typeof import('@vueuse/core').useNow
   const useNuxtApp: typeof import('./composables/nuxt').useNuxtApp
   const useObjectUrl: typeof import('@vueuse/core').useObjectUrl
+  const useOcr: typeof import('./composables/useOcr').useOcr
   const useOffsetPagination: typeof import('@vueuse/core').useOffsetPagination
   const useOnline: typeof import('@vueuse/core').useOnline
   const useOpening: typeof import('./composables/useOpening').useOpening
@@ -492,11 +657,14 @@ declare global {
   const usePreferredReducedMotion: typeof import('@vueuse/core').usePreferredReducedMotion
   const usePreferredReducedTransparency: typeof import('@vueuse/core').usePreferredReducedTransparency
   const usePrevious: typeof import('@vueuse/core').usePrevious
+  const useProviderKeys: typeof import('./composables/useProviderKeys').useProviderKeys
   const useRafFn: typeof import('@vueuse/core').useRafFn
+  const useReadingDirection: typeof import('./composables/useReadingDirection').useReadingDirection
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useRoute: typeof import('./composables/nuxt').useRoute
   const useRouter: typeof import('./composables/nuxt').useRouter
+  const useRuntimeConfig: typeof import('./composables/nuxt').useRuntimeConfig
   const useSSRWidth: typeof import('@vueuse/core').useSSRWidth
   const useScreenOrientation: typeof import('@vueuse/core').useScreenOrientation
   const useScreenSafeArea: typeof import('@vueuse/core').useScreenSafeArea
@@ -517,6 +685,7 @@ declare global {
   const useStyleTag: typeof import('@vueuse/core').useStyleTag
   const useSupported: typeof import('@vueuse/core').useSupported
   const useSwipe: typeof import('@vueuse/core').useSwipe
+  const useTargetLanguage: typeof import('./composables/useTargetLanguage').useTargetLanguage
   const useTemplateRef: typeof import('vue').useTemplateRef
   const useTemplateRefsList: typeof import('@vueuse/core').useTemplateRefsList
   const useTemporalNow: typeof import('@vueuse/core').useTemporalNow
@@ -579,7 +748,10 @@ declare global {
   const webGpuHalf: typeof import('./utils/resources').webGpuHalf
   const webGpuOffered: typeof import('./utils/resources').webGpuOffered
   const whenever: typeof import('@vueuse/core').whenever
+  const worthStraightening: typeof import('./utils/ocr/deskew').worthStraightening
   const wrapDeg: typeof import('../shared/utils/transform').wrapDeg
+  const writeModel: typeof import('./utils/ocr/store').writeModel
+  const writePatch: typeof import('./utils/ocr/patches').writePatch
   const writePlaced: typeof import('./utils/placed').writePlaced
 }
 // for type re-export
@@ -591,7 +763,7 @@ declare global {
   export type { DesktopRoute } from './composables/nuxt'
   import('./composables/nuxt')
   // @ts-ignore
-  export type { PagePatch } from './composables/useClean'
+  export type { PagePatch, CleanProgress } from './composables/useClean'
   import('./composables/useClean')
   // @ts-ignore
   export type { ColorScheme } from './composables/useColorScheme'
@@ -609,6 +781,9 @@ declare global {
   export type { NotificationLevel, AppNotification } from './composables/useNotifications'
   import('./composables/useNotifications')
   // @ts-ignore
+  export type { OcrSettings, OcrProgress } from './composables/useOcr'
+  import('./composables/useOcr')
+  // @ts-ignore
   export type { OpeningStage, OpeningStep } from './composables/useOpening'
   import('./composables/useOpening')
   // @ts-ignore
@@ -617,6 +792,12 @@ declare global {
   // @ts-ignore
   export type { DockSide, PanelSection, DockColumn, PanelLayout, PanelDropTarget } from './composables/usePanelDock'
   import('./composables/usePanelDock')
+  // @ts-ignore
+  export type { RemotePage, SharedWorkspace } from './composables/useShared'
+  import('./composables/useShared')
+  // @ts-ignore
+  export type { SwarmChange } from './composables/useSwarm'
+  import('./composables/useSwarm')
   // @ts-ignore
   export type { ToolId, ToolOption, Tool } from './composables/useTools'
   import('./composables/useTools')
@@ -633,6 +814,15 @@ declare global {
   export type { PickedImage, Rest, Found, Opened, CropShape } from './utils/images'
   import('./utils/images')
   // @ts-ignore
+  export type { LetterSpace, LetterSetting, ShapeParts } from './utils/letterCss'
+  import('./utils/letterCss')
+  // @ts-ignore
+  export type { FitInput } from './utils/lettering'
+  import('./utils/lettering')
+  // @ts-ignore
+  export type { Sheet } from './utils/paper'
+  import('./utils/paper')
+  // @ts-ignore
   export type { Rendition, RenditionRegion } from './utils/rendition'
   import('./utils/rendition')
   // @ts-ignore
@@ -644,6 +834,57 @@ declare global {
   // @ts-ignore
   export type { BoardView } from './utils/view'
   import('./utils/view')
+  // @ts-ignore
+  export type { Room, Balloon } from './utils/ocr/balloon'
+  import('./utils/ocr/balloon')
+  // @ts-ignore
+  export type { Suggestion } from './utils/ocr/balloons'
+  import('./utils/ocr/balloons')
+  // @ts-ignore
+  export type { BlockDraft, RoomBox, StoredTranslation, StoredBlock } from './utils/ocr/blocks'
+  import('./utils/ocr/blocks')
+  // @ts-ignore
+  export type { Inpainter, InpainterModel, FlatPaper, Patch, Runner, CleanOptions } from './utils/ocr/clean'
+  import('./utils/ocr/clean')
+  // @ts-ignore
+  export type { Upright } from './utils/ocr/deskew'
+  import('./utils/ocr/deskew')
+  // @ts-ignore
+  export type { ComicBuild, FullPrecision } from './utils/ocr/detector'
+  import('./utils/ocr/detector')
+  // @ts-ignore
+  export type { DetectedLabel, DetectedText, FamilyId, Family, DetectorId, Detector } from './utils/ocr/detectors'
+  import('./utils/ocr/detectors')
+  // @ts-ignore
+  export type { Precision, MangaModel, Region, MangaProgress, ReadingSessions } from './utils/ocr/manga'
+  import('./utils/ocr/manga')
+  // @ts-ignore
+  export type { MaskRefusal, Mask, MaskEdit, InkRect, MaskSource } from './utils/ocr/mask'
+  import('./utils/ocr/mask')
+  // @ts-ignore
+  export type { InferenceSession, OrtTensor } from './utils/ocr/onnx'
+  import('./utils/ocr/onnx')
+  // @ts-ignore
+  export type { PaddleEngine } from './utils/ocr/paddle-rec'
+  import('./utils/ocr/paddle-rec')
+  // @ts-ignore
+  export type { PaddleBuild, PaddleTuning } from './utils/ocr/paddle'
+  import('./utils/ocr/paddle')
+  // @ts-ignore
+  export type { PatchKey } from './utils/ocr/patches'
+  import('./utils/ocr/patches')
+  // @ts-ignore
+  export type { ReaderId, Reader, ModelMachine, ReadOptions } from './utils/ocr/readers'
+  import('./utils/ocr/readers')
+  // @ts-ignore
+  export type { Measured, RoomReason, RoomVerdict } from './utils/ocr/rooms'
+  import('./utils/ocr/rooms')
+  // @ts-ignore
+  export type { Segmented, DetLine } from './utils/ocr/segment'
+  import('./utils/ocr/segment')
+  // @ts-ignore
+  export type { Readable } from './utils/ocr/vision'
+  import('./utils/ocr/vision')
   // @ts-ignore
   export type { Adjustment, AdjustmentType } from '../shared/utils/adjust'
   import('../shared/utils/adjust')
@@ -684,6 +925,9 @@ declare global {
   export type { RepairRow } from '../shared/utils/repairs'
   import('../shared/utils/repairs')
   // @ts-ignore
+  export type { WorkspaceRole, SiteRole } from '../shared/utils/roles'
+  import('../shared/utils/roles')
+  // @ts-ignore
   export type { Oriented, Boxed, Scan, Mat, HandleKind, ScaleOpts } from '../shared/utils/transform'
   import('../shared/utils/transform')
 }
@@ -704,22 +948,35 @@ declare module 'vue' {
     readonly CAST_GENDERS: UnwrapRef<typeof import('../shared/utils/cast')['CAST_GENDERS']>
     readonly CHROME_Z: UnwrapRef<typeof import('../shared/utils/layers')['CHROME_Z']>
     readonly CJK: UnwrapRef<typeof import('../shared/utils/ocr')['CJK']>
+    readonly CLEANERS: UnwrapRef<typeof import('./utils/ocr/clean')['CLEANERS']>
     readonly COLUMN_WIDTH: UnwrapRef<typeof import('./composables/usePanelDock')['COLUMN_WIDTH']>
     readonly CORNERS: UnwrapRef<typeof import('../shared/utils/transform')['CORNERS']>
     readonly DAB_STEP: UnwrapRef<typeof import('../shared/utils/raster')['DAB_STEP']>
     readonly DAB_STEP_SMOOTH: UnwrapRef<typeof import('../shared/utils/raster')['DAB_STEP_SMOOTH']>
+    readonly DEFAULT_BUILD: UnwrapRef<typeof import('./utils/ocr/detectors')['DEFAULT_BUILD']>
     readonly DEFAULT_MODEL: UnwrapRef<typeof import('../shared/utils/models')['DEFAULT_MODEL']>
     readonly DEFAULT_STACK: UnwrapRef<typeof import('../shared/utils/layers')['DEFAULT_STACK']>
+    readonly DETECTORS: UnwrapRef<typeof import('./utils/ocr/detectors')['DETECTORS']>
+    readonly DETECTORS_BY_ID: UnwrapRef<typeof import('./utils/ocr/detectors')['DETECTORS_BY_ID']>
+    readonly DETECTOR_DEFAULT_SINCE: UnwrapRef<typeof import('./composables/useOcr')['DETECTOR_DEFAULT_SINCE']>
+    readonly DETECTOR_HALF_MODEL: UnwrapRef<typeof import('./utils/ocr/detector')['DETECTOR_HALF_MODEL']>
+    readonly DETECTOR_MODEL: UnwrapRef<typeof import('./utils/ocr/detector')['DETECTOR_MODEL']>
+    readonly DIRECTIONS: UnwrapRef<typeof import('./composables/useReadingDirection')['DIRECTIONS']>
     readonly DOCK_SIDES: UnwrapRef<typeof import('./composables/usePanelDock')['DOCK_SIDES']>
     readonly EASE_MS: UnwrapRef<typeof import('./composables/useComic')['EASE_MS']>
     readonly EFFORT_ORDER: UnwrapRef<typeof import('./composables/useComic')['EFFORT_ORDER']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly FAMILIES: UnwrapRef<typeof import('./utils/ocr/detectors')['FAMILIES']>
     readonly FONTS: UnwrapRef<typeof import('../shared/utils/fonts')['FONTS']>
     readonly FONTS_BY_KEY: UnwrapRef<typeof import('../shared/utils/fonts')['FONTS_BY_KEY']>
     readonly HANDLES: UnwrapRef<typeof import('../shared/utils/transform')['HANDLES']>
+    readonly HYPHENATE: UnwrapRef<typeof import('./utils/letterCss')['HYPHENATE']>
     readonly IMAGE_KINDS: UnwrapRef<typeof import('./utils/images')['IMAGE_KINDS']>
     readonly INK_DARK: UnwrapRef<typeof import('../shared/utils/lettering')['INK_DARK']>
     readonly INK_LIGHT: UnwrapRef<typeof import('../shared/utils/lettering')['INK_LIGHT']>
+    readonly INPAINTERS: UnwrapRef<typeof import('./utils/ocr/clean')['INPAINTERS']>
+    readonly KEMOLATE_OCR_BETA_FILES: UnwrapRef<typeof import('./utils/ocr/manga')['KEMOLATE_OCR_BETA_FILES']>
+    readonly KEMOLATE_OCR_BETA_MODEL: UnwrapRef<typeof import('./utils/ocr/manga')['KEMOLATE_OCR_BETA_MODEL']>
     readonly LANGUAGES: UnwrapRef<typeof import('../shared/utils/prompt')['LANGUAGES']>
     readonly LANGUAGE_OPTIONS: UnwrapRef<typeof import('../shared/utils/prompt')['LANGUAGE_OPTIONS']>
     readonly LAYER_PRESETS: UnwrapRef<typeof import('../shared/utils/layers')['LAYER_PRESETS']>
@@ -727,6 +984,10 @@ declare module 'vue' {
     readonly LETTERING_RANGE: UnwrapRef<typeof import('../shared/utils/lettering')['LETTERING_RANGE']>
     readonly LETTERING_WRAP: UnwrapRef<typeof import('../shared/utils/lettering')['LETTERING_WRAP']>
     readonly LETTER_SHAPES: UnwrapRef<typeof import('../shared/utils/lettering')['LETTER_SHAPES']>
+    readonly LINE_BOX: UnwrapRef<typeof import('./utils/letterCss')['LINE_BOX']>
+    readonly MANGA_OCR_2025_MODEL: UnwrapRef<typeof import('./utils/ocr/manga')['MANGA_OCR_2025_MODEL']>
+    readonly MANGA_OCR_MODEL: UnwrapRef<typeof import('./utils/ocr/manga')['MANGA_OCR_MODEL']>
+    readonly MASK_RECIPE: UnwrapRef<typeof import('./utils/ocr/patches')['MASK_RECIPE']>
     readonly MAX_CAST: UnwrapRef<typeof import('../shared/utils/cast')['MAX_CAST']>
     readonly MAX_CAST_LENGTH: UnwrapRef<typeof import('../shared/utils/cast')['MAX_CAST_LENGTH']>
     readonly MAX_CAST_TAGS: UnwrapRef<typeof import('../shared/utils/cast')['MAX_CAST_TAGS']>
@@ -736,7 +997,10 @@ declare module 'vue' {
     readonly MAX_TERM_LENGTH: UnwrapRef<typeof import('../shared/utils/glossary')['MAX_TERM_LENGTH']>
     readonly MIN_COLUMN_WIDTH: UnwrapRef<typeof import('./composables/usePanelDock')['MIN_COLUMN_WIDTH']>
     readonly NO_CAST: UnwrapRef<typeof import('../shared/utils/prompt')['NO_CAST']>
+    readonly NO_CLEANER: UnwrapRef<typeof import('./utils/ocr/clean')['NO_CLEANER']>
     readonly OPENING_ORDER: UnwrapRef<typeof import('./composables/useOpening')['OPENING_ORDER']>
+    readonly PADDLE_DET_MODELS: UnwrapRef<typeof import('./utils/ocr/paddle')['PADDLE_DET_MODELS']>
+    readonly PADDLE_TUNING: UnwrapRef<typeof import('./utils/ocr/paddle')['PADDLE_TUNING']>
     readonly PAGE_RATIO: UnwrapRef<typeof import('./composables/useComic')['PAGE_RATIO']>
     readonly PAINT_TOOLS: UnwrapRef<typeof import('./composables/useTools')['PAINT_TOOLS']>
     readonly PANEL_SECTIONS: UnwrapRef<typeof import('./composables/usePanelDock')['PANEL_SECTIONS']>
@@ -748,6 +1012,8 @@ declare module 'vue' {
     readonly PULL: UnwrapRef<typeof import('../shared/utils/transform')['PULL']>
     readonly RAIL_WIDTH: UnwrapRef<typeof import('./composables/usePanelDock')['RAIL_WIDTH']>
     readonly RANGE_WIDTH: UnwrapRef<typeof import('../shared/utils/lettering')['RANGE_WIDTH']>
+    readonly READERS: UnwrapRef<typeof import('./utils/ocr/readers')['READERS']>
+    readonly READERS_BY_ID: UnwrapRef<typeof import('./utils/ocr/readers')['READERS_BY_ID']>
     readonly REASONING_EFFORTS: UnwrapRef<typeof import('../shared/utils/prompt')['REASONING_EFFORTS']>
     readonly REASONING_FOR: UnwrapRef<typeof import('../shared/utils/prompt')['REASONING_FOR']>
     readonly REGION_TOOLS: UnwrapRef<typeof import('./composables/useTools')['REGION_TOOLS']>
@@ -757,44 +1023,68 @@ declare module 'vue' {
     readonly SQUEEZE_FLOOR: UnwrapRef<typeof import('../shared/utils/lettering')['SQUEEZE_FLOOR']>
     readonly STANDING_IN_TONE: UnwrapRef<typeof import('./composables/useComic')['STANDING_IN_TONE']>
     readonly STROKE_TOOLS: UnwrapRef<typeof import('./composables/useTools')['STROKE_TOOLS']>
+    readonly SUPER: UnwrapRef<typeof import('./utils/letterCss')['SUPER']>
     readonly TIGHT_LINE: UnwrapRef<typeof import('../shared/utils/lettering')['TIGHT_LINE']>
     readonly TIGHT_SPACING: UnwrapRef<typeof import('../shared/utils/lettering')['TIGHT_SPACING']>
     readonly TOOLS: UnwrapRef<typeof import('./composables/useTools')['TOOLS']>
     readonly TOOL_GROUPS: UnwrapRef<typeof import('./composables/useTools')['TOOL_GROUPS']>
     readonly TRANSLATE_ENGINES: UnwrapRef<typeof import('./composables/useComic')['TRANSLATE_ENGINES']>
     readonly UNTITLED: UnwrapRef<typeof import('./composables/useComic')['UNTITLED']>
+    readonly VERDICT_COLOUR: UnwrapRef<typeof import('./utils/ocr/trace')['VERDICT_COLOUR']>
     readonly WORKSPACE_OWNED: UnwrapRef<typeof import('./utils/idbKeys')['WORKSPACE_OWNED']>
+    readonly WORKSPACE_ROLES: UnwrapRef<typeof import('../shared/utils/roles')['WORKSPACE_ROLES']>
     readonly ZOOM_RANGE: UnwrapRef<typeof import('./composables/useComic')['ZOOM_RANGE']>
+    readonly abandonClean: UnwrapRef<typeof import('./composables/useClean')['abandonClean']>
     readonly addIn: UnwrapRef<typeof import('./utils/opfs')['addIn']>
+    readonly addsToSelection: UnwrapRef<typeof import('./utils/input')['addsToSelection']>
     readonly adjustCurve: UnwrapRef<typeof import('../shared/utils/adjust')['adjustCurve']>
     readonly adjustLut: UnwrapRef<typeof import('../shared/utils/adjust')['adjustLut']>
     readonly adoptLegacy: UnwrapRef<typeof import('./utils/opfs')['adoptLegacy']>
+    readonly agreeArrived: UnwrapRef<typeof import('./composables/useLiveSync')['agreeArrived']>
+    readonly agreed: UnwrapRef<typeof import('./composables/useBlockSync')['agreed']>
     readonly angleTo: UnwrapRef<typeof import('../shared/utils/transform')['angleTo']>
     readonly announceLocal: UnwrapRef<typeof import('./composables/useLocalChanges')['announceLocal']>
     readonly appendStroke: UnwrapRef<typeof import('./utils/strokes')['appendStroke']>
     readonly applyLut: UnwrapRef<typeof import('../shared/utils/adjust')['applyLut']>
     readonly askAgain: UnwrapRef<typeof import('../shared/utils/glossary')['askAgain']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
+    readonly atLeast: UnwrapRef<typeof import('../shared/utils/roles')['atLeast']>
+    readonly autoMask: UnwrapRef<typeof import('./utils/ocr/mask')['autoMask']>
+    readonly autoMaskOver: UnwrapRef<typeof import('./utils/ocr/mask')['autoMaskOver']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly backgroundDecoders: UnwrapRef<typeof import('./utils/resources')['backgroundDecoders']>
+    readonly balloonDetector: UnwrapRef<typeof import('./utils/ocr/detectors')['balloonDetector']>
+    readonly balloonGroups: UnwrapRef<typeof import('./utils/ocr/blocks')['balloonGroups']>
+    readonly balloonIn: UnwrapRef<typeof import('./utils/ocr/balloon')['balloonIn']>
     readonly batchPagePrompt: UnwrapRef<typeof import('../shared/utils/prompt')['batchPagePrompt']>
     readonly batchSize: UnwrapRef<typeof import('./utils/resources')['batchSize']>
+    readonly bentIn: UnwrapRef<typeof import('./utils/letterCss')['bentIn']>
+    readonly betaFiles: UnwrapRef<typeof import('./utils/ocr/manga')['betaFiles']>
+    readonly betaPrecision: UnwrapRef<typeof import('./utils/ocr/manga')['betaPrecision']>
     readonly blankImage: UnwrapRef<typeof import('./utils/images')['blankImage']>
     readonly blockBoxOf: UnwrapRef<typeof import('./composables/useComic')['blockBoxOf']>
+    readonly blockOutline: UnwrapRef<typeof import('./utils/ocr/mask')['blockOutline']>
     readonly blockState: UnwrapRef<typeof import('./composables/useUndo')['blockState']>
     readonly boxOf: UnwrapRef<typeof import('../shared/utils/ocr')['boxOf']>
+    readonly boxPlaced: UnwrapRef<typeof import('./utils/letterCss')['boxPlaced']>
+    readonly buildsOf: UnwrapRef<typeof import('./utils/ocr/detectors')['buildsOf']>
     readonly canPickFolder: UnwrapRef<typeof import('./utils/images')['canPickFolder']>
     readonly castKey: UnwrapRef<typeof import('../shared/utils/cast')['castKey']>
     readonly castTags: UnwrapRef<typeof import('../shared/utils/cast')['castTags']>
+    readonly centreFit: UnwrapRef<typeof import('./utils/ocr/mask')['centreFit']>
     readonly centredReadingOrder: UnwrapRef<typeof import('../shared/utils/ocr')['centredReadingOrder']>
     readonly claimed: UnwrapRef<typeof import('./utils/keys')['claimed']>
     readonly clampDeg: UnwrapRef<typeof import('../shared/utils/transform')['clampDeg']>
     readonly clampZoom: UnwrapRef<typeof import('./composables/useComic')['clampZoom']>
     readonly cleanCastText: UnwrapRef<typeof import('../shared/utils/cast')['cleanCastText']>
+    readonly cleanPage: UnwrapRef<typeof import('./utils/ocr/clean')['cleanPage']>
     readonly cleanTerm: UnwrapRef<typeof import('../shared/utils/glossary')['cleanTerm']>
+    readonly cleanerRuns: UnwrapRef<typeof import('./utils/ocr/clean')['cleanerRuns']>
     readonly clear: UnwrapRef<typeof import('./utils/opfs')['clear']>
+    readonly clearAround: UnwrapRef<typeof import('./utils/ocr/balloon')['clearAround']>
     readonly clearNuxtState: UnwrapRef<typeof import('./composables/nuxt')['clearNuxtState']>
     readonly clipBase: UnwrapRef<typeof import('../shared/utils/layers')['clipBase']>
+    readonly clipEdit: UnwrapRef<typeof import('./utils/ocr/mask')['clipEdit']>
     readonly cn: UnwrapRef<typeof import('./utils/cn')['cn']>
     readonly comparePaths: UnwrapRef<typeof import('./utils/images')['comparePaths']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
@@ -830,31 +1120,56 @@ declare module 'vue' {
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
+    readonly detBoxFor: UnwrapRef<typeof import('./utils/ocr/segment')['detBoxFor']>
+    readonly detLeanFor: UnwrapRef<typeof import('./utils/ocr/segment')['detLeanFor']>
+    readonly detLines: UnwrapRef<typeof import('./utils/ocr/segment')['detLines']>
+    readonly detectWith: UnwrapRef<typeof import('./utils/ocr/detectors')['detectWith']>
+    readonly detectWithComic: UnwrapRef<typeof import('./utils/ocr/detector')['detectWithComic']>
+    readonly detectWithPaddle: UnwrapRef<typeof import('./utils/ocr/paddle')['detectWithPaddle']>
+    readonly detectorBackend: UnwrapRef<typeof import('./utils/ocr/detector')['detectorBackend']>
+    readonly detectorBytes: UnwrapRef<typeof import('./utils/ocr/detectors')['detectorBytes']>
     readonly distorted: UnwrapRef<typeof import('../shared/utils/transform')['distorted']>
     readonly dropLayer: UnwrapRef<typeof import('../shared/utils/layers')['dropLayer']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
+    readonly editsForTile: UnwrapRef<typeof import('./utils/ocr/mask')['editsForTile']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
+    readonly effectiveMask: UnwrapRef<typeof import('./utils/ocr/mask')['effectiveMask']>
+    readonly engineBytes: UnwrapRef<typeof import('./utils/ocr/paddle-rec')['engineBytes']>
     readonly estimateCost: UnwrapRef<typeof import('../shared/utils/models')['estimateCost']>
     readonly estimateSize: UnwrapRef<typeof import('../shared/utils/lettering')['estimateSize']>
     readonly estimateTokens: UnwrapRef<typeof import('../shared/utils/tokens')['estimateTokens']>
     readonly exportEncoders: UnwrapRef<typeof import('./utils/resources')['exportEncoders']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly faceOf: UnwrapRef<typeof import('../shared/utils/fonts')['faceOf']>
+    readonly familyOf: UnwrapRef<typeof import('./utils/ocr/detectors')['familyOf']>
+    readonly featherOf: UnwrapRef<typeof import('./utils/ocr/clean')['featherOf']>
+    readonly fencesOf: UnwrapRef<typeof import('./utils/ocr/rooms')['fencesOf']>
+    readonly fetchModel: UnwrapRef<typeof import('./utils/ocr/onnx')['fetchModel']>
     readonly findLayer: UnwrapRef<typeof import('../shared/utils/layers')['findLayer']>
+    readonly fitAt: UnwrapRef<typeof import('./utils/lettering')['fitAt']>
+    readonly fitSize: UnwrapRef<typeof import('./utils/lettering')['fitSize']>
+    readonly fitStandard: UnwrapRef<typeof import('./utils/lettering')['fitStandard']>
+    readonly flatContext: UnwrapRef<typeof import('./utils/ocr/clean')['flatContext']>
+    readonly flatFill: UnwrapRef<typeof import('./utils/ocr/clean')['flatFill']>
     readonly foldCast: UnwrapRef<typeof import('../shared/utils/cast')['foldCast']>
     readonly foldTerms: UnwrapRef<typeof import('../shared/utils/glossary')['foldTerms']>
     readonly fontStack: UnwrapRef<typeof import('../shared/utils/fonts')['fontStack']>
+    readonly formatBytes: UnwrapRef<typeof import('./utils/bytes')['formatBytes']>
     readonly framedBoxOf: UnwrapRef<typeof import('./composables/useComic')['framedBoxOf']>
     readonly framesLettering: UnwrapRef<typeof import('./composables/useComic')['framesLettering']>
+    readonly fullLabel: UnwrapRef<typeof import('./utils/ocr/detectors')['fullLabel']>
+    readonly fullPrecision: UnwrapRef<typeof import('./utils/ocr/detector')['fullPrecision']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>
+    readonly glyphCentres: UnwrapRef<typeof import('./utils/ocr/mask')['glyphCentres']>
     readonly gridCopy: UnwrapRef<typeof import('../shared/utils/raster')['gridCopy']>
     readonly grownBounds: UnwrapRef<typeof import('../shared/utils/raster')['grownBounds']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hashBytes: UnwrapRef<typeof import('./utils/hash')['hashBytes']>
     readonly hashFile: UnwrapRef<typeof import('./utils/hash')['hashFile']>
     readonly hashLanes: UnwrapRef<typeof import('./utils/resources')['hashLanes']>
+    readonly heldOcrSettings: UnwrapRef<typeof import('./composables/useOcr')['heldOcrSettings']>
     readonly hexOf: UnwrapRef<typeof import('../shared/utils/raster')['hexOf']>
     readonly idb: UnwrapRef<typeof import('./utils/idb')['idb']>
     readonly idbKey: UnwrapRef<typeof import('./utils/idbKeys')['idbKey']>
@@ -868,15 +1183,21 @@ declare module 'vue' {
     readonly inReadingOrder: UnwrapRef<typeof import('./utils/images')['inReadingOrder']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
+    readonly inkAngle: UnwrapRef<typeof import('./utils/ocr/mask')['inkAngle']>
     readonly inkLayer: UnwrapRef<typeof import('../shared/utils/layers')['inkLayer']>
     readonly inkOn: UnwrapRef<typeof import('../shared/utils/lettering')['inkOn']>
+    readonly inkOnly: UnwrapRef<typeof import('./utils/ocr/mask')['inkOnly']>
+    readonly inkRect: UnwrapRef<typeof import('./utils/ocr/mask')['inkRect']>
+    readonly inkSize: UnwrapRef<typeof import('./utils/lettering')['inkSize']>
     readonly inkedLayer: UnwrapRef<typeof import('../shared/utils/layers')['inkedLayer']>
     readonly inking: UnwrapRef<typeof import('../shared/utils/lettering')['inking']>
+    readonly insideOutline: UnwrapRef<typeof import('./utils/ocr/mask')['insideOutline']>
     readonly isCastGender: UnwrapRef<typeof import('../shared/utils/cast')['isCastGender']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isDistorted: UnwrapRef<typeof import('../shared/utils/transform')['isDistorted']>
     readonly isLanguage: UnwrapRef<typeof import('../shared/utils/prompt')['isLanguage']>
     readonly isOffline: UnwrapRef<typeof import('./composables/useComic')['isOffline']>
+    readonly isOnGpu: UnwrapRef<typeof import('./utils/ocr/onnx')['isOnGpu']>
     readonly isPng: UnwrapRef<typeof import('../shared/utils/repairs')['isPng']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
@@ -884,18 +1205,30 @@ declare module 'vue' {
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
     readonly jsonFrom: UnwrapRef<typeof import('../shared/utils/prompt')['jsonFrom']>
+    readonly keepChapterLocally: UnwrapRef<typeof import('./composables/useBlockCache')['keepChapterLocally']>
     readonly keepPlaced: UnwrapRef<typeof import('./utils/placed')['keepPlaced']>
+    readonly labEndpoint: UnwrapRef<typeof import('./utils/ocr/lab')['labEndpoint']>
     readonly layerEditable: UnwrapRef<typeof import('../shared/utils/layers')['layerEditable']>
     readonly layerInk: UnwrapRef<typeof import('../shared/utils/layers')['layerInk']>
     readonly layerRemovable: UnwrapRef<typeof import('../shared/utils/layers')['layerRemovable']>
+    readonly leaked: UnwrapRef<typeof import('./utils/ocr/balloon')['leaked']>
+    readonly learnedInk: UnwrapRef<typeof import('./utils/ocr/mask')['learnedInk']>
     readonly letterBoxOf: UnwrapRef<typeof import('./composables/useComic')['letterBoxOf']>
+    readonly letterPlaced: UnwrapRef<typeof import('./utils/letterCss')['letterPlaced']>
+    readonly letterSet: UnwrapRef<typeof import('./utils/letterCss')['letterSet']>
     readonly letteringFor: UnwrapRef<typeof import('../shared/utils/lettering')['letteringFor']>
     readonly letteringOf: UnwrapRef<typeof import('../shared/utils/lettering')['letteringOf']>
     readonly letteringRange: UnwrapRef<typeof import('../shared/utils/lettering')['letteringRange']>
+    readonly listPatches: UnwrapRef<typeof import('./utils/ocr/patches')['listPatches']>
+    readonly loadFace: UnwrapRef<typeof import('./utils/lettering')['loadFace']>
+    readonly localModel: UnwrapRef<typeof import('./utils/ocr/onnx')['localModel']>
+    readonly localSurface: UnwrapRef<typeof import('./composables/useBlockCache')['localSurface']>
+    readonly localise: UnwrapRef<typeof import('./composables/useBlockCache')['localise']>
     readonly locateLayer: UnwrapRef<typeof import('../shared/utils/layers')['locateLayer']>
     readonly luminanceOf: UnwrapRef<typeof import('../shared/utils/lettering')['luminanceOf']>
     readonly lutTable: UnwrapRef<typeof import('../shared/utils/adjust')['lutTable']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
+    readonly mangaPrecision: UnwrapRef<typeof import('./utils/ocr/manga')['mangaPrecision']>
     readonly mapped: UnwrapRef<typeof import('../shared/utils/transform')['mapped']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly matrixOf: UnwrapRef<typeof import('../shared/utils/transform')['matrixOf']>
@@ -903,6 +1236,7 @@ declare module 'vue' {
     readonly modelLabel: UnwrapRef<typeof import('../shared/utils/models')['modelLabel']>
     readonly nameOf: UnwrapRef<typeof import('../shared/utils/prompt')['nameOf']>
     readonly navigateTo: UnwrapRef<typeof import('./composables/nuxt')['navigateTo']>
+    readonly nearlyLevel: UnwrapRef<typeof import('./utils/ocr/paddle-rec')['nearlyLevel']>
     readonly needsTranslation: UnwrapRef<typeof import('../shared/utils/lang')['needsTranslation']>
     readonly newAdjustLayer: UnwrapRef<typeof import('../shared/utils/layers')['newAdjustLayer']>
     readonly newAdjustment: UnwrapRef<typeof import('../shared/utils/adjust')['newAdjustment']>
@@ -929,37 +1263,56 @@ declare module 'vue' {
     readonly onScopeDispose: UnwrapRef<typeof import('vue')['onScopeDispose']>
     readonly onServerPrefetch: UnwrapRef<typeof import('vue')['onServerPrefetch']>
     readonly onStartTyping: UnwrapRef<typeof import('@vueuse/core')['onStartTyping']>
+    readonly onSwarmChange: UnwrapRef<typeof import('./composables/useSwarm')['onSwarmChange']>
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly ontoTile: UnwrapRef<typeof import('./utils/ocr/mask')['ontoTile']>
     readonly openPlates: UnwrapRef<typeof import('../shared/utils/layers')['openPlates']>
     readonly opfsDir: UnwrapRef<typeof import('./utils/opfs')['opfsDir']>
+    readonly opfsModelCache: UnwrapRef<typeof import('./utils/ocr/store')['opfsModelCache']>
     readonly opfsNames: UnwrapRef<typeof import('./utils/opfs')['opfsNames']>
     readonly opfsRead: UnwrapRef<typeof import('./utils/opfs')['opfsRead']>
     readonly opfsUsable: UnwrapRef<typeof import('./utils/opfs')['opfsUsable']>
     readonly opfsWrite: UnwrapRef<typeof import('./utils/opfs')['opfsWrite']>
+    readonly orientedIn: UnwrapRef<typeof import('./utils/letterCss')['orientedIn']>
+    readonly ortOnce: UnwrapRef<typeof import('./utils/ocr/onnx')['ortOnce']>
+    readonly paddedBox: UnwrapRef<typeof import('./utils/ocr/clean')['paddedBox']>
     readonly pagePrompt: UnwrapRef<typeof import('../shared/utils/prompt')['pagePrompt']>
     readonly pageScript: UnwrapRef<typeof import('../shared/utils/lang')['pageScript']>
     readonly pageSize: UnwrapRef<typeof import('./composables/useComic')['pageSize']>
+    readonly paintFill: UnwrapRef<typeof import('./utils/ocr/trace')['paintFill']>
     readonly paintLayers: UnwrapRef<typeof import('../shared/utils/layers')['paintLayers']>
     readonly paintOrder: UnwrapRef<typeof import('../shared/utils/layers')['paintOrder']>
+    readonly paintOver: UnwrapRef<typeof import('./utils/ocr/clean')['paintOver']>
+    readonly paperAt: UnwrapRef<typeof import('./utils/paper')['paperAt']>
     readonly parseRect: UnwrapRef<typeof import('../shared/utils/repairs')['parseRect']>
+    readonly partsWithin: UnwrapRef<typeof import('./utils/ocr/mask')['partsWithin']>
+    readonly patchKey: UnwrapRef<typeof import('./utils/ocr/patches')['patchKey']>
+    readonly patchMade: UnwrapRef<typeof import('./utils/ocr/patches')['patchMade']>
+    readonly patchRecipe: UnwrapRef<typeof import('./utils/ocr/patches')['patchRecipe']>
+    readonly patchScan: UnwrapRef<typeof import('./utils/ocr/patches')['patchScan']>
     readonly patchStands: UnwrapRef<typeof import('./composables/useClean')['patchStands']>
+    readonly patchSuperseded: UnwrapRef<typeof import('./utils/ocr/patches')['patchSuperseded']>
     readonly pathOfPage: UnwrapRef<typeof import('./composables/useShared')['pathOfPage']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly peerHeader: UnwrapRef<typeof import('./composables/useSwarm')['peerHeader']>
     readonly persist: UnwrapRef<typeof import('./utils/opfs')['persist']>
+    readonly pick: UnwrapRef<typeof import('./utils/input')['pick']>
     readonly pickFolder: UnwrapRef<typeof import('./utils/images')['pickFolder']>
     readonly pickImage: UnwrapRef<typeof import('./utils/images')['pickImage']>
     readonly pickImages: UnwrapRef<typeof import('./utils/images')['pickImages']>
     readonly pickedName: UnwrapRef<typeof import('./utils/images')['pickedName']>
+    readonly pixelsIn: UnwrapRef<typeof import('./utils/letterCss')['pixelsIn']>
     readonly placedExtension: UnwrapRef<typeof import('./utils/placed')['placedExtension']>
     readonly plateAdjusts: UnwrapRef<typeof import('../shared/utils/layers')['plateAdjusts']>
     readonly plateOf: UnwrapRef<typeof import('./composables/useComic')['plateOf']>
     readonly plateStates: UnwrapRef<typeof import('../shared/utils/layers')['plateStates']>
+    readonly proseParts: UnwrapRef<typeof import('./utils/ocr/prose')['proseParts']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly quadMatrix: UnwrapRef<typeof import('../shared/utils/transform')['quadMatrix']>
+    readonly quadWorthy: UnwrapRef<typeof import('./utils/ocr/deskew')['quadWorthy']>
     readonly rad: UnwrapRef<typeof import('../shared/utils/transform')['rad']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
     readonly reactifyObject: UnwrapRef<typeof import('@vueuse/core')['reactifyObject']>
@@ -968,10 +1321,22 @@ declare module 'vue' {
     readonly reactiveOmit: UnwrapRef<typeof import('@vueuse/core')['reactiveOmit']>
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
     readonly readBack: UnwrapRef<typeof import('./utils/opfs')['readBack']>
+    readonly readBatch: UnwrapRef<typeof import('./utils/ocr/manga')['readBatch']>
     readonly readBlock: UnwrapRef<typeof import('../shared/utils/ocr')['readBlock']>
+    readonly readLines: UnwrapRef<typeof import('./utils/ocr/paddle-rec')['readLines']>
+    readonly readModel: UnwrapRef<typeof import('./utils/ocr/store')['readModel']>
     readonly readPage: UnwrapRef<typeof import('../shared/utils/ocr')['readPage']>
+    readonly readPatch: UnwrapRef<typeof import('./utils/ocr/patches')['readPatch']>
     readonly readPlacedMany: UnwrapRef<typeof import('./utils/placed')['readPlacedMany']>
+    readonly readScanSheet: UnwrapRef<typeof import('./utils/paper')['readScanSheet']>
+    readonly readSheet: UnwrapRef<typeof import('./utils/paper')['readSheet']>
     readonly readThumb: UnwrapRef<typeof import('./utils/thumbs')['readThumb']>
+    readonly readWithLab: UnwrapRef<typeof import('./utils/ocr/lab')['readWithLab']>
+    readonly readWithMangaOcr: UnwrapRef<typeof import('./utils/ocr/manga')['readWithMangaOcr']>
+    readonly readWithPaddleOcr: UnwrapRef<typeof import('./utils/ocr/paddle-rec')['readWithPaddleOcr']>
+    readonly readWithReader: UnwrapRef<typeof import('./utils/ocr/readers')['readWithReader']>
+    readonly readWithVision: UnwrapRef<typeof import('./utils/ocr/vision')['readWithVision']>
+    readonly readerBytes: UnwrapRef<typeof import('./utils/ocr/readers')['readerBytes']>
     readonly readingOrder: UnwrapRef<typeof import('../shared/utils/ocr')['readingOrder']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly readsVertical: UnwrapRef<typeof import('../shared/utils/lettering')['readsVertical']>
@@ -982,29 +1347,49 @@ declare module 'vue' {
     readonly refManualReset: UnwrapRef<typeof import('@vueuse/core')['refManualReset']>
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
+    readonly refusalNote: UnwrapRef<typeof import('./utils/ocr/mask')['refusalNote']>
+    readonly regionCanvas: UnwrapRef<typeof import('./utils/ocr/manga')['regionCanvas']>
     readonly regionPrompt: UnwrapRef<typeof import('../shared/utils/prompt')['regionPrompt']>
     readonly remember: UnwrapRef<typeof import('./utils/remember')['remember']>
     readonly remembered: UnwrapRef<typeof import('./utils/remember')['remembered']>
     readonly rememberedHashes: UnwrapRef<typeof import('./utils/hash')['rememberedHashes']>
     readonly removeIn: UnwrapRef<typeof import('./utils/opfs')['removeIn']>
+    readonly renamePatch: UnwrapRef<typeof import('./composables/useClean')['renamePatch']>
     readonly renditionOf: UnwrapRef<typeof import('./utils/rendition')['renditionOf']>
     readonly repairFor: UnwrapRef<typeof import('../shared/utils/repairs')['repairFor']>
+    readonly repairsAreQuick: UnwrapRef<typeof import('./utils/ocr/clean')['repairsAreQuick']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveSurface: UnwrapRef<typeof import('./utils/strokes')['resolveSurface']>
+    readonly restoreKeys: UnwrapRef<typeof import('./composables/useClean')['restoreKeys']>
     readonly retractStroke: UnwrapRef<typeof import('./utils/strokes')['retractStroke']>
     readonly reverseOf: UnwrapRef<typeof import('../shared/utils/lettering')['reverseOf']>
+    readonly rewriting: UnwrapRef<typeof import('./composables/useBlockSync')['rewriting']>
     readonly rgbOf: UnwrapRef<typeof import('../shared/utils/raster')['rgbOf']>
+    readonly roomBoxOf: UnwrapRef<typeof import('./utils/ocr/blocks')['roomBoxOf']>
+    readonly roomGain: UnwrapRef<typeof import('./utils/ocr/balloon')['roomGain']>
+    readonly roomVerdicts: UnwrapRef<typeof import('./utils/ocr/rooms')['roomVerdicts']>
+    readonly roomsFor: UnwrapRef<typeof import('./utils/ocr/rooms')['roomsFor']>
+    readonly rowOf: UnwrapRef<typeof import('./utils/ocr/blocks')['rowOf']>
+    readonly rowOfPage: UnwrapRef<typeof import('./composables/useShared')['rowOfPage']>
     readonly scaled: UnwrapRef<typeof import('../shared/utils/transform')['scaled']>
     readonly scriptForLang: UnwrapRef<typeof import('../shared/utils/lang')['scriptForLang']>
     readonly scriptOf: UnwrapRef<typeof import('../shared/utils/lang')['scriptOf']>
     readonly scriptsIn: UnwrapRef<typeof import('../shared/utils/lang')['scriptsIn']>
+    readonly segFor: UnwrapRef<typeof import('./utils/ocr/segment')['segFor']>
+    readonly segmentPage: UnwrapRef<typeof import('./utils/ocr/segment')['segmentPage']>
+    readonly segmentedAlready: UnwrapRef<typeof import('./utils/ocr/segment')['segmentedAlready']>
+    readonly segmentedPage: UnwrapRef<typeof import('./utils/ocr/segment')['segmentedPage']>
+    readonly sessionFor: UnwrapRef<typeof import('./utils/ocr/onnx')['sessionFor']>
+    readonly settled: UnwrapRef<typeof import('./composables/useBlockSync')['settled']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly shapeFloats: UnwrapRef<typeof import('../shared/utils/lettering')['shapeFloats']>
     readonly shapeFor: UnwrapRef<typeof import('../shared/utils/lettering')['shapeFor']>
     readonly shapeOutline: UnwrapRef<typeof import('../shared/utils/lettering')['shapeOutline']>
+    readonly shapeParts: UnwrapRef<typeof import('./utils/letterCss')['shapeParts']>
     readonly shapeSpans: UnwrapRef<typeof import('../shared/utils/lettering')['shapeSpans']>
+    readonly shareInFlight: UnwrapRef<typeof import('./composables/useMaskEdits')['shareInFlight']>
     readonly sheetCorner: UnwrapRef<typeof import('./utils/view')['sheetCorner']>
     readonly sheetInView: UnwrapRef<typeof import('./utils/view')['sheetInView']>
     readonly sheetToView: UnwrapRef<typeof import('./utils/view')['sheetToView']>
@@ -1022,21 +1407,35 @@ declare module 'vue' {
     readonly straighten: UnwrapRef<typeof import('../shared/utils/raster')['straighten']>
     readonly strokesOn: UnwrapRef<typeof import('./utils/strokes')['strokesOn']>
     readonly successorOf: UnwrapRef<typeof import('../shared/utils/models')['successorOf']>
+    readonly suggestGroups: UnwrapRef<typeof import('./utils/ocr/balloons')['suggestGroups']>
+    readonly superIn: UnwrapRef<typeof import('./utils/letterCss')['superIn']>
+    readonly sweepStaleRecipes: UnwrapRef<typeof import('./utils/ocr/patches')['sweepStaleRecipes']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
+    readonly textOnlyInk: UnwrapRef<typeof import('./utils/ocr/mask')['textOnlyInk']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
     readonly thumbFor: UnwrapRef<typeof import('./utils/thumbs')['thumbFor']>
     readonly tidyText: UnwrapRef<typeof import('../shared/utils/ocr')['tidyText']>
+    readonly tileSize: UnwrapRef<typeof import('./utils/ocr/clean')['tileSize']>
+    readonly tiltedQuad: UnwrapRef<typeof import('./utils/ocr/deskew')['tiltedQuad']>
+    readonly toBlocks: UnwrapRef<typeof import('./utils/ocr/blocks')['toBlocks']>
     readonly toBoxed: UnwrapRef<typeof import('../shared/utils/transform')['toBoxed']>
+    readonly toDraft: UnwrapRef<typeof import('./utils/ocr/blocks')['toDraft']>
+    readonly toDrafts: UnwrapRef<typeof import('./utils/ocr/blocks')['toDrafts']>
+    readonly toLetterBox: UnwrapRef<typeof import('./utils/ocr/blocks')['toLetterBox']>
+    readonly toLetterPatch: UnwrapRef<typeof import('./utils/ocr/blocks')['toLetterPatch']>
     readonly toOriented: UnwrapRef<typeof import('../shared/utils/transform')['toOriented']>
+    readonly toPatch: UnwrapRef<typeof import('./utils/ocr/blocks')['toPatch']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toReactive: UnwrapRef<typeof import('@vueuse/core')['toReactive']>
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
     readonly toast: UnwrapRef<typeof import('./utils/toast')['toast']>
+    readonly traceFill: UnwrapRef<typeof import('./utils/ocr/trace')['traceFill']>
+    readonly transformersOnce: UnwrapRef<typeof import('./utils/ocr/onnx')['transformersOnce']>
     readonly transposed: UnwrapRef<typeof import('../shared/utils/transform')['transposed']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
@@ -1049,6 +1448,7 @@ declare module 'vue' {
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
+    readonly uprightRegion: UnwrapRef<typeof import('./utils/ocr/deskew')['uprightRegion']>
     readonly useActiveElement: UnwrapRef<typeof import('@vueuse/core')['useActiveElement']>
     readonly useAnimate: UnwrapRef<typeof import('@vueuse/core')['useAnimate']>
     readonly useArrayDifference: UnwrapRef<typeof import('@vueuse/core')['useArrayDifference']>
@@ -1068,11 +1468,15 @@ declare module 'vue' {
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useBase64: UnwrapRef<typeof import('@vueuse/core')['useBase64']>
     readonly useBattery: UnwrapRef<typeof import('@vueuse/core')['useBattery']>
+    readonly useBlockCache: UnwrapRef<typeof import('./composables/useBlockCache')['useBlockCache']>
+    readonly useBlockMerge: UnwrapRef<typeof import('./composables/useBlockMerge')['useBlockMerge']>
     readonly useBluetooth: UnwrapRef<typeof import('@vueuse/core')['useBluetooth']>
     readonly useBreakpoints: UnwrapRef<typeof import('@vueuse/core')['useBreakpoints']>
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
+    readonly useClean: UnwrapRef<typeof import('./composables/useClean')['useClean']>
+    readonly useCleanSettings: UnwrapRef<typeof import('./composables/useClean')['useCleanSettings']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>
     readonly useCloned: UnwrapRef<typeof import('@vueuse/core')['useCloned']>
@@ -1132,15 +1536,19 @@ declare module 'vue' {
     readonly useIntervalFn: UnwrapRef<typeof import('@vueuse/core')['useIntervalFn']>
     readonly useKeyModifier: UnwrapRef<typeof import('@vueuse/core')['useKeyModifier']>
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
+    readonly useLetteringFit: UnwrapRef<typeof import('./composables/useLetteringFit')['useLetteringFit']>
+    readonly useLetteringStandard: UnwrapRef<typeof import('./composables/useLetteringStandard')['useLetteringStandard']>
     readonly useLibrary: UnwrapRef<typeof import('./composables/useLibrary')['useLibrary']>
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
+    readonly useMaskEdits: UnwrapRef<typeof import('./composables/useMaskEdits')['useMaskEdits']>
     readonly useMediaControls: UnwrapRef<typeof import('@vueuse/core')['useMediaControls']>
     readonly useMediaQuery: UnwrapRef<typeof import('@vueuse/core')['useMediaQuery']>
     readonly useMemoize: UnwrapRef<typeof import('@vueuse/core')['useMemoize']>
     readonly useMemory: UnwrapRef<typeof import('@vueuse/core')['useMemory']>
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
+    readonly useModelMachine: UnwrapRef<typeof import('./composables/useModelMachine')['useModelMachine']>
     readonly useMounted: UnwrapRef<typeof import('@vueuse/core')['useMounted']>
     readonly useMouse: UnwrapRef<typeof import('@vueuse/core')['useMouse']>
     readonly useMouseInElement: UnwrapRef<typeof import('@vueuse/core')['useMouseInElement']>
@@ -1152,6 +1560,7 @@ declare module 'vue' {
     readonly useNow: UnwrapRef<typeof import('@vueuse/core')['useNow']>
     readonly useNuxtApp: UnwrapRef<typeof import('./composables/nuxt')['useNuxtApp']>
     readonly useObjectUrl: UnwrapRef<typeof import('@vueuse/core')['useObjectUrl']>
+    readonly useOcr: UnwrapRef<typeof import('./composables/useOcr')['useOcr']>
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
     readonly useOpening: UnwrapRef<typeof import('./composables/useOpening')['useOpening']>
@@ -1176,11 +1585,14 @@ declare module 'vue' {
     readonly usePreferredReducedMotion: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedMotion']>
     readonly usePreferredReducedTransparency: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedTransparency']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
+    readonly useProviderKeys: UnwrapRef<typeof import('./composables/useProviderKeys')['useProviderKeys']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
+    readonly useReadingDirection: UnwrapRef<typeof import('./composables/useReadingDirection')['useReadingDirection']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
     readonly useRoute: UnwrapRef<typeof import('./composables/nuxt')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('./composables/nuxt')['useRouter']>
+    readonly useRuntimeConfig: UnwrapRef<typeof import('./composables/nuxt')['useRuntimeConfig']>
     readonly useSSRWidth: UnwrapRef<typeof import('@vueuse/core')['useSSRWidth']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>
@@ -1201,6 +1613,7 @@ declare module 'vue' {
     readonly useStyleTag: UnwrapRef<typeof import('@vueuse/core')['useStyleTag']>
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>
+    readonly useTargetLanguage: UnwrapRef<typeof import('./composables/useTargetLanguage')['useTargetLanguage']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
     readonly useTemplateRefsList: UnwrapRef<typeof import('@vueuse/core')['useTemplateRefsList']>
     readonly useTextDirection: UnwrapRef<typeof import('@vueuse/core')['useTextDirection']>
@@ -1261,7 +1674,10 @@ declare module 'vue' {
     readonly webGpuHalf: UnwrapRef<typeof import('./utils/resources')['webGpuHalf']>
     readonly webGpuOffered: UnwrapRef<typeof import('./utils/resources')['webGpuOffered']>
     readonly whenever: UnwrapRef<typeof import('@vueuse/core')['whenever']>
+    readonly worthStraightening: UnwrapRef<typeof import('./utils/ocr/deskew')['worthStraightening']>
     readonly wrapDeg: UnwrapRef<typeof import('../shared/utils/transform')['wrapDeg']>
+    readonly writeModel: UnwrapRef<typeof import('./utils/ocr/store')['writeModel']>
+    readonly writePatch: UnwrapRef<typeof import('./utils/ocr/patches')['writePatch']>
     readonly writePlaced: UnwrapRef<typeof import('./utils/placed')['writePlaced']>
   }
 }

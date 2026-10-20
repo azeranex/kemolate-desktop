@@ -6,13 +6,36 @@
  * (`shared`) and keeps the open chapter and it agreeing. Every caller already
  * treats `shared` being `null` as "this is a local workspace" and steps around
  * the server: `push` returns early, `pageRowOf` finds no row, `forgetPage` has
- * nothing to forget, `asking` is never raised. So that is all this is — the web
- * build's answers for a local workspace, kept in the web build's shape, so
- * `useLibrary` and the rest are carried across unchanged.
+ * nothing to forget, `asking` is never raised, and `setTarget`/`setDirection`
+ * — which record a choice on the server — have no server to record it on (the
+ * local half of each is kept by its own composable). So that is all this is:
+ * the web build's answers for a local workspace, in the web build's shape, so
+ * `useLibrary`, `useOcr` and the rest are carried across unchanged.
  *
- * `pathOfPage` is pure and is the web build's, verbatim.
+ * `pathOfPage` and `rowOfPage` are pure and are the web build's, verbatim.
  */
 import type { ComicPage } from '~/composables/useComic'
+import type { WorkspaceRole } from '#shared/utils/roles'
+
+/** The parts of a shared workspace's page rows that the app reads. */
+export interface RemotePage {
+  id: number
+  uid: string | null
+  path: string
+  hash: string | null
+}
+
+/** The parts of a shared workspace that the app reads. */
+export interface SharedWorkspace {
+  role: WorkspaceRole
+  workspace: {
+    publicId: string
+    name: string
+    direction: 'ltr' | 'rtl'
+    targetLocale: string | null
+  }
+  pages: RemotePage[]
+}
 
 /**
  * The path a page is filed under, which is what its local id carries — unless
@@ -22,16 +45,32 @@ import type { ComicPage } from '~/composables/useComic'
 export const pathOfPage = (page: ComicPage) =>
   page.path ?? (page.id.startsWith('scan:') ? page.id.slice('scan:'.length) : page.name)
 
-/** The parts of a shared workspace's page rows that the app reads. */
-interface RemotePage {
-  id: number
-  uid: string | null
-  path: string
-  hash: string | null
-}
+/**
+ * Which row an open page is — the one answer, used everywhere it is asked.
+ *
+ * By `uid` first, because that is the page saying who it is and cannot be two
+ * pages at once. By hash second, but *only where the hash picks out one row*:
+ * two blank pages are byte-identical, and a hash shared by two rows names
+ * neither. By path last, for a page whose bytes have not been read yet.
+ */
+export function rowOfPage (rows: RemotePage[], page: ComicPage): RemotePage | undefined {
+  if (!rows.length) return undefined
 
-interface SharedWorkspace {
-  pages: RemotePage[]
+  if (page.uid) {
+    const named = rows.find((row) => row.uid === page.uid)
+
+    if (named) return named
+  }
+
+  const hash = page.scan?.hash
+
+  if (hash) {
+    const alike = rows.filter((row) => row.hash === hash)
+
+    if (alike.length === 1) return alike[0]
+  }
+
+  return rows.find((row) => row.path === pathOfPage(page))
 }
 
 export function useShared () {
@@ -44,5 +83,7 @@ export function useShared () {
     push: async (_list?: ComicPage[]) => {},
     pageRowOf: (_target: ComicPage): number | null => null,
     forgetPage: (_rowId: number) => {},
+    setTarget: async (_locale: string) => {},
+    setDirection: async (_direction: 'ltr' | 'rtl') => {},
   }
 }
