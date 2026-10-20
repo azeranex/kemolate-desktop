@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 
 import { serveKeys } from './keys'
 import { APP_ORIGIN, serveApp } from './protocol'
+import { keepWindowPlace, windowPlace } from './windowState'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const devUrl = process.env.KEMOLATE_DEV_URL
@@ -43,9 +44,11 @@ function stateOf (win: BrowserWindow | null): WindowState {
 }
 
 function createWindow () {
+  // Where it was last time, or 1920 × 1080 the first time — see `windowState.ts`.
+  const place = windowPlace()
+
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    ...place.bounds,
     minWidth: 720,
     minHeight: 480,
     show: false,
@@ -74,7 +77,18 @@ function createWindow () {
     return { action: 'deny' }
   })
 
+  // Set again rather than trusted to the constructor: with a hidden title bar
+  // on Windows the constructor's size and `getNormalBounds()` disagree by the
+  // invisible resize border, so a size read back and given to the next window
+  // grew it a few pixels every launch. `setBounds` is the read's own inverse.
+  win.setBounds(place.bounds)
+
+  keepWindowPlace(win, place.bounds)
+
   win.once('ready-to-show', () => {
+    // Maximised before it is shown, so it does not open small and then jump.
+    if (place.maximized) win.maximize()
+    if (place.fullScreen) win.setFullScreen(true)
     win.show()
     if (smoke) {
       setTimeout(async () => {
