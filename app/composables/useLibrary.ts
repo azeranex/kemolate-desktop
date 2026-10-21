@@ -37,6 +37,15 @@ import { hashLanes } from '~/utils/resources'
 type Chapter =
   | { kind: 'handle', title: string, handle: FileSystemDirectoryHandle }
   | { kind: 'copy', title: string }
+  /*
+   * Desktop: kept as what it was opened from — every file and folder dropped or
+   * picked, by handle (see `Source` in `utils/images.ts`) — rather than copied.
+   * `removed` is the paths of pages taken out of the chapter that a folder among
+   * the sources still holds, so they stay out when it is read again. Pages the
+   * app made itself (a blank, a file linked to a page) have no source, and live
+   * in the private filesystem as before; reopening reads both.
+   */
+  | { kind: 'sources', title: string, sources: Source[], removed?: string[] }
 
 /**
  * What this browser has done to the pages that their files cannot say.
@@ -199,7 +208,7 @@ export function useLibrary () {
   const metaKey = computed(() => idbKey.pages(workspace.value))
 
   /** Where the open comic is being kept, once one is open from disk. */
-  const kind = useState<'handle' | 'copy' | null>('library-kind', () => null)
+  const kind = useState<'handle' | 'copy' | 'sources' | null>('library-kind', () => null)
 
   /**
    * A chapter we remember but may not read yet.
@@ -265,7 +274,7 @@ export function useLibrary () {
    * reader gets by default. Every sheet, group, adjustment and placed image in
    * the file went with them.
    */
-  async function opened ({ handle, images, title, rest }: Opened, dress?: () => void) {
+  async function opened ({ handle, images, title, rest, sources }: Opened, dress?: () => void) {
     if (!images.length) {
       // A folder that came back empty *and* still has a good handle is the case
       // where nothing could be read rather than nothing was there — permission
@@ -322,6 +331,20 @@ export function useLibrary () {
 
       // A folder of PDFs is read where it stands, so the pages that are still
       // coming only have to reach the canvas — there is nothing to keep.
+      drain(rest, null)
+
+      return true
+    }
+
+    // Desktop: loose files and PDFs kept as the files they are, where the drop or
+    // the picker handed over a handle on each — see `Source`. Nothing is copied;
+    // whatever an earlier chapter here had copied in is cleared, as for a folder,
+    // and a PDF's later pages only have to reach the canvas.
+    if (sources?.length) {
+      kind.value = 'sources'
+      await remember({ kind: 'sources', title: name, sources })
+      await clear(workspace.value).catch(() => {})
+
       drain(rest, null)
 
       return true
@@ -534,8 +557,9 @@ export function useLibrary () {
    * usual case, and a handful of pages is the other one, which until now only
    * a drop could reach.
    *
-   * No handle comes back from a file picker, so a chapter opened this way is
-   * kept as a copy (`opened` decides that, as it does for a drop).
+   * Desktop: the picker hands back a handle on each file, so a chapter opened
+   * this way is kept as the files it is (`Source`); where it would not, as a
+   * copy. `opened` decides, as it does for a drop.
    */
   async function openFiles () {
     try {
@@ -636,6 +660,44 @@ export function useLibrary () {
 
       await openImages(images, chapter.title, at)
       await applyMeta(at)
+
+      return
+    }
+
+    if (chapter.kind === 'sources') {
+      const found = await imagesOf(chapter.sources, { reopening: true })
+        .catch(() => ({ images: [], rest: null, missing: chapter.sources.length }))
+      const made = await readBack(workspace.value).catch(() => [])
+      const removed = new Set(chapter.removed ?? [])
+      const images = inReadingOrder([...found.images, ...made]).filter((image) => !removed.has(image.path))
+
+      // Every file gone — moved, renamed, deleted, or a drive not plugged in.
+      // The work stays, as for a copy that went missing (see above), and the
+      // same pages dropped in again find it.
+      if (!images.length) {
+        open.value = false
+        toast.warning('This chapter’s files are missing', {
+          id: missingToast(workspace.value),
+          description: 'They have been moved or deleted since it was opened. Drop the same pages in again — the readings, translations and layers made on them come back with them.',
+        })
+
+        return
+      }
+
+      kind.value = 'sources'
+
+      const at = await lastAt()
+
+      await openImages(images, chapter.title, at)
+      await applyMeta(at)
+
+      drain(found.rest, null)
+
+      if (found.missing) {
+        toast.warning(`${found.missing} of this chapter’s files ${found.missing === 1 ? 'is' : 'are'} missing`, {
+          description: 'Moved or deleted since the chapter was opened, so their pages are not here. Dropping them in again brings their work back.',
+        })
+      }
 
       return
     }
@@ -959,6 +1021,22 @@ export function useLibrary () {
     // and asking for it by name is how a removal would take the wrong one.
     if (kind.value === 'copy' && target.scan) await removeIn(workspace.value, path)
 
+    // Desktop: a sources chapter drops a file that was this page from its
+    // sources, and otherwise remembers the page as removed — a folder among the
+    // sources still holds it, and would put it back. See `Chapter`.
+    if (kind.value === 'sources') {
+      await removeIn(workspace.value, path).catch(() => {})
+
+      const chapter = await idb.get<Chapter>(key.value).catch(() => null)
+
+      if (chapter?.kind === 'sources') {
+        const sources = chapter.sources.filter((source) => !(source.kind === 'file' && source.path === path))
+        const removed = sources.length === chapter.sources.length ? [...new Set([...chapter.removed ?? [], path])] : chapter.removed
+
+        await idb.set(key.value, { ...chapter, sources, removed }).catch(unsaved)
+      }
+    }
+
     if (row && onServer) {
       await $fetch(`/api/workspaces/${workspace.value}/pages/${row}`, {
         method: 'DELETE',
@@ -1070,6 +1148,20 @@ export function useLibrary () {
       return
     }
 
+    // Desktop: onto a chapter kept by its sources, the new ones join them — or,
+    // where the drop came without handles, are kept the way a copy keeps them.
+    if (kind.value === 'sources') {
+      const chapter = await idb.get<Chapter>(key.value).catch(() => null)
+
+      if (chapter?.kind === 'sources' && found.sources?.length) {
+        await remember({ ...chapter, sources: [...chapter.sources, ...found.sources] })
+      } else {
+        await addIn(workspace.value, found.images).catch(unsaved)
+      }
+
+      return
+    }
+
     if (kind.value === 'handle' && !blankWarned.value) {
       blankWarned.value = true
 
@@ -1157,7 +1249,9 @@ export function useLibrary () {
      */
     const path = pathOfPage(target)
 
-    if (kind.value === 'copy') {
+    // Desktop: a sources chapter keeps a page with no source of its own in the
+    // private filesystem, and reads it back beside its sources — see `Chapter`.
+    if (kind.value === 'copy' || kind.value === 'sources') {
       await addIn(workspace.value, [{ file, path }]).catch(unsaved)
     } else if (kind.value !== 'handle' && opfsUsable()) {
       kind.value = 'copy'
@@ -1228,7 +1322,8 @@ export function useLibrary () {
     await keepMeta((meta) => { if (meta.order) meta.order = openPages.value.map((page) => page.id) })
     await told
 
-    if (kind.value === 'copy') {
+    // Desktop: a sources chapter keeps the pages it made itself as a copy does.
+    if (kind.value === 'copy' || kind.value === 'sources') {
       await addIn(workspace.value, [image]).catch(unsaved)
 
       return

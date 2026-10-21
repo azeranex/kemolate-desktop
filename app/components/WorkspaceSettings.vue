@@ -44,6 +44,8 @@ function onDirection (next: unknown) {
 const pages = computed(() => {
   if (kind.value === 'handle') return 'Read from the folder you opened. Nothing is copied.'
   if (kind.value === 'copy') return 'Copied into this app’s own storage.'
+  // Desktop: loose files and PDFs, read where they are — see `Source`.
+  if (kind.value === 'sources') return 'Read from the files you opened, where they are. Nothing is copied.'
 
   return 'No chapter is open in this workspace yet.'
 })

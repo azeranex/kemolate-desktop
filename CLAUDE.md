@@ -202,6 +202,16 @@ rather than the account menu. The header has no account menu.
     this site can view" — Chromium's words, not ours). A permission *check* handler in
     `main.ts` (`keepFolderAccess`) answers read checks from the app's origin with yes, so a
     folder chapter is read again on the next launch instead of waiting behind "Reopen folder".
+  - **Loose files and PDFs are kept where they are, not copied** (decided 2026-10-21). A drop
+    or File › Open files… hands over a handle on each thing (`showOpenFilePicker` for the
+    pick), and the chapter is kept as `kind: 'sources'` — the handles, each with the path its
+    pages were filed under (`Source` in `utils/images.ts`) — and read out of them again on the
+    next launch (`imagesOf`), by the same permission handler a folder uses. OPFS keeps only what
+    the app itself made for such a chapter (a blank page, a file linked to a page) beside its
+    caches; a page removed from a folder among the sources is remembered in `removed`. A file
+    moved or deleted since is a page missing, said; every file gone keeps the workspace and its
+    work, as a lost copy does (`resume`). Older chapters kept as `copy` still read back; a drop
+    that brings no handles still falls back to one.
   - **Saving** a project or an export goes through the web build's link-to-a-Blob download;
     `electron/downloads.ts` titles the native Save dialog for what is saved, filters it to
     the kind, and opens it in Documents, then the last folder used.

@@ -379,6 +379,8 @@ const dimensions = computed(() => {
 const held = computed(() => {
   if (kind.value === 'handle') return 'In your folder'
   if (kind.value === 'copy') return 'Copied into this app'
+  // Desktop: loose files and PDFs, read where they are — see `Source`.
+  if (kind.value === 'sources') return 'In your files'
 
   return null
 })

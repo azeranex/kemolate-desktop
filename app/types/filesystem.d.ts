@@ -32,6 +32,13 @@ interface DirectoryPickerOptions {
   startIn?: string | FileSystemHandle
 }
 
+interface OpenFilePickerOptions {
+  multiple?: boolean
+  types?: { description?: string, accept: Record<string, string[]> }[]
+}
+
 interface Window {
   showDirectoryPicker?: (options?: DirectoryPickerOptions) => Promise<FileSystemDirectoryHandle>
+  /** Desktop: how picked files come with a handle each — see `Source` in `utils/images.ts`. */
+  showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>
 }

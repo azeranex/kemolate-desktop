@@ -288,6 +288,7 @@ declare global {
   const imageTokens: typeof import('../shared/utils/tokens').imageTokens
   const imagesFrom: typeof import('./utils/images').imagesFrom
   const imagesIn: typeof import('./utils/images').imagesIn
+  const imagesOf: typeof import('./utils/images').imagesOf
   const inReadingOrder: typeof import('./utils/images').inReadingOrder
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
@@ -971,7 +972,7 @@ declare global {
   export type { GoogleLine } from './utils/google'
   import('./utils/google')
   // @ts-ignore
-  export type { PickedImage, Rest, Found, Opened, CropShape } from './utils/images'
+  export type { PickedImage, Rest, Found, Opened, Source, CropShape } from './utils/images'
   import('./utils/images')
   // @ts-ignore
   export type { LetterSpace, LetterSetting, ShapeParts } from './utils/letterCss'
@@ -1386,6 +1387,7 @@ declare module 'vue' {
     readonly imageTokens: UnwrapRef<typeof import('../shared/utils/tokens')['imageTokens']>
     readonly imagesFrom: UnwrapRef<typeof import('./utils/images')['imagesFrom']>
     readonly imagesIn: UnwrapRef<typeof import('./utils/images')['imagesIn']>
+    readonly imagesOf: UnwrapRef<typeof import('./utils/images')['imagesOf']>
     readonly inReadingOrder: UnwrapRef<typeof import('./utils/images')['inReadingOrder']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>

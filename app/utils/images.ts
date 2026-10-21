@@ -115,6 +115,91 @@ export interface Opened extends Found {
   handle: FileSystemDirectoryHandle | null
   /** What to call the comic: the folder's name, where there was a folder. */
   title: string | null
+  /**
+   * Desktop: every file and folder the pages came out of, where the browser
+   * handed over a handle on each — see `Source`. Absent where it would not,
+   * and the chapter is then kept as a copy, as it always was.
+   */
+  sources?: Source[]
+}
+
+/**
+ * Desktop: one thing the reader dropped or picked, kept so the chapter can be
+ * read out of it again — the reader's own file or folder, where it is.
+ *
+ * In a browser a dropped file is gone when the tab closes, so the web build
+ * copies loose pages into the private filesystem to have them tomorrow. Here a
+ * drop or a pick hands over a handle on each thing, and the app's own origin is
+ * allowed to read through one again after a restart (`keepFolderAccess` in
+ * `electron/main.ts`). So a chapter of loose files is kept the way a folder is:
+ * as what it was opened from, not as a second copy of every page on the disk.
+ *
+ * Each carries the path its pages were filed under when they arrived, because a
+ * page's id is `scan:<path>` and the chapter's order, names and history hang
+ * off it: read again, a file must come back as the same page. A file's `path`
+ * is that page's (or, for a PDF, the folder its pages are filed under); a
+ * folder's `prefix` is put before every path found in it.
+ */
+export type Source =
+  | { kind: 'file', handle: FileSystemFileHandle, path: string }
+  | { kind: 'folder', handle: FileSystemDirectoryHandle, prefix: string }
+
+/**
+ * Desktop: the pages of a chapter kept as its sources, read out of them again —
+ * PDFs opened out as a drop opens them, and the lot in reading order. A source
+ * that has been moved or deleted since is counted in `missing` and skipped:
+ * one file gone is one page gone, not a chapter.
+ */
+export async function imagesOf (sources: Source[], { reopening = false }: { reopening?: boolean } = {}): Promise<Found & { missing: number }> {
+  const found: PickedImage[] = []
+  let missing = 0
+
+  for (const source of sources) {
+    try {
+      if (source.kind === 'file') {
+        const file = await source.handle.getFile()
+
+        if (isOpenable(file)) found.push({ file, path: source.path })
+      } else {
+        const before = found.length
+
+        await descend(source.handle, source.prefix, found)
+
+        if (found.length === before) missing++
+      }
+    } catch {
+      missing++
+    }
+  }
+
+  const opened = await unpacked(found, reopening)
+
+  return { ...opened, images: inReadingOrder(opened.images), missing }
+}
+
+/**
+ * Desktop: the handle behind each thing in a drop, as a `Source` filed under the
+ * path the drop gave its pages — or nothing, where any one of them came without
+ * a handle, since a chapter half kept by reference and half not would come back
+ * half there.
+ */
+async function sourcesOf (items: { entry: FileSystemEntry | null, handle: Promise<FileSystemHandle | null> | null }[]): Promise<Source[] | undefined> {
+  const sources: Source[] = []
+
+  for (const { entry, handle } of items) {
+    const held = await handle?.catch(() => null)
+
+    if (!held || !entry) return undefined
+
+    // The path the drop filed it under — `walk` takes the same `fullPath`.
+    const path = entry.fullPath.replace(/^\//, '')
+
+    sources.push(held.kind === 'file'
+      ? { kind: 'file', handle: held as FileSystemFileHandle, path }
+      : { kind: 'folder', handle: held as FileSystemDirectoryHandle, prefix: `${path}/` })
+  }
+
+  return sources
 }
 
 /**
@@ -477,7 +562,13 @@ export async function imagesFrom (transfer: DataTransfer): Promise<Opened> {
   const opened = await unpacked(found)
   const images = inReadingOrder(opened.images)
 
-  return { ...opened, handle: null, images, title: rootOf(images) }
+  // Desktop: kept by reference where every item came with a handle — except a
+  // lone folder whose handle read as nothing above, which would read as nothing
+  // again tomorrow and so is kept as a copy, as the note there says.
+  const lone = items.length === 1 && (await items[0]!.handle?.catch(() => null))?.kind === 'directory'
+  const sources = lone ? undefined : await sourcesOf(items)
+
+  return { ...opened, handle: null, images, title: rootOf(images), sources }
 }
 
 /**
@@ -556,7 +647,28 @@ export function pickImage (): Promise<File | null> {
  * one that is has to be found somewhere to live and cleared before it will fire
  * twice for the same folder.
  */
-export function pickImages ({ folder = false } = {}): Promise<Found> {
+export async function pickImages ({ folder = false } = {}): Promise<Found & { sources?: Source[] }> {
+  // Desktop: files through the file picker where there is one, because it hands
+  // over a handle on each — which is what lets the chapter be read from them
+  // again rather than copied (see `Source`). A dismissed dialog is nothing chosen.
+  const picker = typeof window === 'undefined' ? undefined : window.showOpenFilePicker
+
+  if (!folder && picker) {
+    const handles = await picker.call(window, {
+      multiple: true,
+      types: [{ description: 'Pages', accept: { 'image/*': [], 'application/pdf': ['.pdf'] } }],
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === 'AbortError') return []
+
+      throw error
+    })
+
+    const sources: Source[] = handles.map((handle) => ({ kind: 'file', handle, path: handle.name }))
+    const found = await imagesOf(sources)
+
+    return { images: found.images, rest: found.rest, sources: sources.length ? sources : undefined }
+  }
+
   return new Promise((resolve, reject) => {
     const input = document.createElement('input')
 
