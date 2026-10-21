@@ -17,6 +17,20 @@
  *
  * The whole stack is kept, twirls included: `open` is this reader's and is not
  * sent to the server for that reason, but a local workspace has no other reader.
+ *
+ * ## Desktop: a stage pressed before a page was looked up
+ *
+ * The web build's file, with one change. A layer preset on a local chapter
+ * arranges every page's stack in memory and leaves the writing to this cache
+ * (see `useLayerPresets`) — which writes only pages it has looked up. A page
+ * still being looked up when the stage was pressed, or one whose hash had not
+ * landed yet, then lost the stage twice over: the saved stack arriving was put
+ * over the arranged one, and a page with nothing saved had its arranged stack
+ * *agreed* as it stood, so it was never written and a restart brought it back
+ * outside the stage. So `restore` hands each page it settles to `stageArrival`,
+ * which lays the stage pressed in this open over whatever arrived, and a page
+ * it staged is written rather than agreed. A stack saved before this open
+ * cannot know about a press made in it, so the press is the newer word.
  */
 import type { StackLayer } from '#shared/utils/layers'
 import type { ComputedRef } from 'vue'
@@ -143,6 +157,7 @@ export function useLayerCache () {
         // bringing up to date.
         if (held?.v !== 1 || !held.stack.length) {
           kept.set(hash, stacked(still))
+          staged(here, still, hash)
 
           continue
         }
@@ -151,6 +166,7 @@ export function useLayerCache () {
         // Agreed as it lands, from the page rather than the entry: the string
         // the watcher will compare is the page's own.
         kept.set(hash, stacked(still))
+        staged(here, still, hash)
       } finally {
         looking.delete(mark)
         looked.add(mark)
@@ -182,24 +198,38 @@ export function useLayerCache () {
 
       if (kept.get(hash) === now) continue
 
-      kept.set(hash, now)
-
-      const save = () => {
-        timers.delete(hash)
-        waiting.delete(hash)
-
-        idb.set(keyOf(here, hash), { v: 1, stack: JSON.parse(now) as StackLayer[] } satisfies CachedStack)
-          .then(() => announceLocal(here, 'layers', hash))
-          .catch(() => {
-            kept.delete(hash)
-          })
-      }
-
-      clearTimeout(timers.get(hash))
-      waiting.set(hash, save)
-      timers.set(hash, setTimeout(save, SETTLE))
+      write(here, hash, now)
     }
   })
+
+  /** Agree a page's stack and write it once it has sat still for `SETTLE`. */
+  function write (here: string, hash: string, now: string) {
+    kept.set(hash, now)
+
+    const save = () => {
+      timers.delete(hash)
+      waiting.delete(hash)
+
+      idb.set(keyOf(here, hash), { v: 1, stack: JSON.parse(now) as StackLayer[] } satisfies CachedStack)
+        .then(() => announceLocal(here, 'layers', hash))
+        .catch(() => {
+          kept.delete(hash)
+        })
+    }
+
+    clearTimeout(timers.get(hash))
+    waiting.set(hash, save)
+    timers.set(hash, setTimeout(save, SETTLE))
+  }
+
+  /**
+   * Desktop: a page just settled by `restore`, under the stage pressed in this
+   * open if there was one — and then written, because what is on disk (or the
+   * nothing there) predates the press. See the header.
+   */
+  function staged (here: string, target: ComicPage, hash: string) {
+    if (stageArrival(here, epoch.value, target)) write(here, hash, stacked(target))
+  }
 
   // A new open of the chapter: the last one's waiting saves go now, before this
   // one reads — see the same watcher in `useBlockCache`.

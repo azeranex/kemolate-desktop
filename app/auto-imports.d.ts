@@ -138,6 +138,7 @@ declare global {
   const announceLocal: typeof import('./composables/useLocalChanges').announceLocal
   const appendStroke: typeof import('./utils/strokes').appendStroke
   const applyLut: typeof import('../shared/utils/adjust').applyLut
+  const arrangeStack: typeof import('../shared/utils/presets').arrangeStack
   const askAgain: typeof import('../shared/utils/glossary').askAgain
   const askShape: typeof import('./composables/useTranslate').askShape
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
@@ -357,6 +358,7 @@ declare global {
   const newPaintLayer: typeof import('../shared/utils/layers').newPaintLayer
   const nextTick: typeof import('vue').nextTick
   const normaliseCast: typeof import('../shared/utils/cast').normaliseCast
+  const nuxtReady: typeof import('./composables/nuxt').nuxtReady
   const onActivated: typeof import('vue').onActivated
   const onBeforeMount: typeof import('vue').onBeforeMount
   const onBeforeUnmount: typeof import('vue').onBeforeUnmount
@@ -534,6 +536,8 @@ declare global {
   const speechLike: typeof import('../shared/utils/ocr').speechLike
   const squeezed: typeof import('../shared/utils/lettering').squeezed
   const stackOf: typeof import('./composables/useLayerSync').stackOf
+  const stageArrival: typeof import('./composables/useLayerPresets').stageArrival
+  const stageStack: typeof import('../shared/utils/presets').stageStack
   const standardApplies: typeof import('../shared/utils/lettering').standardApplies
   const standardUids: typeof import('../shared/utils/layers').standardUids
   const standingPrompt: typeof import('../shared/utils/prompt').standingPrompt
@@ -1225,6 +1229,7 @@ declare module 'vue' {
     readonly announceLocal: UnwrapRef<typeof import('./composables/useLocalChanges')['announceLocal']>
     readonly appendStroke: UnwrapRef<typeof import('./utils/strokes')['appendStroke']>
     readonly applyLut: UnwrapRef<typeof import('../shared/utils/adjust')['applyLut']>
+    readonly arrangeStack: UnwrapRef<typeof import('../shared/utils/presets')['arrangeStack']>
     readonly askAgain: UnwrapRef<typeof import('../shared/utils/glossary')['askAgain']>
     readonly askShape: UnwrapRef<typeof import('./composables/useTranslate')['askShape']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -1444,6 +1449,7 @@ declare module 'vue' {
     readonly newPaintLayer: UnwrapRef<typeof import('../shared/utils/layers')['newPaintLayer']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly normaliseCast: UnwrapRef<typeof import('../shared/utils/cast')['normaliseCast']>
+    readonly nuxtReady: UnwrapRef<typeof import('./composables/nuxt')['nuxtReady']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeUnmount: UnwrapRef<typeof import('vue')['onBeforeUnmount']>
@@ -1621,6 +1627,8 @@ declare module 'vue' {
     readonly speechLike: UnwrapRef<typeof import('../shared/utils/ocr')['speechLike']>
     readonly squeezed: UnwrapRef<typeof import('../shared/utils/lettering')['squeezed']>
     readonly stackOf: UnwrapRef<typeof import('./composables/useLayerSync')['stackOf']>
+    readonly stageArrival: UnwrapRef<typeof import('./composables/useLayerPresets')['stageArrival']>
+    readonly stageStack: UnwrapRef<typeof import('../shared/utils/presets')['stageStack']>
     readonly standardApplies: UnwrapRef<typeof import('../shared/utils/lettering')['standardApplies']>
     readonly standardUids: UnwrapRef<typeof import('../shared/utils/layers')['standardUids']>
     readonly standingPrompt: UnwrapRef<typeof import('../shared/utils/prompt')['standingPrompt']>

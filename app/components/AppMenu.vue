@@ -180,17 +180,13 @@ function deleteSelection () {
         <UMenubarCheckboxItem v-model="balloonDebug" :disabled="!pages.length">
           Balloon debug
         </UMenubarCheckboxItem>
-        <UMenubarSeparator v-if="writable" />
+        <UMenubarSeparator />
         <!--
           The presets write every page's standard rows, so they are an editor's
           — see `useLayerPresets`. Shown to everybody, greyed where not theirs,
           so the menu reads the same whoever opens it.
-
-          Desktop: shown only where they can be applied, which no local
-          workspace — so no workspace here — is yet; see the Layers panel's
-          "Working on" row, which says why at length.
         -->
-        <UMenubarRadioGroup v-if="writable" :model-value="active ?? ''">
+        <UMenubarRadioGroup :model-value="active ?? ''">
           <UMenubarRadioItem
             v-for="preset in presets"
             :key="preset.id"

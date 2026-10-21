@@ -98,8 +98,15 @@ and a later fix in one can be carried to the other. Keep it that way.
   - `panel/Translate.vue` hides "Undo that run" without a server (`shared`): run revisions are
     kept only server-side, and `revertRun` on a local workspace reverts nothing, silently.
     That is a web build bug as well, reached there only by local workspaces.
-  - Pending UI: `AppMenu.vue`'s stand-ins for the project file, export, layer presets and
-    balloon debug; `usePanelDock`'s `pending()` panels.
+  - Layer presets (Read / Clean / Letter / Final) work on a local chapter. The web build's
+    need a shared workspace — the server's `layers.preset` reaches the pages not on screen —
+    so `useLayerPresets` has a local branch: every page's stack is arranged in memory by
+    `stageStack` (`shared/utils/presets.ts`, the server's allowlist restated) and
+    `useLayerCache` writes them. A page the cache had not looked up when the stage was
+    pressed is staged as it lands (`stageArrival`), or its saved stack would undo the press.
+    The server branch is kept for a shared workspace.
+  - Pending UI: `usePanelDock`'s `pending()` panels — Block images and Dev. The menus have
+    no stand-ins left.
 - **Component names follow Nuxt's rule** — `canvas/Engine.vue` is `CanvasEngine`. If a new
   component resolves under a bare name, check `app/components.d.ts`: the plugin drops folder
   prefixes when given `globs`, which is why it is configured with `dirs` and `excludeNames`.
@@ -160,9 +167,6 @@ rather than the account menu. The header has no account menu.
   imported where used and never into themselves, so the recursion rendered nothing — the
   Layers panel's groups came up empty. It is the only one so far; check for another when
   porting a tree.
-- The Layers panel's presets ("Working on") and the View menu's preset items are shown only
-  where a preset can be applied — in the web build, an editor of a *shared* workspace — so
-  here they are hidden rather than four buttons that never work.
 - A component used in a template but never brought across renders its slot inline rather
   than failing — the Detect panel's `InfoTip` did, as five lines beside a switch. Check
   `app/components.d.ts` when a ported panel lays out oddly.

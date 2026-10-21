@@ -31,12 +31,56 @@
  * Applied locally before the request goes, because a stage is a view and a view
  * that waits for a round trip feels broken. The request is what makes it true
  * for the other pages and the other people; this browser is already right.
+ *
+ * ## Desktop: a local chapter is staged here, every page of it
+ *
+ * The web build's file, with a local branch. There a preset needs a shared
+ * workspace, because the server is what reaches the pages not on screen, and a
+ * local workspace showed the four buttons greyed. Every workspace here is
+ * local, so that left no presets at all — and the desktop has no server to ask.
+ *
+ * So on a local workspace the browser does the server's half itself: every
+ * page's stack (`ComicPage.stack`, or the founding stack where a page has none)
+ * is arranged in memory by `stageStack` — the same allowlist `layers.preset`
+ * holds the server to, three fields on the standard rows and nothing else —
+ * and `useLayerCache` writes each page that changed, as it writes any edit to a
+ * stack. Nothing is written from here: the cache owns the disk, and a second
+ * writer is how a write gets mistaken for an arrival or lost to one.
+ *
+ * The one gap that leaves is a page the cache has not looked up yet when the
+ * stage is pressed — its saved stack, landing afterwards, would put it back
+ * outside the stage. `pressed` remembers the stage and the open it was pressed
+ * in, and the cache lays it over each page it settles (`stageArrival`).
+ *
+ * The server branch is kept as it was, for when a workspace is shared.
  */
 import type { LayerPreset, PresetId } from '#shared/utils/layers'
 
+/**
+ * The stage last pressed on a local chapter: which workspace, which open of it
+ * (`useComic.epoch`) and what was asked. Module state, like `useLayerCache`'s
+ * `keepAll`, because the cache that reads it is a different instance from the
+ * panel or menu that pressed it. Only ever compared against the current open,
+ * so a stage pressed in one chapter is never laid over another.
+ */
+let pressed: { workspace: string, epoch: number, preset: LayerPreset } | null = null
+
+/**
+ * Lay the stage pressed in this open over a page's stack that has just been
+ * settled — put back from disk, or found to have nothing there — and say
+ * whether one was. Called by `useLayerCache.restore`; see the header.
+ */
+export function stageArrival (workspace: string, epoch: number, target: ComicPage): boolean {
+  if (!pressed || pressed.workspace !== workspace || pressed.epoch !== epoch) return false
+
+  target.stack = stageStack(target.stack, pressed.preset)
+
+  return true
+}
+
 export function useLayerPresets () {
   const route = useRoute()
-  const { layers, layerSelection, page } = useComic()
+  const { layers, layerSelection, page, pages, epoch } = useComic()
   const { shared, pageRowOf } = useShared()
 
   const workspace = computed(() => String(route.params.workspaceId ?? ''))
@@ -61,7 +105,11 @@ export function useLayerPresets () {
    * it is refused here rather than left to fail quietly.
    */
   const writable = computed(() => Boolean(
-    workspace.value && shared.value && atLeast(shared.value.role, 'editor'),
+    workspace.value && (shared.value
+      ? atLeast(shared.value.role, 'editor')
+      // Desktop: a local workspace is its reader's, so a preset is theirs once
+      // there is a chapter to arrange — see the header.
+      : pages.value.length > 0),
   ))
 
   /**
@@ -106,27 +154,14 @@ export function useLayerPresets () {
     if (active.value && now !== stamp.value) active.value = null
   })
 
-  /** Set the rows a preset names, wherever they sit in the tree. */
+  /**
+   * Set the rows a preset names, wherever they sit in the tree.
+   *
+   * Desktop: the walk moved to `arrangeStack` (`shared/utils/presets.ts`) so
+   * the local branch can lay it on every page and a test can reach it.
+   */
   function arrange (preset: LayerPreset) {
-    const walk = (rows: StackLayer[]) => {
-      for (const row of rows) {
-        const wanted = preset.rows[row.id]
-
-        if (wanted) {
-          row.visible = wanted.visible
-
-          if (wanted.opacity !== undefined) row.opacity = wanted.opacity
-
-          // Left alone when the stage says nothing, which is how the scan keeps
-          // the lock that is not the reader's to open — see `StackLayer.fixed`.
-          if (wanted.locked !== undefined && !row.fixed) row.locked = wanted.locked
-        }
-
-        walk(row.children ?? [])
-      }
-    }
-
-    walk(layers.value)
+    arrangeStack(layers.value, preset)
   }
 
   async function apply (id: PresetId) {
@@ -135,6 +170,18 @@ export function useLayerPresets () {
     if (!preset || !writable.value) return
 
     arrange(preset)
+
+    /*
+     * Desktop: a local chapter's other pages, arranged here rather than by a
+     * server — see the header. After the page on screen, which stays first;
+     * arranging it again in the loop changes nothing. Remembered before the
+     * loop, so a page the cache is still looking up is staged when it lands.
+     */
+    if (!shared.value) {
+      pressed = { workspace: workspace.value, epoch: epoch.value, preset }
+
+      for (const target of pages.value) target.stack = stageStack(target.stack, preset)
+    }
 
     /*
      * The stage's own row is selected so the next stroke lands where the stage

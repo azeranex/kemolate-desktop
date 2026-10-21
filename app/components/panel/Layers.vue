@@ -228,14 +228,8 @@ if (import.meta.client) {
       "none" among them: the lit one goes out the moment anything is arranged by
       hand, which is `useLayerPresets.active` saying that the stack stopped
       being the stage's and became the reader's.
-
-      Desktop: shown only where a preset can be applied (`staged`). In the web
-      build that is an editor of a shared workspace and nobody else — a local
-      workspace shows the four greyed — and every workspace here is local, so
-      they would be four buttons that never work under a tooltip promising every
-      page. They come back when presets learn to arrange a local chapter.
     -->
-    <div v-if="staged" class="grid gap-1">
+    <div class="grid gap-1">
       <UFieldLabel>Working on</UFieldLabel>
       <div class="grid grid-cols-4 gap-1">
         <UTooltip v-for="preset in presets" :key="preset.id">
