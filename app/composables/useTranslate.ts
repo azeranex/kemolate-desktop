@@ -140,6 +140,17 @@ const SCAFFOLD = 40
 const IN_FLIGHT = 3
 
 /**
+ * Desktop: the run that is going, so the panel's Stop can reach it.
+ *
+ * `begin` handed its `stop` only to whoever opened the run — the auto run kept
+ * it, the panel's presses dropped it — so a chapter-wide press, once made, could
+ * not be called off short of closing the chapter. Module-level rather than in
+ * `useState` because it is a live object, not state anything draws; one window,
+ * one run at a time (`begin` refuses a second).
+ */
+let active: TranslateRun | null = null
+
+/**
  * A run that pages are handed to as they become ready, rather than all at
  * once — the auto run's, which reads and cleans the next page while this one is
  * out being translated. `run` is the same thing with every page handed over up
@@ -392,6 +403,16 @@ export function useTranslate () {
   )
 
   const running = computed(() => progress.value !== null)
+
+  /** Whether Stop has been pressed on the run that is going — see `stop`. */
+  const stopping = useState<boolean>('translate-stopping', () => false)
+
+  /**
+   * Whether the progress line belongs to a run Stop can reach. Not the same as
+   * `running`: a line sent back to be shortened holds the progress line too,
+   * and is one request with nothing to stop between.
+   */
+  const stoppable = useState<boolean>('translate-stoppable', () => false)
 
   /** Whether the engine in force spends a key. */
   const usesModel = computed(() => translate.value.engine !== 'google')
@@ -916,10 +937,16 @@ export function useTranslate () {
     const show = () => {
       if (!progress.value) return
 
+      // Stopped: what is already out still lands (see `stop`), and the line says
+      // that is what is being waited for rather than going on about the pages.
+      const finishing = halted && out.length
+        ? `Stopping — writing the ${out.length} page${out.length === 1 ? '' : 's'} already asked about…`
+        : null
+
       progress.value = {
         ...progress.value,
         page: Math.min(head + 1, progress.value.pages),
-        message: said.get(head) ?? progress.value.message,
+        message: finishing ?? said.get(head) ?? progress.value.message,
         done: lines,
       }
     }
@@ -1117,6 +1144,40 @@ export function useTranslate () {
       return { written: patches.length, kept: reply.kept }
     }
 
+    // Declared before the writer starts, so it is the run in force (`active`)
+    // before the writer can finish — a run over pages already gone ends at once.
+    const handle: TranslateRun = {
+      add (target, at = next) {
+        next = Math.max(next, at + 1)
+
+        if (closed || halted || refused || failure) return Promise.resolve(null)
+
+        return new Promise((resolve) => {
+          waiting.push({ target, at, landed: resolve })
+          pump()
+          wake()
+        })
+      },
+      get failed () {
+        return refused || failure !== null
+      },
+      stop () {
+        halted = true
+        show()
+        wake()
+      },
+      close () {
+        closed = true
+        wake()
+
+        return writer
+      },
+    }
+
+    active = handle
+    stopping.value = false
+    stoppable.value = true
+
     /*
      * The writer: one page at a time, in order, however the answers arrive.
      * Everything above only asks.
@@ -1171,35 +1232,27 @@ export function useTranslate () {
 
       if (failure) error.value = failure
 
+      if (active === handle) active = null
+
+      stopping.value = false
+      stoppable.value = false
       progress.value = null
     })()
 
-    return {
-      add (target, at = next) {
-        next = Math.max(next, at + 1)
+    return handle
+  }
 
-        if (closed || halted || refused || failure) return Promise.resolve(null)
+  /**
+   * Stop the run that is going: nothing more is asked, and the pages already
+   * asked about are written as their answers arrive — they are paid for, and
+   * each lands whole or not at all (see `commit`). Every page it wrote stays
+   * under one batch, so "Undo that run" still takes back what it did.
+   */
+  function stop () {
+    if (!active || stopping.value) return
 
-        return new Promise((resolve) => {
-          waiting.push({ target, at, landed: resolve })
-          pump()
-          wake()
-        })
-      },
-      get failed () {
-        return refused || failure !== null
-      },
-      stop () {
-        halted = true
-        wake()
-      },
-      close () {
-        closed = true
-        wake()
-
-        return writer
-      },
-    }
+    stopping.value = true
+    active.stop()
   }
 
   /** A run over some pages, handed over all at once. */
@@ -1588,6 +1641,9 @@ export function useTranslate () {
     shortenBlock,
     revertRun,
     begin,
+    stop,
+    stopping,
+    stoppable,
     pendingOf,
   }
 }

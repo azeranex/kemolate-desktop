@@ -8,7 +8,7 @@
  * together would mean the engine and the glossary went out of reach the moment
  * nothing was selected, which is exactly when they are most likely to be set.
  */
-import { BookMarkedIcon, ChevronDownIcon, ChevronsUpDownIcon, RefreshCwIcon, TriangleAlertIcon, Undo2Icon, WandSparklesIcon } from '@lucide/vue'
+import { BookMarkedIcon, ChevronDownIcon, ChevronsUpDownIcon, RefreshCwIcon, SquareIcon, TriangleAlertIcon, Undo2Icon, WandSparklesIcon } from '@lucide/vue'
 
 const { translate } = useComic()
 
@@ -26,6 +26,9 @@ const {
   translateCurrent,
   translateAll,
   revertRun,
+  stop,
+  stopping,
+  stoppable,
 } = useTranslate()
 
 // Desktop: whether the database keeps this workspace's revisions — see the run's undo, below.
@@ -652,7 +655,12 @@ const done = computed(() => {
         <span class="text-muted-foreground font-mono tabular-nums">{{ done }}%</span>
       </div>
 
-      <UProgress :model-value="done" />
+      <!--
+        Pulsing while a page is out: the bar counts pages written, so it sits
+        still for as long as the model takes over one — a minute, on a slow
+        model — and a bar that does not move reads as a run that is not going.
+      -->
+      <UProgress :model-value="done" :class="{ 'animate-pulse': !stopping }" />
 
       <p class="text-muted-foreground truncate text-[11px]">
         {{ progress.message }}
@@ -725,7 +733,26 @@ const done = computed(() => {
       And the two presses are not the same bargain, so they are not the same
       word. "Translate page" cannot cost you anything you wrote; "again" can.
     -->
-    <UButtonGroup class="w-full">
+    <!--
+      Desktop: Stop, where the press was made, for as long as the run goes.
+      Before this a chapter-wide press could not be called off short of closing
+      the chapter. It asks nothing more; the pages already asked about are
+      written as they arrive — see `useTranslate.stop` — which is why it says
+      "Stopping…" rather than vanishing at once.
+    -->
+    <UButton
+      v-if="running && stoppable"
+      variant="outline"
+      size="sm"
+      class="w-full"
+      :disabled="stopping"
+      @click="stop"
+    >
+      <SquareIcon class="size-3.5 fill-current" />
+      {{ stopping ? 'Stopping…' : 'Stop translating' }}
+    </UButton>
+
+    <UButtonGroup v-else class="w-full">
       <UButton
         v-if="pending"
         size="sm"

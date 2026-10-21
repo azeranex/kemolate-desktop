@@ -329,6 +329,49 @@ describe('a run of several pages', () => {
   })
 
   /*
+   * Stop, from the panel: nothing more is asked, the pages already out are
+   * written as they arrive — they are paid for — and the run then ends, with
+   * its pages under one batch so Undo still takes it back.
+   */
+  it('stops asking when stopped, and writes the pages already asked about', async () => {
+    const { translateAll, stop, stopping, stoppable, running, progress, lastRun } = open(
+      pageOf(1, 'いち'),
+      pageOf(2, 'に'),
+      pageOf(3, 'さん'),
+      pageOf(4, 'よん'),
+      pageOf(5, 'ご'),
+    )
+
+    const going = translateAll()
+
+    await vi.waitFor(() => expect(model.asks).toHaveLength(3))
+    expect(stoppable.value).toBe(true)
+
+    stop()
+
+    expect(stopping.value).toBe(true)
+    expect(progress.value?.message).toMatch(/Stopping — writing the 3 pages already asked about/)
+
+    ask('いち').answer(['One'])
+    ask('に').answer(['Two'])
+    await settle()
+
+    // Room for two more, and neither is asked.
+    expect(model.asks).toHaveLength(3)
+
+    ask('さん').answer(['Three'])
+    await going
+
+    expect(lines()).toEqual(['One', 'Two', 'Three', '', ''])
+    expect(model.asks).toHaveLength(3)
+    expect(new Set(saved.map((each) => each.batch)).size).toBe(1)
+    expect(lastRun.value?.pageIds).toEqual(['scan:1.png', 'scan:2.png', 'scan:3.png'])
+    expect(running.value).toBe(false)
+    expect(stopping.value).toBe(false)
+    expect(stoppable.value).toBe(false)
+  })
+
+  /*
    * The page is read again while its translation is out — a new reading, new
    * blocks under new ids. The answer is about a reading that is gone, so none
    * of it is written, nothing is saved, and nothing it taught is kept to
