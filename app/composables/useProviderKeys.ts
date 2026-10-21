@@ -105,10 +105,33 @@ export function useProviderKeys () {
    * every caller wants the same sentence, and "translate did nothing" is a far
    * worse thing to be told than "there is no OpenRouter key yet".
    */
-  async function require (provider: Provider): Promise<string> {
+  /*
+   * Desktop: `model`, for the model the key is going to be spent on. An
+   * Anthropic model asked for through OpenRouter goes to Anthropic directly
+   * where an Anthropic key is stored — the key Settings always said was for
+   * that, and nothing read (see `ANTHROPIC` in `utils/openrouter.ts`, which
+   * sends a request wherever its key belongs). Without one, OpenRouter's key as
+   * before. And the refusal says which keys would do, rather than naming only
+   * OpenRouter to somebody who has an Anthropic key and a Claude model chosen.
+   */
+  async function require (provider: Provider, model?: { id: string, label: string }): Promise<string> {
+    const claude = provider === 'openrouter' && Boolean(model?.id.startsWith('anthropic/'))
+
+    if (claude) {
+      const direct = await get('anthropic')
+
+      if (direct) return direct
+    }
+
     const key = await get(provider)
 
     if (key) return key
+
+    if (claude) throw new Error(`No key for ${model!.label} yet — add an Anthropic or an OpenRouter key in Settings (File › Settings…).`)
+
+    if (provider === 'openrouter' && await get('anthropic')) {
+      throw new Error(`${model?.label ?? 'This model'} is reached through OpenRouter, and an Anthropic key reaches only Claude. Pick a Claude model, or add an OpenRouter key in Settings (File › Settings…).`)
+    }
 
     throw new Error(`No ${PROVIDERS[provider].label} key yet — add one in Settings (File › Settings…).`)
   }

@@ -240,7 +240,7 @@ export function useRegion () {
 
       if (blind) throw new Error(blind)
 
-      key = await require(mode === 'translate' ? 'openrouter' : 'vision')
+      key = await require(mode === 'translate' ? 'openrouter' : 'vision', model.value)
     } catch (thrown) {
       error.value = thrown instanceof Error ? thrown.message : String(thrown)
 

@@ -20,6 +20,45 @@ import { jobKey, scanJob } from '~/utils/raster/decoder'
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 
+/*
+ * Desktop: Claude straight from Anthropic, on the reader's Anthropic key.
+ *
+ * Settings has always offered an Anthropic key — "translates through Claude
+ * directly, without OpenRouter in between" — and nothing ever read it: every ask
+ * went to OpenRouter, so a reader who had only an Anthropic key was told to go
+ * and get an OpenRouter one, with a Claude model chosen. Now `useProviderKeys`
+ * hands an Anthropic key over for an Anthropic model (`require`'s `model`), and
+ * the key says where it goes: Anthropic's begin `sk-ant-`. Only the wire differs
+ * — the prompt, the retries, the timeout and the reply's reading are the same
+ * errand either way, which is why it is a branch of `ask` and not a second one.
+ */
+const ANTHROPIC = 'https://api.anthropic.com/v1/messages'
+
+const isAnthropicKey = (key: string) => key.startsWith('sk-ant-')
+
+/** Anthropic's own name for a model the curated list files under OpenRouter's — `anthropic/claude-sonnet-5.5` is `claude-sonnet-5-5`. */
+const anthropicModel = (id: string) => id.replace(/^anthropic\//, '').replaceAll('.', '-')
+
+/**
+ * Thinking budgets for the efforts that ask for any — OpenRouter takes the word,
+ * Anthropic a number of tokens, and each is well inside `MAX_TOKENS` so the
+ * answer keeps room. `none` and `minimal` think not at all; `auto` sends nothing.
+ */
+const THINKING: Partial<Record<ReasoningEffort, number>> = { low: 2_000, medium: 6_000, high: 10_000 }
+
+/** A message's content as Anthropic takes it: pictures as base64 sources rather than data URLs. */
+function anthropicContent (content: unknown) {
+  if (!Array.isArray(content)) return content
+
+  return content.map((part: { type?: string, image_url?: { url?: string } }) => {
+    if (part.type !== 'image_url') return part
+
+    const [, media, data] = /^data:([^;]+);base64,(.*)$/s.exec(part.image_url?.url ?? '') ?? []
+
+    return { type: 'image', source: { type: 'base64', media_type: media ?? 'image/jpeg', data: data ?? '' } }
+  })
+}
+
 /**
  * Reasoning models spend most of a generous budget before they answer, so a
  * limit sized for the reply alone truncates them mid-thought.
@@ -249,6 +288,10 @@ async function ask (
   let effort = input.effort
   let retries = 0
 
+  // Desktop: which service this key is for — see `ANTHROPIC`.
+  const direct = isAnthropicKey(key)
+  const service = direct ? 'Anthropic' : 'OpenRouter'
+
   /** Wait before going round again — or false, where the tries are spent. */
   const again = async (asked: number | null, status?: number): Promise<boolean> => {
     if (retries >= RETRIES) return false
@@ -283,22 +326,43 @@ async function ask (
     let response: Response
 
     try {
-      response = await fetch(ENDPOINT, {
-        method: 'POST',
-        signal: AbortSignal.timeout(TIMEOUT),
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          'X-Title': 'kemolate',
-        },
-        body: JSON.stringify({
-          model: input.model.id,
-          max_tokens: MAX_TOKENS,
-          usage: { include: true },
-          ...(effort === 'auto' ? {} : { reasoning: { effort } }),
-          messages: [{ role: 'user', content: input.content }],
-        }),
-      })
+      const budget = THINKING[effort]
+
+      response = direct
+        ? await fetch(ANTHROPIC, {
+            method: 'POST',
+            signal: AbortSignal.timeout(TIMEOUT),
+            headers: {
+              'x-api-key': key,
+              'anthropic-version': '2023-06-01',
+              // Anthropic refuses a browser's request without it: the key is the
+              // reader's own and goes nowhere but here, which is the case it exists for.
+              'anthropic-dangerous-direct-browser-access': 'true',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: anthropicModel(input.model.id),
+              max_tokens: MAX_TOKENS,
+              ...(budget ? { thinking: { type: 'enabled', budget_tokens: budget } } : {}),
+              messages: [{ role: 'user', content: anthropicContent(input.content) }],
+            }),
+          })
+        : await fetch(ENDPOINT, {
+            method: 'POST',
+            signal: AbortSignal.timeout(TIMEOUT),
+            headers: {
+              Authorization: `Bearer ${key}`,
+              'Content-Type': 'application/json',
+              'X-Title': 'kemolate',
+            },
+            body: JSON.stringify({
+              model: input.model.id,
+              max_tokens: MAX_TOKENS,
+              usage: { include: true },
+              ...(effort === 'auto' ? {} : { reasoning: { effort } }),
+              messages: [{ role: 'user', content: input.content }],
+            }),
+          })
     } catch (error) {
       const timedOut = error instanceof DOMException && error.name === 'TimeoutError'
 
@@ -307,7 +371,7 @@ async function ask (
       throw new Error(
         timedOut
           ? `${input.model.label} took too long to answer. A smaller effort setting usually helps.`
-          : `Could not reach OpenRouter. ${error instanceof Error ? error.message : String(error)}`,
+          : `Could not reach ${service}. ${error instanceof Error ? error.message : String(error)}`,
         // The sentence above is for the reader; this keeps the original for
         // whoever has to work out whether it was the network or the provider.
         { cause: error },
@@ -315,22 +379,26 @@ async function ask (
     }
 
     if (response.status === 401 || response.status === 403) {
-      throw new Error('OpenRouter rejected the API key — check it in settings.')
+      throw new Error(`${service} rejected the API key — check it in settings.`)
     }
 
     if (!response.ok) {
       const body = await response.text().catch(() => '')
 
-      if (response.status === 400 && effort !== 'auto' && /reasoning/i.test(body)) {
+      // Desktop: Anthropic says "thinking" where OpenRouter says "reasoning".
+      if (response.status === 400 && effort !== 'auto' && /reasoning|thinking/i.test(body)) {
         effort = 'auto'
 
         continue
       }
 
+      // Anthropic's "overloaded" is 529, which `passing` already counts as a 5xx.
       if (passing(response.status) && await again(retryAfter(response), response.status)) continue
 
-      throw new Error(`OpenRouter error ${response.status}: ${body.slice(0, 300)}`)
+      throw new Error(`${service} error ${response.status}: ${body.slice(0, 300)}`)
     }
+
+    if (direct) return anthropicAnswer(await response.json(), input.model)
 
     const data = await response.json() as {
       choices?: { message?: { content?: string }, finish_reason?: string | null }[]
@@ -379,6 +447,43 @@ async function ask (
           }
         : null,
     }
+  }
+}
+
+/**
+ * Desktop: Anthropic's reply, read into what OpenRouter's would have been — the
+ * text blocks joined (the thinking ones are not the answer), a reply cut off at
+ * the limit refused as `ask` refuses one, and the cost estimated from the model's
+ * prices, since Anthropic counts tokens and leaves the dollars to the reader.
+ * Thinking is billed as output and already inside `output_tokens`; Anthropic
+ * does not say how much of it there was, so `reasoning` is left at nought.
+ */
+function anthropicAnswer (data: unknown, model: AiModel): Answer {
+  const reply = data as {
+    content?: { type?: string, text?: string }[]
+    stop_reason?: string | null
+    usage?: { input_tokens?: number, output_tokens?: number }
+    error?: { message?: string }
+  }
+
+  if (reply.error) throw new Error(`Anthropic: ${reply.error.message ?? 'unknown error'}`)
+
+  if (reply.stop_reason === 'max_tokens') {
+    throw new Error(
+      `${model.label}'s answer was cut off at the ${MAX_TOKENS.toLocaleString('en')}-token limit, so none of it was used. A lower effort setting leaves more of that for the answer itself.`,
+    )
+  }
+
+  const text = (reply.content ?? []).filter((part) => part.type === 'text').map((part) => part.text ?? '').join('')
+
+  if (!text) throw new Error('The model returned no output.')
+
+  const input = reply.usage?.input_tokens ?? 0
+  const output = reply.usage?.output_tokens ?? 0
+
+  return {
+    text,
+    usage: reply.usage ? { input, output, reasoning: 0, cost: estimateCost(model, { in: input, out: output }) } : null,
   }
 }
 

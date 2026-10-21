@@ -866,7 +866,7 @@ export function useTranslate () {
     let readying: Promise<string | undefined> | null = null
 
     const ready = () => (readying ??= (async () => {
-      const key = usesModel.value ? await require('openrouter') : undefined
+      const key = usesModel.value ? await require('openrouter', model.value) : undefined
 
       await glossaryReady()
       await castReady()
@@ -1392,7 +1392,7 @@ export function useTranslate () {
     progress.value = { page: 1, pages: 1, message: `Asking ${chosen.label} for a shorter line…`, done: 0, cost: null }
 
     try {
-      const key = await require('openrouter')
+      const key = await require('openrouter', chosen)
 
       // The page as translated so far, for voice and for a line that breaks
       // off — see `shortenPrompt`. The lines that will be lettered, in order.
