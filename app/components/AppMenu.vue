@@ -26,6 +26,7 @@ import {
   DownloadIcon,
   FileOutputIcon,
   FilesIcon,
+  FlaskConicalIcon,
   FolderOpenIcon,
   FullscreenIcon,
   PackageOpenIcon,
@@ -180,6 +181,14 @@ function deleteSelection () {
         <UMenubarCheckboxItem v-model="balloonDebug" :disabled="!pages.length">
           Balloon debug
         </UMenubarCheckboxItem>
+        <!--
+          The bench the readers and detectors are judged on (`pages/ocr-lab.vue`).
+          The web build's is a URL nobody is linked to; with no address bar here,
+          this is its door.
+        -->
+        <UMenubarItem @select="navigateTo('/ocr-lab')">
+          <FlaskConicalIcon /> OCR lab
+        </UMenubarItem>
         <UMenubarSeparator />
         <!--
           The presets write every page's standard rows, so they are an editor's

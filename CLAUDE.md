@@ -78,9 +78,10 @@ and a later fix in one can be carried to the other. Keep it that way.
   each `components/ui/*/index.ts` exports. The aliases (`~`, `@`, `#shared`, `~~`) are the
   web build's. A ported file should need no new imports.
 - **Nuxt's runtime is shimmed, so ported files stay verbatim.** `app/composables/nuxt.ts`
-  provides `useState`, `useRoute`/`useRouter`/`navigateTo` (one in-memory route: `/` or
-  `/w/<id>` — 34 files read `route.params.workspaceId`), `useNuxtApp`, `useCookie` (local
-  storage), `$fetch` (refuses: no server), `useHead`, `onNuxtReady`. `import.meta.client`,
+  provides `useState`, `useRoute`/`useRouter`/`navigateTo` (one in-memory route: `/`,
+  `/w/<id>`, `/settings` or `/ocr-lab` — 34 files read `route.params.workspaceId`, which the
+  last two keep), `useNuxtApp`, `useCookie` (local storage), `$fetch` (refuses: no server),
+  `useHead`, `onNuxtReady`, and `definePageMeta` (ignored — `App.vue` decides layout and key). `import.meta.client`,
   `.server` and `.dev` are defined in `vite.config.ts`. Do not hand-convert these in a ported
   file — the first three files ported (`usePanelDock`, `useTools`, `useColorScheme`) were,
   before the shim existed, and say so.
@@ -112,6 +113,12 @@ and a later fix in one can be carried to the other. Keep it that way.
     lands in the last workspace (`App.vue`); the mark goes to the list. Leaving for the list
     unmounts the workspace as in the web build, and `useWorkspaceReset` lets go of its
     state when another is opened; Settings is drawn over the workspace instead.
+  - The OCR lab (`pages/ocr-lab.vue`, verbatim but for its starting reader) is View › OCR
+    lab, drawn over the workspace like Settings, inside `LabWindow` — the window's title
+    bar, a way back (Escape too), and the same guard that keeps its key presses from the
+    hidden chapter. The web build's lab is a URL with no layout; here that would be a
+    window with no frame to move, close or leave. Its intro still quotes Manga OCR's
+    download sizes, as the web build's does.
   - Readers: no Manga OCR or Manga OCR 2025 (`READERS` in `utils/ocr/readers.ts`), and
     Kemolate OCR is the default (`useOcr`). Their code is kept; an entry put back brings
     one back. Kemolate OCR's weights (`kemolate/…`, ours, never asked of the Hub) are

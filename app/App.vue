@@ -3,9 +3,10 @@
  * The app's root: whichever page the route is at, and what belongs to the app
  * rather than to any page — the toaster, as in the web build's `app.vue`.
  *
- * Three places to be, as `composables/nuxt.ts` describes: the collection of
+ * Four places to be, as `composables/nuxt.ts` describes: the collection of
  * workspaces (`/`, the web build's `pages/index.vue`), one workspace (`/w/<id>`,
- * its `pages/w/[workspaceId].vue`), and Settings (`/settings`).
+ * its `pages/w/[workspaceId].vue`), Settings (`/settings`), and the OCR lab
+ * (`/ocr-lab`, its `pages/ocr-lab.vue`, inside `LabWindow`).
  *
  * ## Where a launch lands
  *
@@ -24,7 +25,8 @@
  * spent for having looked at a setting. So the workspace page stays mounted,
  * hidden, while Settings is shown, and coming back is just showing it again.
  * The list is not drawn over it: leaving for the list is leaving the chapter,
- * as in the web build, and a chapter chosen there is mounted afresh.
+ * as in the web build, and a chapter chosen there is mounted afresh. The OCR lab
+ * is drawn over it the same way.
  *
  * The workspace page is keyed on its workspace, as the web build's
  * `definePageMeta({ key })` keys it on the route, so moving to *another*
@@ -73,6 +75,7 @@ onMounted(async () => {
 })
 
 const settings = computed(() => route.path === '/settings')
+const lab = computed(() => route.path === '/ocr-lab')
 
 /**
  * Which palette the toasts are drawn from — see the web build's `app.vue`:
@@ -84,11 +87,13 @@ const { resolved } = useColorScheme()
 
 <template>
   <template v-if="arrived">
-    <WorkspacePage v-if="workspace" v-show="!settings" :key="workspace" />
+    <WorkspacePage v-if="workspace" v-show="!settings && !lab" :key="workspace" />
 
-    <CollectionPage v-else-if="!settings" />
+    <CollectionPage v-else-if="!settings && !lab" />
 
     <SettingsPage v-if="settings" />
+
+    <LabWindow v-if="lab" />
   </template>
 
   <!--

@@ -31,6 +31,7 @@ declare module 'vue' {
     DockSection: typeof import('./components/dock/DockSection.vue')['default']
     ExportDialog: typeof import('./components/ExportDialog.vue')['default']
     InfoTip: typeof import('./components/InfoTip.vue')['default']
+    LabWindow: typeof import('./components/LabWindow.vue')['default']
     Logo: typeof import('./components/Logo.vue')['default']
     Notifications: typeof import('./components/Notifications.vue')['default']
     NuxtLink: typeof import('./components/NuxtLink.vue')['default']

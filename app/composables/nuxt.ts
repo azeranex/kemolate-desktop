@@ -69,7 +69,13 @@ export function useRoute (): DesktopRoute {
 }
 
 /** The paths the desktop app has besides a workspace. */
-const PLACES = new Set(['/', '/settings'])
+const PLACES = new Set(['/', '/settings', '/ocr-lab'])
+
+/**
+ * The places drawn *over* the open workspace (see `App.vue`), which therefore
+ * leave its id on the route — Settings, and the OCR lab.
+ */
+const OVER = new Set(['/settings', '/ocr-lab'])
 
 /**
  * Go somewhere. Only the paths the desktop app has are understood — `/`,
@@ -92,7 +98,7 @@ export async function navigateTo (to: string | { path?: string, query?: Record<s
   // workspace it covers is still the one open: its id stays on the route. Taken
   // off, every composable that watches `route.params.workspaceId` would read a
   // look at Settings as the workspace closing — and resetting.
-  if (path !== '/settings') route.params = workspace ? { workspaceId: decodeURIComponent(workspace[1]!) } : {}
+  if (!OVER.has(path)) route.params = workspace ? { workspaceId: decodeURIComponent(workspace[1]!) } : {}
   route.query = typeof to === 'string'
     ? Object.fromEntries(new URLSearchParams(search))
     : { ...(to.query ?? {}) }
@@ -140,6 +146,13 @@ export async function $fetch<T = unknown> (url: string, _options?: unknown): Pro
 export function useRuntimeConfig () {
   return { public: {} as Record<string, unknown> }
 }
+
+/**
+ * A page's metadata. The web build's pages set their layout and key with it; here
+ * `App.vue` decides both for every page it draws, so it is taken and ignored —
+ * which keeps a page that calls it (`pages/ocr-lab.vue`) verbatim.
+ */
+export function definePageMeta (_meta: { layout?: string | false, key?: unknown }) {}
 
 export function useHead (head: { title?: string }) {
   if (head.title) document.title = head.title

@@ -217,6 +217,7 @@ declare global {
   const debouncedWatch: typeof import('@vueuse/core').debouncedWatch
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
+  const definePageMeta: typeof import('./composables/nuxt').definePageMeta
   const deletesSelection: typeof import('./composables/useDeleteShortcut').deletesSelection
   const detBoxFor: typeof import('./utils/ocr/segment').detBoxFor
   const detLeanFor: typeof import('./utils/ocr/segment').detLeanFor
@@ -1314,6 +1315,7 @@ declare module 'vue' {
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
+    readonly definePageMeta: UnwrapRef<typeof import('./composables/nuxt')['definePageMeta']>
     readonly deletesSelection: UnwrapRef<typeof import('./composables/useDeleteShortcut')['deletesSelection']>
     readonly detBoxFor: UnwrapRef<typeof import('./utils/ocr/segment')['detBoxFor']>
     readonly detLeanFor: UnwrapRef<typeof import('./utils/ocr/segment')['detLeanFor']>
