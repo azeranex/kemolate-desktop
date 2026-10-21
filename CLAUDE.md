@@ -218,8 +218,8 @@ rather than the account menu. The header has no account menu.
   - **A `.kemolate` from the OS** — on the command line, from a second launch (single-instance
     lock, built app only), or macOS's `open-file` — is queued by `electron/opening.ts`, served
     once at `/opened/<token>` on the app's origin, and opened by `useOpenedFiles` in a new
-    workspace, as a project dropped on the workspace list is. Registering the file type with
-    the OS is the installer's job and not done yet.
+    workspace, as a project dropped on the workspace list is. The installer registers the file
+    type with the OS (`electron-builder.yml`).
   - Testing these: a picker needs a real user gesture (CDP's `Runtime.evaluate` with
     `userGesture: true`), and Chromium hosts the native dialog in a separate process.
 - Provider keys: `keys.json` in the profile, each key encrypted by `safeStorage` (DPAPI,
