@@ -250,7 +250,7 @@ declare global {
   const exportEncoders: typeof import('./utils/resources').exportEncoders
   const extendRef: typeof import('@vueuse/core').extendRef
   const faceOf: typeof import('../shared/utils/fonts').faceOf
-  const familyOf: typeof import('../shared/utils/models').familyOf
+  const familyOf: typeof import('./utils/ocr/detectors').familyOf
   const featherOf: typeof import('./utils/ocr/clean').featherOf
   const fencesOf: typeof import('./utils/ocr/rooms').fencesOf
   const fetchModel: typeof import('./utils/ocr/onnx').fetchModel
@@ -364,6 +364,7 @@ declare global {
   const markRaw: typeof import('vue').markRaw
   const matrixOf: typeof import('../shared/utils/transform').matrixOf
   const modelById: typeof import('../shared/utils/models').modelById
+  const modelFamilyOf: typeof import('../shared/utils/models').modelFamilyOf
   const modelLabel: typeof import('../shared/utils/models').modelLabel
   const nameOf: typeof import('../shared/utils/prompt').nameOf
   const navigateTo: typeof import('./composables/nuxt').navigateTo
@@ -1379,7 +1380,7 @@ declare module 'vue' {
     readonly exportEncoders: UnwrapRef<typeof import('./utils/resources')['exportEncoders']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly faceOf: UnwrapRef<typeof import('../shared/utils/fonts')['faceOf']>
-    readonly familyOf: UnwrapRef<typeof import('../shared/utils/models')['familyOf']>
+    readonly familyOf: UnwrapRef<typeof import('./utils/ocr/detectors')['familyOf']>
     readonly featherOf: UnwrapRef<typeof import('./utils/ocr/clean')['featherOf']>
     readonly fencesOf: UnwrapRef<typeof import('./utils/ocr/rooms')['fencesOf']>
     readonly fetchModel: UnwrapRef<typeof import('./utils/ocr/onnx')['fetchModel']>
@@ -1493,6 +1494,7 @@ declare module 'vue' {
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly matrixOf: UnwrapRef<typeof import('../shared/utils/transform')['matrixOf']>
     readonly modelById: UnwrapRef<typeof import('../shared/utils/models')['modelById']>
+    readonly modelFamilyOf: UnwrapRef<typeof import('../shared/utils/models')['modelFamilyOf']>
     readonly modelLabel: UnwrapRef<typeof import('../shared/utils/models')['modelLabel']>
     readonly nameOf: UnwrapRef<typeof import('../shared/utils/prompt')['nameOf']>
     readonly navigateTo: UnwrapRef<typeof import('./composables/nuxt')['navigateTo']>

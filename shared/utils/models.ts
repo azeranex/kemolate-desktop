@@ -38,7 +38,7 @@ export interface AiModel {
    * family's newest version — `anthropic/claude-sonnet` for every Claude Sonnet.
    * `useModels.refresh()` moves the entry to the newest id the catalogue has
    * (`newestIn`), and a saved choice of an older version follows it
-   * (`familyOf`). The id written here is the newest known when the list was
+   * (`modelFamilyOf`). The id written here is the newest known when the list was
    * last brought up to date, which is what is used offline.
    */
   family?: string
@@ -264,7 +264,7 @@ function versionIn (family: string, id: string): number[] | null {
  * is `anthropic/claude-haiku`. Only families an entry tracks (`family`), so an
  * id this list knows nothing about is never taken for one.
  */
-export function familyOf (id: string | null | undefined): string | null {
+export function modelFamilyOf (id: string | null | undefined): string | null {
   if (!id) return null
 
   return AI_MODELS.find((model) => model.family && versionIn(model.family, id))?.family ?? null

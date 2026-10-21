@@ -4,32 +4,20 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
 import { mockNuxtImports } from './test/app/support/mockNuxtImport.ts'
-import { aliases, nuxtFlags, nuxtStyleImports } from './vite.config.ts'
-
-import type { Plugin } from 'vite'
+import { aliases, nuxtFlagsInCode, nuxtStyleImports } from './vite.config.ts'
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
 /**
  * The app's build-time flags (`nuxtFlags`), written into the code as it is
- * transformed. `define` does not do it here: Vitest runs the app's modules
- * through its server-side transform, which leaves `import.meta.client` and its
- * siblings alone — so every one read `undefined`, and the app took its *server*
- * branch in every test. `remember` never wired a setting, and a test of it
- * failed with the default; nothing said why.
+ * transformed — `nuxtFlagsInCode`, which the dev server needs too. `define`
+ * does not do it here: Vitest runs the app's modules through its server-side
+ * transform, which leaves `import.meta.client` and its siblings alone — so every
+ * one read `undefined`, and the app took its *server* branch in every test.
+ * `remember` never wired a setting, and a test of it failed with the default;
+ * nothing said why.
  */
-function flags (): Plugin {
-  const values = nuxtFlags(true) as Record<string, string>
-
-  return {
-    name: 'kemolate:test-flags',
-    transform (code, id) {
-      if (id.includes('node_modules') || !code.includes('import.meta.')) return
-
-      return { code: code.replace(/\bimport\.meta\.(client|server|dev)\b/g, (whole) => values[whole] ?? whole), map: null }
-    },
-  }
-}
+const flags = () => nuxtFlagsInCode(true)
 
 /**
  * The tests, laid out as in the web build: everything under `test/`, mirroring

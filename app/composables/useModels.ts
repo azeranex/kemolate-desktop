@@ -79,7 +79,7 @@ export function useModels () {
    */
   const byId = (id: string | null | undefined): PricedModel =>
     models.value.find((model) => model.id === id)
-    ?? models.value.find((model) => model.family && model.family === familyOf(id))
+    ?? models.value.find((model) => model.family && model.family === modelFamilyOf(id))
     ?? (isFreeModel(id) ? { ...freeModel(id!), priced: true } : models.value[0]!)
 
   /**

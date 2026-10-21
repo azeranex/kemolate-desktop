@@ -20,7 +20,7 @@
 import type { EffectScope, ShallowRef } from 'vue'
 
 // By hand, so a dev server already running picks up an export it has not seen.
-import { familyOf, isFreeModel, successorOf } from '#shared/utils/models'
+import { isFreeModel, modelFamilyOf, successorOf } from '#shared/utils/models'
 import { pickedName } from '~/utils/images'
 
 /** What a block turned out to be, once someone or something had read it. */
@@ -1062,7 +1062,7 @@ export function useComic () {
       // Desktop: a version of a tracked family this list does not name — one a
       // refresh moved to last session — stays with its family's entry, which
       // the next refresh moves on again. See `AiModel.family`.
-      const family = familyOf(model)
+      const family = modelFamilyOf(model)
       const entry = family ? AI_MODELS.find((one) => one.family === family) : undefined
 
       if (entry) next.model = entry.id

@@ -67,10 +67,35 @@ export const nuxtFlags = (dev: boolean) => ({
   'import.meta.dev': JSON.stringify(dev),
 })
 
+/**
+ * The same flags written into the code as it is transformed, because `define`
+ * alone does not reach them everywhere. The production build replaces them;
+ * the **dev server does not** — it serves `import.meta.client` as written,
+ * which reads `undefined` — and neither does Vitest's server-side transform. In
+ * dev that sent every `import.meta.client` guard down its server branch: the
+ * page engine never asked for a device (`startEngine`), so no page was ever
+ * drawn, only a grey sheet where the scan should be (found 2026-10-21). In the
+ * tests, `remember` never wired a setting. One transform for all three, so they
+ * cannot drift apart again; `define` stays for anything a transform does not see.
+ */
+export function nuxtFlagsInCode (dev: boolean): Plugin {
+  const values = nuxtFlags(dev) as Record<string, string>
+
+  return {
+    name: 'kemolate:nuxt-flags',
+    enforce: 'pre',
+    transform (code, id) {
+      if (id.includes('node_modules') || !code.includes('import.meta.')) return
+
+      return { code: code.replace(/\bimport\.meta\.(client|server|dev)\b/g, (whole) => values[whole] ?? whole), map: null }
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => ({
   resolve: { alias: aliases },
   define: nuxtFlags(mode === 'development'),
-  plugins: [vue(), tailwindcss(), ...nuxtStyleImports(), electron()],
+  plugins: [nuxtFlagsInCode(mode === 'development'), vue(), tailwindcss(), ...nuxtStyleImports(), electron()],
   build: {
     rolldownOptions: {
       output: {

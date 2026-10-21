@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AI_MODELS, familyOf, freeModel, isFreeModel, labelFor, newestIn } from '#shared/utils/models'
+import { AI_MODELS, freeModel, isFreeModel, labelFor, modelFamilyOf, newestIn } from '#shared/utils/models'
 
 /**
  * Desktop: Claude's families always on their newest version, and OpenRouter's
@@ -26,18 +26,18 @@ describe('newestIn', () => {
   })
 })
 
-describe('familyOf and labelFor', () => {
+describe('modelFamilyOf and labelFor', () => {
   it('know a version of a tracked family, and only those', () => {
-    expect(familyOf('anthropic/claude-haiku-4.5')).toBe('anthropic/claude-haiku')
-    expect(familyOf('anthropic/claude-sonnet-6')).toBe('anthropic/claude-sonnet')
-    expect(familyOf('anthropic/claude-fable-5.1')).toBeNull()
-    expect(familyOf('google/gemini-3.8-flash')).toBeNull()
-    expect(familyOf(null)).toBeNull()
+    expect(modelFamilyOf('anthropic/claude-haiku-4.5')).toBe('anthropic/claude-haiku')
+    expect(modelFamilyOf('anthropic/claude-sonnet-6')).toBe('anthropic/claude-sonnet')
+    expect(modelFamilyOf('anthropic/claude-fable-5.1')).toBeNull()
+    expect(modelFamilyOf('google/gemini-3.8-flash')).toBeNull()
+    expect(modelFamilyOf(null)).toBeNull()
   })
 
   it('has every Claude entry tracking its family, on that family\'s id', () => {
     for (const model of AI_MODELS.filter((one) => one.id.startsWith('anthropic/'))) {
-      expect(model.family && familyOf(model.id)).toBe(model.family)
+      expect(model.family && modelFamilyOf(model.id)).toBe(model.family)
     }
   })
 
