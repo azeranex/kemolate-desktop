@@ -297,6 +297,9 @@ export function useLibrary () {
 
     await openImages(images, title ?? undefined)
 
+    // Desktop: the pages a missing copy asked for have arrived — see `resume`.
+    toast.dismiss(missingToast(workspace.value))
+
     // Before the first `await` below, and before anything has had a tick to
     // notice the pages — see the note above, which is where the reason lives.
     dress?.()
@@ -557,6 +560,9 @@ export function useLibrary () {
    * goes. A workspace that never learns the answer is a workspace that waits
    * for ever, and an empty canvas is a worse lie than the stand-in was.
    */
+  /** Desktop: the id of a workspace's "pages are missing" warning — see `resume`. */
+  const missingToast = (id: string) => `pages-missing:${id}`
+
   async function restore () {
     // Cleared first, because these outlive the page they were set on. Walking
     // from one workspace to another keeps the same running app, and a stale
@@ -596,8 +602,30 @@ export function useLibrary () {
     if (chapter.kind === 'copy') {
       const images = await readBack(workspace.value).catch(() => [])
 
+      /*
+       * Desktop: the pages are missing, and nothing else is given up with them.
+       *
+       * The web build forgets the workspace here — `purge`, which deletes its
+       * reading, translations, layers, glossary and its row in the list. There a
+       * copy is the Firefox and Safari fallback; here it is how every dropped file
+       * is kept, so a copy that failed or was cut short (the app closed while it
+       * was writing, storage refusing a write — "won't be remembered") turned the
+       * next launch into a silent wipe of everything done on the chapter. The
+       * workspace went from the list, with its work, and nobody was told.
+       *
+       * Everything the chapter holds is filed by each scan's content, not by the
+       * copy, so the same pages dropped in again find their readings, lettering
+       * and layers waiting. So the workspace stays, open and empty, and says so.
+       * Deleting it is still one choice away, on the list. The warning is filed
+       * under the workspace and taken down when pages arrive (`opened`), since a
+       * warning stays until it is dismissed and this one is answered by a drop.
+       */
       if (!images.length) {
-        await forget()
+        open.value = false
+        toast.warning('This chapter’s pages are missing', {
+          id: missingToast(workspace.value),
+          description: 'The copy the app kept of them is gone. Drop the same pages in again — the readings, translations and layers made on them come back with them.',
+        })
 
         return
       }
