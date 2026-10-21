@@ -83,7 +83,50 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: 'out/coverage',
+
+      /*
+       * The code this project wrote, and only that — the web build's list, with
+       * `electron/` beside `server/`. Vitest matches these with picomatch's
+       * `contains`, so a pattern matches anywhere in a path: hence the
+       * extensions, and the tests and their support excluded by name.
+       */
+      include: ['app/**/*.{ts,vue}', 'server/**/*.ts', 'shared/**/*.ts', 'electron/**/*.ts'],
+      exclude: [
+        '**/*.d.ts',
+        'app/components/ui/**',
+        'app/utils/lib/**',
+        'test/**',
+        '**/*.{test,spec}.ts',
+      ],
+
+      /*
+       * A floor, so coverage can only go one way — the web build's rule, measured
+       * here. Each figure is a whole percent under what `pnpm test:coverage`
+       * measured when it was set (2026-10-21, with the web build's app tests
+       * carried across: lines 46.7%, statements 44.6%, functions 39.9%,
+       * branches 33.8%). Lower than the web build's because what did not come
+       * across is the cloud's tests, and what came across instead is code no
+       * test of the web build reached either — the desktop's own composables
+       * and pages.
+       *
+       * `electron/` is counted and has no floor: the main process is checked by
+       * driving the built app (see CLAUDE.md), not by Vitest, and reads 0%.
+       * Checked only when the whole suite runs with coverage; raise a figure
+       * when an area climbs, and say so in the commit when one is lowered.
+       */
+      thresholds: {
+        lines: 45,
+        statements: 43,
+        functions: 38,
+        branches: 32,
+        'app/composables/**': { lines: 46 },
+        'app/utils/ocr/**': { lines: 50 },
+        'app/utils/pdf/**': { lines: 53 },
+        'app/utils/export/**': { lines: 25 },
+        'shared/utils/**': { lines: 77 },
+      },
     },
   },
 })

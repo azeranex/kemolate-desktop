@@ -17,6 +17,7 @@ pnpm typecheck    # vue-tsc -b: app, main process and tests
 pnpm lint         # eslint, the web build's rules; --fix handles most of it
 pnpm test         # vitest, both projects, once
 pnpm test:unit    # the node project only
+pnpm test:coverage  # both, with coverage into out/coverage — and the floor in vitest.config.ts
 ```
 
 **Lint is the web build's** — `eslint.config.mjs` is its file, rule for rule, with the
