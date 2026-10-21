@@ -145,6 +145,39 @@ export function useHead (head: { title?: string }) {
   if (head.title) document.title = head.title
 }
 
+/**
+ * Once the app is up — Nuxt's meaning, not a component's.
+ *
+ * Nuxt runs these after the app has mounted, on an idle callback, outside any
+ * component, and the two callers lean on all three: `remember` and
+ * `usePaintSettings` read a saved setting in and then *watch* it to save it
+ * again, for as long as the app lives. This was `onMounted(callback)`, which
+ * tied both halves to whichever component happened to ask first — called
+ * outside a setup it never ran at all (and the caller had already marked itself
+ * wired, so it never asked again), and when it did run its watcher was that
+ * component's and stopped when it unmounted, which a brush cursor or a tool bar
+ * does whenever the tool changes. A brush size scrubbed to 108 came back as 28
+ * on the next launch.
+ *
+ * `main.ts` says when the app is up (`nuxtReady`); a callback asked for after
+ * that runs on the next idle moment, as Nuxt's does.
+ */
+let up = false
+const waiting: (() => void)[] = []
+
+const whenIdle = (callback: () => void) => {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => callback())
+  else setTimeout(callback, 0)
+}
+
 export function onNuxtReady (callback: () => void) {
-  onMounted(callback)
+  if (up) whenIdle(callback)
+  else waiting.push(callback)
+}
+
+/** Called once by `main.ts`, after the app has mounted. */
+export function nuxtReady () {
+  up = true
+
+  for (const callback of waiting.splice(0)) whenIdle(callback)
 }
