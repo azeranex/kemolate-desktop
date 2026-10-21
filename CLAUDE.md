@@ -131,18 +131,20 @@ and a later fix in one can be carried to the other. Keep it that way.
   - Readers: no Manga OCR or Manga OCR 2025 (`READERS` in `utils/ocr/readers.ts`), and
     Kemolate OCR is the default (`useOcr`). Their code is kept; an entry put back brings
     one back. Kemolate OCR's weights (`kemolate/…`, ours, never asked of the Hub) are
-    downloaded from `OWN_MODELS` in `server/models.ts` — **not decided yet, so empty**
-    (`KEMOLATE_MODELS_URL` overrides it). It will be a Hugging Face account: Kemolate OCR is
-    one repository, `kemolate-ocr`, each build a tag on it that is never moved and `main` the
-    newest, and `ownSource` turns the app's `kemolate-ocr-out26/resolve/main/…` into
-    `kemolate-ocr/resolve/out26/…` (decided 2026-10-21) — the build stays in the name inside
-    the app because every cache trusts a path never to change. A release is the build's files
-    and the card (`out/hf/kemolate-ocr/`, prepared by hand), uploaded and then tagged. Until
-    `OWN_MODELS` is set, a fresh install's first read says
-    in words that the reader is not here (`loadBeta` in `ocr/manga.ts`); on the dev machine
-    the run's export (`E:\ml\export\out26-web`) is copied in by hand at
-    `kemolate/kemolate-ocr-out26/resolve/main/` under the model store
-    (`%APPDATA%\kemolate-desktop\models`, or `.data/models` in dev).
+    downloaded from `OWN_MODELS` in `server/models.ts`, the project's Hugging Face account —
+    **published 2026-10-21 as [azeranex/kemolate-ocr](https://huggingface.co/azeranex/kemolate-ocr)**
+    (`KEMOLATE_MODELS_URL` overrides it, for a test's stand-in). Kemolate OCR is one
+    repository, each build a tag on it that is never moved and `main` the newest, and
+    `ownSource` turns the app's `kemolate-ocr-out26/resolve/main/…` into
+    `kemolate-ocr/resolve/out26/…` — the build stays in the name inside the app because every
+    cache trusts a path never to change. A release: the build's files and the model card in
+    `out/hf/kemolate-ocr/` (prepared by hand; the card lists every tag), `hf upload
+    azeranex/kemolate-ocr . . --type model`, then `hf repos tag create azeranex/kemolate-ocr
+    <build> --revision <the upload's commit>`, then the app's `KEMOLATE_OCR_BETA_MODEL`. A
+    fresh install downloads it on its first read (tested on a fresh profile against the real
+    repo, the files byte-identical); one that cannot says the download failed
+    (`loadBeta` in `ocr/manga.ts`). The fp16 detector (`kemolate/comic-text-and-bubble-detector-fp16`)
+    is not published, and the full-precision one is used in its place.
   - `utils/export/letters.ts` waits for the faces inlined into a lettering plate's SVG before
     drawing it (`facesIn`): `decode()` does not, and the first export of a session came out in
     the fallback face with lines that no longer fitted their balloons clipped away. The web
