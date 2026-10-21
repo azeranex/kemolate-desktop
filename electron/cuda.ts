@@ -42,7 +42,12 @@ type Trusted = (event: Electron.IpcMainInvokeEvent) => boolean
 
 const settingsFile = () => path.join(app.getPath('userData'), 'cuda.json')
 
-function readSettings (): CudaSettings {
+/** Written down, for this launch and the next. */
+export function writeSettings (settings: CudaSettings) {
+  writeFileSync(settingsFile(), JSON.stringify(settings, null, 2))
+}
+
+export function readSettings (): CudaSettings {
   try {
     const held = JSON.parse(readFileSync(settingsFile(), 'utf8')) as Partial<CudaSettings>
 
@@ -121,7 +126,7 @@ function ask (header: Record<string, unknown>, body: Uint8Array = new Uint8Array
   })
 }
 
-function stop () {
+export function stop () {
   child?.kill()
   child = null
   started = null
@@ -132,7 +137,7 @@ function stop () {
 }
 
 /** The process, started with the chosen Python if it is not running — and what it said about itself. */
-function start (detail = false): Promise<CudaHello> {
+export function start (detail = false): Promise<CudaHello> {
   if (started) return started
 
   const { python } = readSettings()
@@ -201,7 +206,7 @@ export function serveCuda (trusted: Trusted, models: () => string) {
       python: typeof given.python === 'string' ? given.python.trim() : held.python,
     }
 
-    writeFileSync(settingsFile(), JSON.stringify(settings, null, 2))
+    writeSettings(settings)
 
     // A different Python, or none wanted: what is running is not what was chosen.
     if (!settings.enabled || settings.python !== held.python) stop()

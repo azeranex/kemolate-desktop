@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain, nativeTheme, session, shell } from 'electron'
 
 import { serveCuda } from './cuda'
+import { serveCudaSetup } from './cudaSetup'
 import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
 import { opened, projectsIn, serveOpening } from './opening'
@@ -147,6 +148,7 @@ serveKeys(trusted)
 
 // Models on an NVIDIA GPU, opt-in — see `cuda.ts`. The same store the model route serves.
 serveCuda(trusted, () => path.join(app.getPath('userData'), 'models'))
+serveCudaSetup(trusted)
 
 // Checked, because it arrives from the page: anything but the three names is ignored.
 ipcMain.on('theme:set', (_event, source: unknown) => {

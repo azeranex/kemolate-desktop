@@ -195,9 +195,16 @@ rather than the account menu. The header has no account menu.
   its association rather than leaving the old ProgID behind.
 - **CUDA is an opt-in second home for two models** (added 2026-10-21). The comic detector's
   `full` build and Kemolate OCR can run on an NVIDIA GPU through a separate process
-  (`electron/cuda.ts`, `electron/cuda/kemolate_cuda.py`), with a Python the reader names in
-  Settings (`SettingsCuda.vue`) that has `onnxruntime-gpu` — the app does not ship CUDA, whose
-  runtime is gigabytes for one vendor's cards. Measured on an RTX 4090 with the app's own
+  (`electron/cuda.ts`, `electron/cuda/kemolate_cuda.py`), on a Python with `onnxruntime-gpu`.
+  The installer does not ship CUDA — gigabytes for one vendor's cards — so Settings
+  (`SettingsCuda.vue`) offers **Set up CUDA**, one press, on Windows x64 with an NVIDIA card
+  (`app.getGPUInfo`): `electron/cudaSetup.ts` fetches `uv` into `<userData>/cuda/`, has it
+  install a managed CPython and a venv there, and `onnxruntime-gpu[cuda,cudnn]` into it — the
+  extras are CUDA's and cuDNN's DLLs as wheels, so only the driver is needed — then points the
+  setting at that Python, tests it and switches CUDA on. Nothing outside that folder is
+  touched (`UV_NO_CONFIG`, its own Python and cache dirs), every version is pinned, and Remove
+  deletes the folder. A reader's own Python can still be named under "Use another Python".
+  Measured on an RTX 4090 with the app's own
   models: a whole Read page 0.40–0.46 s warm against WebGPU's 0.77–0.85, 2.9 s cold against
   5.4, the same text on every balloon. Why not DirectML, which `onnxruntime-node` does carry:
   measured too, it was slower than WebGPU for Kemolate OCR and won only on the detector.

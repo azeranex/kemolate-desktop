@@ -41,6 +41,28 @@ export interface CudaHello {
   error?: string
 }
 
+/** The app's own CUDA environment — see `cudaSetup.ts`. */
+export interface CudaManaged {
+  /** Whether this machine is one the setup is for (Windows on x64). */
+  supported: boolean
+  /** The NVIDIA card here, by name, or null where there is none. */
+  gpu: string | null
+  /** Whether the app's own Python is set up. */
+  installed: boolean
+  /** What the folder takes on disk. */
+  bytes: number
+  /** That Python's path, for the advanced field. */
+  python: string
+}
+
+/** One line of the setup's progress. `done`/`total` where there is a count of bytes. */
+export interface CudaProgress {
+  step: 'uv' | 'python' | 'packages' | 'test' | 'done'
+  message: string
+  done?: number
+  total?: number
+}
+
 /** A tensor in a CUDA frame: its type and shape, and where its bytes sit in the body. */
 export interface TensorSpec {
   dtype: string
@@ -105,6 +127,20 @@ const api = {
       ipcRenderer.invoke('cuda:run', file, feeds, body),
     read: (request: { encoder: string, decoder: string, count: number, edge: number, start: number, end: number, limit: number }, body: Uint8Array): Promise<number[][]> =>
       ipcRenderer.invoke('cuda:read', request, body),
+    /** The app's own CUDA environment: whether there is a card for it, and whether it is set up — see `cudaSetup.ts`. */
+    managed: (): Promise<CudaManaged> => ipcRenderer.invoke('cuda:managed'),
+    /** Set it up, start to finish, and answer with the Test it ends on. */
+    setup: (): Promise<CudaHello> => ipcRenderer.invoke('cuda:setup'),
+    cancel: (): Promise<void> => ipcRenderer.invoke('cuda:cancel'),
+    remove: (): Promise<void> => ipcRenderer.invoke('cuda:remove'),
+    /** Each step of a setup as it goes. Returns the unsubscribe. */
+    onProgress: (listener: (progress: CudaProgress) => void) => {
+      const forward = (_event: IpcRendererEvent, progress: CudaProgress) => listener(progress)
+      ipcRenderer.on('cuda:progress', forward)
+      return () => {
+        ipcRenderer.off('cuda:progress', forward)
+      }
+    },
   },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
