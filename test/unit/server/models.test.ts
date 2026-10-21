@@ -4,7 +4,7 @@ import path from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { answerModel, modelFile } from '~~/server/models'
+import { answerModel, modelFile, ownSource } from '~~/server/models'
 
 /*
  * The model route's answers that need no network: a path refused, a file kept
@@ -70,5 +70,29 @@ describe('modelFile', () => {
   it('gives nothing for a path the route would refuse, or a model of ours it cannot fetch', async () => {
     expect(await modelFile(root, '../secrets.txt')).toBeNull()
     expect(await modelFile(root, 'kemolate/kemolate-ocr-out26/resolve/main/encoder_model.onnx')).toBeNull()
+  })
+})
+
+/*
+ * Where our own files are downloaded from, once an address is set: Kemolate OCR
+ * from one `kemolate-ocr` repository at the build's tag, so the window can go
+ * on asking for each build by a name that never changes — see `OCR_BUILD`.
+ */
+describe('ownSource', () => {
+  const base = 'https://huggingface.co/someone'
+
+  it('fetches a Kemolate OCR build from its tag on the one repository', () => {
+    expect(ownSource(base, 'kemolate/kemolate-ocr-out26/resolve/main/encoder_model_fp16.onnx'))
+      .toBe('https://huggingface.co/someone/kemolate-ocr/resolve/out26/encoder_model_fp16.onnx')
+    expect(ownSource(base, 'kemolate/kemolate-ocr-out27/resolve/main/tokenizer.json'))
+      .toBe('https://huggingface.co/someone/kemolate-ocr/resolve/out27/tokenizer.json')
+  })
+
+  it('fetches anything else of ours from the repository of its own name', () => {
+    expect(ownSource(base, 'kemolate/comic-text-and-bubble-detector-fp16/resolve/main/model.onnx'))
+      .toBe('https://huggingface.co/someone/comic-text-and-bubble-detector-fp16/resolve/main/model.onnx')
+    // A name that only looks like a build is not one.
+    expect(ownSource(base, 'kemolate/kemolate-ocr-beta/resolve/main/config.json'))
+      .toBe('https://huggingface.co/someone/kemolate-ocr-beta/resolve/main/config.json')
   })
 })

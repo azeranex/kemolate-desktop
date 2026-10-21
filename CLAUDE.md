@@ -132,7 +132,13 @@ and a later fix in one can be carried to the other. Keep it that way.
     Kemolate OCR is the default (`useOcr`). Their code is kept; an entry put back brings
     one back. Kemolate OCR's weights (`kemolate/…`, ours, never asked of the Hub) are
     downloaded from `OWN_MODELS` in `server/models.ts` — **not decided yet, so empty**
-    (`KEMOLATE_MODELS_URL` overrides it). Until it is set, a fresh install's first read says
+    (`KEMOLATE_MODELS_URL` overrides it). It will be a Hugging Face account: Kemolate OCR is
+    one repository, `kemolate-ocr`, each build a tag on it that is never moved and `main` the
+    newest, and `ownSource` turns the app's `kemolate-ocr-out26/resolve/main/…` into
+    `kemolate-ocr/resolve/out26/…` (decided 2026-10-21) — the build stays in the name inside
+    the app because every cache trusts a path never to change. A release is the build's files
+    and the card (`out/hf/kemolate-ocr/`, prepared by hand), uploaded and then tagged. Until
+    `OWN_MODELS` is set, a fresh install's first read says
     in words that the reader is not here (`loadBeta` in `ocr/manga.ts`); on the dev machine
     the run's export (`E:\ml\export\out26-web`) is copied in by hand at
     `kemolate/kemolate-ocr-out26/resolve/main/` under the model store

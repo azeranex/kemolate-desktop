@@ -21,10 +21,10 @@
  *
  *   Desktop: Kemolate OCR is the default reader here, and an install that had
  *   to have it copied in by hand could not read a page. So a miss is fetched
- *   from **our own address** (`OWN_MODELS`) when one is set — `kemolate/<name>/…`
- *   from `<OWN_MODELS>/<name>/…`, which a Hugging Face account's repos of the
- *   same names answer as written — and kept like any other model. Unset, a
- *   miss is the 404 it was, saying why.
+ *   from **our own address** (`OWN_MODELS`) when one is set — Kemolate OCR from
+ *   one `kemolate-ocr` repository at the build's tag, anything else from the
+ *   repository of its own name (`ownSource`) — and kept like any other model.
+ *   Unset, a miss is the 404 it was, saying why.
  *
  * Whole files, not ranges, as in the web build: transformers.js and the model
  * store read a file at once, and the store needs its length (see `store.ts`).
@@ -43,6 +43,38 @@ const UPSTREAM = 'https://huggingface.co'
 const OWN_MODELS = (process.env.KEMOLATE_MODELS_URL ?? '').replace(/\/+$/, '')
 
 const OURS = /^kemolate\//
+
+/**
+ * A Kemolate OCR build's name inside the app — `kemolate-ocr-out26` — and the
+ * build it names.
+ *
+ * Published as one repository, `kemolate-ocr`, each build a tag on it and `main`
+ * the newest (decided 2026-10-21; see its model card). Inside the app the build
+ * stays in the name, because every cache on the road — this store, the window's,
+ * transformers.js' — keys a model by its path and trusts it never to change, and
+ * transformers.js 4.2 cannot load a tokenizer from a Hub revision. So the
+ * window goes on asking for `kemolate-ocr-out26/resolve/main/…`, and only here,
+ * where the bytes are fetched, does that become the tag. A tag, once published,
+ * must never move: a build that changed under its name is the overwrite this
+ * arrangement exists to prevent.
+ */
+const OCR_BUILD = /^kemolate-ocr-(out\d+)$/
+
+/**
+ * Where one of this project's own files is downloaded from: `kemolate/<name>/
+ * resolve/main/<file>` under `OWN_MODELS` — a Kemolate OCR build from its tag
+ * (`OCR_BUILD`), anything else from the repository of its own name.
+ */
+export function ownSource (base: string, asked: string): string {
+  const [name = '', resolve, revision, ...file] = asked.slice('kemolate/'.length).split('/')
+  const build = OCR_BUILD.exec(name)
+
+  if (build && resolve === 'resolve' && revision === 'main') {
+    return `${base}/kemolate-ocr/resolve/${build[1]}/${file.join('/')}`
+  }
+
+  return `${base}/${asked.slice('kemolate/'.length)}`
+}
 
 const SAFE = /^[\w.-]+(?:\/[\w.-]+)*$/
 
@@ -82,7 +114,7 @@ export async function answerModel (root: string, requested: string): Promise<Mod
   let upstream: Response | null = null
 
   for (const each of tries) {
-    const from = ours ? `${OWN_MODELS}/${each.slice('kemolate/'.length)}` : `${UPSTREAM}/${each}`
+    const from = ours ? ownSource(OWN_MODELS, each) : `${UPSTREAM}/${each}`
 
     upstream = await fetch(from).catch(() => null)
 
