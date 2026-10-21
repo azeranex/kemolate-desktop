@@ -19,10 +19,11 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { app, BrowserWindow, ipcMain, nativeTheme, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } from 'electron'
 
 import { serveCuda } from './cuda'
 import { serveCudaSetup } from './cudaSetup'
+import { closeDatabase, openDatabase } from './database'
 import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
 import { opened, projectsIn, serveOpening } from './opening'
@@ -224,7 +225,33 @@ const mainWindow = () => BrowserWindow.getAllWindows()[0] ?? null
 
 serveOpening(trusted, mainWindow)
 
-app.whenReady().then(() => {
+/**
+ * The workspace database, before the window that reads it — see `database.ts`.
+ * `data.ts` is imported only once the file is open and checked: it reaches the
+ * services, which open the database the moment they load. A database that will
+ * not open is said, not hidden; the app still starts, and a workspace then
+ * answers that its record could not be read.
+ */
+async function startDatabase () {
+  try {
+    await openDatabase()
+
+    const { serveData } = await import('./data')
+
+    serveData(trusted)
+  } catch (error) {
+    console.error('[database] could not open', error)
+    dialog.showErrorBox('Kemolate could not open its database', `Your workspaces' work could not be read: ${error instanceof Error ? error.message : String(error)}
+
+Nothing has been deleted.`)
+  }
+}
+
+// A last backup of anything changed since the previous one.
+app.on('will-quit', closeDatabase)
+
+app.whenReady().then(async () => {
+  await startDatabase()
   keepFolderAccess()
   askWhereToSave()
 

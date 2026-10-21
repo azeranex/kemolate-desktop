@@ -62,6 +62,9 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['test/unit/**/*.test.ts'],
+          // The server's database opens at import (`server/database/client.ts`); in memory here, so no test
+          // can reach a reader's — see `test/unit/server/harness.ts`.
+          env: { DATABASE_URL: ':memory:' },
         },
       },
       {

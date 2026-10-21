@@ -79,6 +79,40 @@ export interface WindowState {
 
 export type ThemeSource = 'system' | 'light' | 'dark'
 
+/** A request for workspace data, as the window's `$fetch` sends it — see `data.ts`. */
+export interface DataRequest {
+  method: string
+  path: string
+  query?: Record<string, unknown>
+  /** JSON-shaped, or bytes for a repair. */
+  body?: unknown
+}
+
+export type DataAnswer =
+  | { ok: unknown }
+  | { bytes: Uint8Array }
+  | { error: { status: number, message: string, data?: unknown } }
+
+/** One backup of the workspace database — see `database.ts`. */
+export interface Backup {
+  name: string
+  /** Epoch milliseconds, from the name — what the reader is shown. */
+  at: number
+  bytes: number
+}
+
+/** What happened while opening, for the window to say. */
+export interface DataNotice {
+  /** The damaged file, moved aside. */
+  quarantined?: string
+  /** The backup put in its place — or the one the reader chose. */
+  restoredFrom?: string
+  /** The reader asked for this restore (`restoreAtLaunch`). */
+  chosen?: boolean
+  /** Damaged, and no backup could replace it: a new, empty database was started. */
+  startedEmpty?: boolean
+}
+
 const api = {
   platform: process.platform,
   theme: {
@@ -95,6 +129,21 @@ const api = {
     status: (): Promise<KeyStatus> => ipcRenderer.invoke('keys:status'),
     get: (provider: Provider): Promise<string | null> => ipcRenderer.invoke('keys:get', provider),
     save: (patch: Partial<Record<Provider, string>>): Promise<KeyStatus> => ipcRenderer.invoke('keys:save', patch),
+  },
+  /**
+   * The workspace database, in the main process — see `data.ts` and
+   * `database.ts`. `call` is what the window's `$fetch` sends: the web build's
+   * method and path, answered by the same services. The rest are the backups,
+   * for Settings → Your data; `restore` relaunches the app.
+   */
+  data: {
+    call: (request: DataRequest): Promise<DataAnswer> => ipcRenderer.invoke('data:call', request),
+    /** What opening the database found — a damaged file moved aside, a backup restored. */
+    notice: (): Promise<DataNotice> => ipcRenderer.invoke('data:notice'),
+    about: (): Promise<{ file: string, folder: string, backups: Backup[] }> => ipcRenderer.invoke('data:about'),
+    backup: (): Promise<Backup> => ipcRenderer.invoke('data:backup'),
+    openBackups: (): Promise<void> => ipcRenderer.invoke('data:open-backups'),
+    restore: (name: string): Promise<void> => ipcRenderer.invoke('data:restore', name),
   },
   /**
    * Project files the operating system handed the app — see `opening.ts`.

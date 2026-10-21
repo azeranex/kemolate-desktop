@@ -24,6 +24,7 @@
       "@/*": ["../../app/*"],
       "~/*": ["../../app/*"],
       "#shared/*": ["../../shared/*"],
+      "~~/server/database": ["../../server/database/schema.ts"],
       "~~/*": ["../../*"],
       "@nuxt/test-utils/runtime": ["./support/test-utils.ts"],
       "h3": ["./support/h3.ts"]

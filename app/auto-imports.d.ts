@@ -236,6 +236,7 @@ declare global {
   const dropHistory: typeof import('./utils/history').dropHistory
   const dropLayer: typeof import('../shared/utils/layers').dropLayer
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
+  const editWorkspace: typeof import('../shared/utils/abilities').editWorkspace
   const editsForTile: typeof import('./utils/ocr/mask').editsForTile
   const effectScope: typeof import('vue').effectScope
   const effectiveMask: typeof import('./utils/ocr/mask').effectiveMask
@@ -348,6 +349,8 @@ declare global {
   const luminanceOf: typeof import('../shared/utils/lettering').luminanceOf
   const lutTable: typeof import('../shared/utils/adjust').lutTable
   const makeDestructurable: typeof import('@vueuse/core').makeDestructurable
+  const manageContributors: typeof import('../shared/utils/abilities').manageContributors
+  const manageWorkspace: typeof import('../shared/utils/abilities').manageWorkspace
   const mangaPrecision: typeof import('./utils/ocr/manga').mangaPrecision
   const mapped: typeof import('../shared/utils/transform').mapped
   const markRaw: typeof import('vue').markRaw
@@ -583,6 +586,7 @@ declare global {
   const transformersOnce: typeof import('./utils/ocr/onnx').transformersOnce
   const translatePage: typeof import('./utils/openrouter').translatePage
   const translateRegion: typeof import('./utils/openrouter').translateRegion
+  const translateWorkspace: typeof import('../shared/utils/abilities').translateWorkspace
   const translationEntry: typeof import('./composables/useTranslationSync').translationEntry
   const transposed: typeof import('../shared/utils/transform').transposed
   const triggerRef: typeof import('vue').triggerRef
@@ -844,6 +848,7 @@ declare global {
   const validPoints: typeof import('../shared/utils/lettering').validPoints
   const verticalOf: typeof import('../shared/utils/lettering').verticalOf
   const viewToSheet: typeof import('./utils/view').viewToSheet
+  const viewWorkspace: typeof import('../shared/utils/abilities').viewWorkspace
   const watch: typeof import('vue').watch
   const watchArray: typeof import('@vueuse/core').watchArray
   const watchAtMost: typeof import('@vueuse/core').watchAtMost
@@ -1063,6 +1068,9 @@ declare global {
   // @ts-ignore
   export type { Readable } from './utils/ocr/vision'
   import('./utils/ocr/vision')
+  // @ts-ignore
+  export type { Access, Ability } from '../shared/utils/abilities'
+  import('../shared/utils/abilities')
   // @ts-ignore
   export type { Adjustment, AdjustmentType } from '../shared/utils/adjust'
   import('../shared/utils/adjust')
@@ -1343,6 +1351,7 @@ declare module 'vue' {
     readonly dropHistory: UnwrapRef<typeof import('./utils/history')['dropHistory']>
     readonly dropLayer: UnwrapRef<typeof import('../shared/utils/layers')['dropLayer']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
+    readonly editWorkspace: UnwrapRef<typeof import('../shared/utils/abilities')['editWorkspace']>
     readonly editsForTile: UnwrapRef<typeof import('./utils/ocr/mask')['editsForTile']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly effectiveMask: UnwrapRef<typeof import('./utils/ocr/mask')['effectiveMask']>
@@ -1455,6 +1464,8 @@ declare module 'vue' {
     readonly luminanceOf: UnwrapRef<typeof import('../shared/utils/lettering')['luminanceOf']>
     readonly lutTable: UnwrapRef<typeof import('../shared/utils/adjust')['lutTable']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
+    readonly manageContributors: UnwrapRef<typeof import('../shared/utils/abilities')['manageContributors']>
+    readonly manageWorkspace: UnwrapRef<typeof import('../shared/utils/abilities')['manageWorkspace']>
     readonly mangaPrecision: UnwrapRef<typeof import('./utils/ocr/manga')['mangaPrecision']>
     readonly mapped: UnwrapRef<typeof import('../shared/utils/transform')['mapped']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
@@ -1690,6 +1701,7 @@ declare module 'vue' {
     readonly transformersOnce: UnwrapRef<typeof import('./utils/ocr/onnx')['transformersOnce']>
     readonly translatePage: UnwrapRef<typeof import('./utils/openrouter')['translatePage']>
     readonly translateRegion: UnwrapRef<typeof import('./utils/openrouter')['translateRegion']>
+    readonly translateWorkspace: UnwrapRef<typeof import('../shared/utils/abilities')['translateWorkspace']>
     readonly translationEntry: UnwrapRef<typeof import('./composables/useTranslationSync')['translationEntry']>
     readonly transposed: UnwrapRef<typeof import('../shared/utils/transform')['transposed']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
@@ -1948,6 +1960,7 @@ declare module 'vue' {
     readonly validPoints: UnwrapRef<typeof import('../shared/utils/lettering')['validPoints']>
     readonly verticalOf: UnwrapRef<typeof import('../shared/utils/lettering')['verticalOf']>
     readonly viewToSheet: UnwrapRef<typeof import('./utils/view')['viewToSheet']>
+    readonly viewWorkspace: UnwrapRef<typeof import('../shared/utils/abilities')['viewWorkspace']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>
     readonly watchAtMost: UnwrapRef<typeof import('@vueuse/core')['watchAtMost']>

@@ -4,10 +4,14 @@
 # needs compiling; protobufjs's script is harmless. unrs-resolver comes with the
 # lint plugins and ships prebuilt binaries, as the web build also decided.
 #
+# esbuild comes with drizzle-kit, which uses it to read server/database/schema.ts when
+# generating a migration; its script fetches the platform binary, as in the web build.
+#
 # electron-winstaller comes with electron-builder for its Squirrel target; the
 # installer here is NSIS, so its script has nothing to set up.
 allowBuilds:
   electron-winstaller: false
+  esbuild: true
   onnxruntime-node: false
   protobufjs: true
   sharp: false

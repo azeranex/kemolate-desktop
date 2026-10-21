@@ -21,5 +21,6 @@
       "~~/*": ["../*"]
     }
   },
-  "include": ["./unit/**/*"]
+  // The globals the server code is written against — see `server/types/globals.d.ts`.
+  "include": ["./unit/**/*", "../server/types/**/*.d.ts"]
 }

@@ -234,6 +234,13 @@ function buildEntry (config: ResolvedConfig, entry: Entry, watch: boolean) {
     logLevel: watch ? 'warn' : 'info',
     clearScreen: false,
     publicDir: false,
+    // The main process carries the web build's server code (`server/`, `shared/`)
+    // under its own imports — see `electron/data.ts`.
+    resolve: { alias: aliases },
+    // Every package bundled in, Drizzle and zod included: the installer packs no
+    // `node_modules` (see `electron-builder.yml`), so a `require` left for
+    // runtime would find nothing.
+    ssr: { noExternal: true },
     build: {
       // An SSR build is Vite's Node build: no browser polyfills, node
       // resolution, and package dependencies left as runtime `require`s.
@@ -248,7 +255,9 @@ function buildEntry (config: ResolvedConfig, entry: Entry, watch: boolean) {
       watch: watch ? {} : null,
       rolldownOptions: {
         external: EXTERNAL,
-        output: { format: entry.format, entryFileNames: entry.file },
+        // Chunks too as `.mjs`: the main process imports the database's code
+        // only once the file is open (`electron/main.ts`), which splits it out.
+        output: { format: entry.format, entryFileNames: entry.file, chunkFileNames: '[name]-[hash].mjs' },
       },
     },
   })

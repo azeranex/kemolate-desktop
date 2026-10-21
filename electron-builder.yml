@@ -20,6 +20,13 @@ files:
 extraResources:
   - from: electron/cuda/kemolate_cuda.py
     to: cuda/kemolate_cuda.py
+  # The workspace database's migrations, applied at every launch — read as files
+  # by Drizzle's migrator, so beside the app rather than inside app.asar. See
+  # electron/database.ts.
+  - from: server/database/migrations
+    to: migrations
+    filter:
+      - "**/migration.sql"
 
 # A .kemolate double-clicked opens in the app — see electron/opening.ts, which takes
 # the path from the command line, or from a second launch through the single-instance lock.
