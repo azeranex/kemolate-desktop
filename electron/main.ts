@@ -194,15 +194,39 @@ function keepFolderAccess () {
 }
 
 /*
- * Project files from the operating system — see `opening.ts`.
+ * One window per profile, always — and project files from the operating system
+ * (see `opening.ts`).
  *
- * One app at a time, built: a second launch (a `.kemolate` double-clicked while
- * the app is open) hands its command line to this one and quits, rather than
- * opening a second window onto the same storage. Not in development, where the
- * dev plugin restarts Electron on every edit to the main process and a new
- * process can start before the old one has let go of the lock.
+ * A second launch (a `.kemolate` double-clicked while the app is open) hands its
+ * command line to this one and quits, rather than opening a second window onto
+ * the same storage. Chromium's lock is per profile folder, so this is also what
+ * keeps two processes off one workspace database: nothing tells one window
+ * about another's edits (the swarm's change notices are a stand-in here), and
+ * each would write what it last loaded back over the other's newer work.
+ *
+ * Development too, since 2026-10-21. It was skipped there, for fear a restart
+ * would start the new process before the old one let go — but the dev plugin
+ * waits for the old one to exit (`vite.config.ts`) — and skipping it let
+ * `pnpm dev` and the installed app run on the same profile at once. In
+ * development a refusal is retried for a moment, for whatever the last process
+ * takes to let go, and then said in the terminal rather than in a dialog.
  */
-if (!devUrl && !app.requestSingleInstanceLock()) app.quit()
+async function oneWindow (): Promise<boolean> {
+  if (app.requestSingleInstanceLock()) return true
+  if (!devUrl) return false
+
+  for (let tries = 0; tries < 10; tries++) {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    if (app.requestSingleInstanceLock()) return true
+  }
+
+  console.error(`[kemolate] Kemolate is already open on this profile (${app.getPath('userData')}) — close it, or run on another with KEMOLATE_PROFILE.`)
+
+  return false
+}
+
+if (!await oneWindow()) app.exit(0)
 
 app.on('second-instance', (_event, argv) => {
   for (const file of projectsIn(argv)) opened(file)

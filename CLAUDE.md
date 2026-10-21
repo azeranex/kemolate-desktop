@@ -317,8 +317,16 @@ cleaned repairs' rows — is `<profile>/kemolate.db`, and its pictures stay the 
   - **Saving** a project or an export goes through the web build's link-to-a-Blob download;
     `electron/downloads.ts` titles the native Save dialog for what is saved, filters it to
     the kind, and opens it in Documents, then the last folder used.
-  - **A `.kemolate` from the OS** — on the command line, from a second launch (single-instance
-    lock, built app only), or macOS's `open-file` — is queued by `electron/opening.ts`, served
+  - **One window per profile, dev included** (`oneWindow` in `main.ts`, since 2026-10-21).
+    Chromium's single-instance lock is per profile folder, and it is what keeps two processes
+    off one workspace database — nothing tells one window about another's edits, so each
+    would write back what it last loaded. A second launch hands its command line to the first
+    and quits; in dev it retries for three seconds (the dev plugin waits for the old Electron
+    to exit before restarting it, so this is only slack) and then says in the terminal that
+    the profile is taken. `pnpm dev` and the installed app on the same profile cannot both
+    run; give one of them `KEMOLATE_PROFILE`.
+  - **A `.kemolate` from the OS** — on the command line, from a second launch (the lock
+    above), or macOS's `open-file` — is queued by `electron/opening.ts`, served
     once at `/opened/<token>` on the app's origin, and opened by `useOpenedFiles` in a new
     workspace, as a project dropped on the workspace list is. The installer registers the file
     type with the OS (`electron-builder.yml`).
