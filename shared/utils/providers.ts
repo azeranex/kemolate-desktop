@@ -10,6 +10,7 @@ export const PROVIDERS = {
   vision: { label: 'Google Cloud Vision' },
   openrouter: { label: 'OpenRouter' },
   anthropic: { label: 'Anthropic' },
+  deepseek: { label: 'DeepSeek' },
 } as const
 
 export type Provider = keyof typeof PROVIDERS

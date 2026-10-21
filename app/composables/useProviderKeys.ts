@@ -28,6 +28,15 @@
 import type { Provider } from '#shared/utils/providers'
 import type { KeyStatus } from '../../electron/preload'
 
+/**
+ * The services whose own models can skip OpenRouter, each with the id prefix the
+ * curated list files that family under — see `require`.
+ */
+const DIRECT: { provider: Provider, prefix: string, family: string, article: 'a' | 'an' }[] = [
+  { provider: 'anthropic', prefix: 'anthropic/', family: 'Claude', article: 'an' },
+  { provider: 'deepseek', prefix: 'deepseek/', family: 'DeepSeek', article: 'a' },
+]
+
 /** Keys asked for so far — plaintext, in memory only. Module level: one answer for every caller. */
 const keys = ref<Partial<Record<Provider, string>>>({})
 
@@ -113,12 +122,16 @@ export function useProviderKeys () {
    * sends a request wherever its key belongs). Without one, OpenRouter's key as
    * before. And the refusal says which keys would do, rather than naming only
    * OpenRouter to somebody who has an Anthropic key and a Claude model chosen.
+   *
+   * DeepSeek is the same arrangement for a DeepSeek model and a DeepSeek key
+   * (see `DEEPSEEK` in `utils/openrouter.ts`).
    */
   async function require (provider: Provider, model?: { id: string, label: string }): Promise<string> {
-    const claude = provider === 'openrouter' && Boolean(model?.id.startsWith('anthropic/'))
+    // The service that sells this model itself, where the reader has its key.
+    const own = provider === 'openrouter' ? DIRECT.find((each) => model?.id.startsWith(each.prefix)) : undefined
 
-    if (claude) {
-      const direct = await get('anthropic')
+    if (own) {
+      const direct = await get(own.provider)
 
       if (direct) return direct
     }
@@ -127,10 +140,14 @@ export function useProviderKeys () {
 
     if (key) return key
 
-    if (claude) throw new Error(`No key for ${model!.label} yet — add an Anthropic or an OpenRouter key in Settings (File › Settings…).`)
+    if (own) throw new Error(`No key for ${model!.label} yet — add ${own.article} ${PROVIDERS[own.provider].label} or an OpenRouter key in Settings (File › Settings…).`)
 
-    if (provider === 'openrouter' && await get('anthropic')) {
-      throw new Error(`${model?.label ?? 'This model'} is reached through OpenRouter, and an Anthropic key reaches only Claude. Pick a Claude model, or add an OpenRouter key in Settings (File › Settings…).`)
+    if (provider === 'openrouter') {
+      for (const each of DIRECT) {
+        if (!await get(each.provider)) continue
+
+        throw new Error(`${model?.label ?? 'This model'} is reached through OpenRouter, and ${each.article} ${PROVIDERS[each.provider].label} key reaches only ${each.family}. Pick a ${each.family} model, or add an OpenRouter key in Settings (File › Settings…).`)
+      }
     }
 
     throw new Error(`No ${PROVIDERS[provider].label} key yet — add one in Settings (File › Settings…).`)

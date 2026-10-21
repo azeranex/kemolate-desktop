@@ -76,6 +76,14 @@ const FIELDS = [
     href: 'https://console.anthropic.com/settings/keys',
     linkLabel: 'Anthropic console',
   },
+  {
+    provider: 'deepseek' as const,
+    label: 'DeepSeek',
+    use: 'Translates through DeepSeek directly, without OpenRouter in between.',
+    advice: 'Only used when the chosen model is one of DeepSeek’s own. Top it up with a small balance — it bills from that.',
+    href: 'https://platform.deepseek.com/api_keys',
+    linkLabel: 'DeepSeek platform',
+  },
 ]
 
 const { save: writeKeys, load, status, trouble, loaded } = useProviderKeys()

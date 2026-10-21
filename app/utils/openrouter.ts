@@ -34,10 +34,59 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
  */
 const ANTHROPIC = 'https://api.anthropic.com/v1/messages'
 
-const isAnthropicKey = (key: string) => key.startsWith('sk-ant-')
-
 /** Anthropic's own name for a model the curated list files under OpenRouter's — `anthropic/claude-sonnet-5.5` is `claude-sonnet-5-5`. */
 const anthropicModel = (id: string) => id.replace(/^anthropic\//, '').replaceAll('.', '-')
+
+/*
+ * Desktop: DeepSeek straight from DeepSeek, on the reader's DeepSeek key — the
+ * same bargain as `ANTHROPIC`, for the family that is most of what this app is
+ * pointed at (Chinese source, a twentieth of Sonnet's price). DeepSeek speaks
+ * OpenAI's format, so the body and the reply are OpenRouter's; three things
+ * differ: its own model names (`deepseekModel`), thinking switched by
+ * `thinking` and `reasoning_effort` rather than `reasoning`, and no dollars in
+ * the reply, so the cost is estimated from the model's prices as Anthropic's is.
+ *
+ * Which keys are DeepSeek's is told apart by the model and the key together:
+ * DeepSeek's keys are a bare `sk-…`, and every OpenRouter key begins `sk-or-`.
+ * `useProviderKeys.require` hands a DeepSeek key over only for a DeepSeek model.
+ */
+const DEEPSEEK = 'https://api.deepseek.com/chat/completions'
+
+/**
+ * DeepSeek's own name for a curated entry. Not the OpenRouter id less its
+ * prefix: DeepSeek retired V4 Flash into `deepseek-flash` (V4.1 Flash, at the
+ * Flash price), so both Flash entries are that one model there. Anything else
+ * of the family is tried under its own name.
+ */
+const DEEPSEEK_MODELS: Record<string, string> = {
+  'deepseek/deepseek-v4.1-flash': 'deepseek-flash',
+  'deepseek/deepseek-v4-flash': 'deepseek-flash',
+  'deepseek/deepseek-v4-pro': 'deepseek-v4-pro',
+}
+
+const deepseekModel = (id: string) => DEEPSEEK_MODELS[id] ?? id.replace(/^deepseek\//, '')
+
+type Service = 'OpenRouter' | 'Anthropic' | 'DeepSeek'
+
+/** Where a key is spent, from the key and the model it is spent on — see `ANTHROPIC` and `DEEPSEEK`. */
+function serviceFor (key: string, model: AiModel): Service {
+  if (key.startsWith('sk-ant-')) return 'Anthropic'
+  if (model.id.startsWith('deepseek/') && !key.startsWith('sk-or-')) return 'DeepSeek'
+
+  return 'OpenRouter'
+}
+
+/**
+ * DeepSeek thinks unless told not to, and takes a word for how hard: `none` and
+ * `minimal` switch it off (Fast is "one pass"), the rest are its own words —
+ * it reads `medium` as `high` itself. `auto` sends nothing, its default.
+ */
+function deepseekThinking (effort: ReasoningEffort) {
+  if (effort === 'auto') return {}
+  if (effort === 'none' || effort === 'minimal') return { thinking: { type: 'disabled' } }
+
+  return { thinking: { type: 'enabled' }, reasoning_effort: effort }
+}
 
 /**
  * Thinking budgets for the efforts that ask for any — OpenRouter takes the word,
@@ -288,9 +337,9 @@ async function ask (
   let effort = input.effort
   let retries = 0
 
-  // Desktop: which service this key is for — see `ANTHROPIC`.
-  const direct = isAnthropicKey(key)
-  const service = direct ? 'Anthropic' : 'OpenRouter'
+  // Desktop: which service this key is for — see `ANTHROPIC` and `DEEPSEEK`.
+  const service = serviceFor(key, input.model)
+  const direct = service === 'Anthropic'
 
   /** Wait before going round again — or false, where the tries are spent. */
   const again = async (asked: number | null, status?: number): Promise<boolean> => {
@@ -347,22 +396,34 @@ async function ask (
               messages: [{ role: 'user', content: anthropicContent(input.content) }],
             }),
           })
-        : await fetch(ENDPOINT, {
-            method: 'POST',
-            signal: AbortSignal.timeout(TIMEOUT),
-            headers: {
-              Authorization: `Bearer ${key}`,
-              'Content-Type': 'application/json',
-              'X-Title': 'kemolate',
-            },
-            body: JSON.stringify({
-              model: input.model.id,
-              max_tokens: MAX_TOKENS,
-              usage: { include: true },
-              ...(effort === 'auto' ? {} : { reasoning: { effort } }),
-              messages: [{ role: 'user', content: input.content }],
-            }),
-          })
+        : service === 'DeepSeek'
+          ? await fetch(DEEPSEEK, {
+              method: 'POST',
+              signal: AbortSignal.timeout(TIMEOUT),
+              headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: deepseekModel(input.model.id),
+                max_tokens: MAX_TOKENS,
+                ...deepseekThinking(effort),
+                messages: [{ role: 'user', content: input.content }],
+              }),
+            })
+          : await fetch(ENDPOINT, {
+              method: 'POST',
+              signal: AbortSignal.timeout(TIMEOUT),
+              headers: {
+                Authorization: `Bearer ${key}`,
+                'Content-Type': 'application/json',
+                'X-Title': 'kemolate',
+              },
+              body: JSON.stringify({
+                model: input.model.id,
+                max_tokens: MAX_TOKENS,
+                usage: { include: true },
+                ...(effort === 'auto' ? {} : { reasoning: { effort } }),
+                messages: [{ role: 'user', content: input.content }],
+              }),
+            })
     } catch (error) {
       const timedOut = error instanceof DOMException && error.name === 'TimeoutError'
 
@@ -411,7 +472,7 @@ async function ask (
       error?: { message?: string }
     }
 
-    if (data.error) throw new Error(`OpenRouter: ${data.error.message ?? 'unknown error'}`)
+    if (data.error) throw new Error(`${service}: ${data.error.message ?? 'unknown error'}`)
 
     const choice = data.choices?.[0]
 
@@ -443,7 +504,11 @@ async function ask (
             input: data.usage.prompt_tokens ?? 0,
             output: data.usage.completion_tokens ?? 0,
             reasoning: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
-            cost: data.usage.cost ?? null,
+            // Desktop: DeepSeek reports tokens and no dollars — estimated as
+            // Anthropic's are, at the cache-miss price, so it errs high.
+            cost: data.usage.cost ?? (service === 'DeepSeek'
+              ? estimateCost(input.model, { in: data.usage.prompt_tokens ?? 0, out: data.usage.completion_tokens ?? 0 })
+              : null),
           }
         : null,
     }
