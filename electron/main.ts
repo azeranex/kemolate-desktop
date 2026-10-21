@@ -30,6 +30,16 @@ import { keepWindowPlace, windowPlace } from './windowState'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const devUrl = process.env.KEMOLATE_DEV_URL
 
+/*
+ * The profile, by a name that does not change with the build. Electron names
+ * it after the product, and the installer calls the product "Kemolate" where
+ * `pnpm dev` and `electron .` call it "kemolate-desktop" — two folders, so an
+ * installed app would open with none of the workspaces, keys, models or window
+ * place a development run had kept, and the reverse. Everything the app keeps
+ * lives in here (IndexedDB and OPFS are the page's storage inside it), so it is
+ * set before anything reads it.
+ */
+app.setPath('userData', path.join(app.getPath('appData'), 'kemolate-desktop'))
 
 /**
  * `--smoke=<file.png>`: open the window, save a capture of it and quit. A way to

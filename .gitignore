@@ -10,3 +10,5 @@ out/
 # Anime Ace 3 BB .otf files into app/assets/fonts/ as animeace3_{reg,bld,ital,bldital}.otf.
 # Without them the dialogue falls back to Shantell Sans. See app/assets/css/fonts.css.
 app/assets/fonts/animeace*
+
+release/

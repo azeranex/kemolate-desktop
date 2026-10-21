@@ -473,7 +473,21 @@ async function loadBeta (onProgress?: MangaProgress, asked?: Precision): Promise
     }
   }
 
-  const tokenizer = await AutoTokenizer.from_pretrained(KEMOLATE_OCR_BETA_MODEL)
+  /*
+   * Desktop: the first file asked for, so the one that finds out whether the
+   * reader is here at all. The model route answers a missing one with a 404
+   * when it has no address to download it from (`server/models.ts`), which
+   * transformers.js reports as "Could not locate file" and a URL — said here
+   * in words a reader can act on instead, since this is the default reader and
+   * the first thing a fresh install tries.
+   */
+  const tokenizer = await AutoTokenizer.from_pretrained(KEMOLATE_OCR_BETA_MODEL).catch((error: unknown) => {
+    if (error instanceof Error && /could not locate file/i.test(error.message)) {
+      throw new Error('Kemolate OCR isn’t on this computer yet, and there’s no address set to download it from. Pick another reader in Detect for now.')
+    }
+
+    throw error
+  })
 
   // An install that holds only the fp32 pair answers the fp16 one with a 404,
   // and a GPU may still refuse it; either way the beta reads at full precision.

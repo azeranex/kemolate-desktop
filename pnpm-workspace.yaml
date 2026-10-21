@@ -2,7 +2,11 @@
 # they are. The same choices as the web build's: onnxruntime-node arrives with
 # transformers.js and is Node-side, as is sharp — the renderer uses neither, so nothing
 # needs compiling; protobufjs's script is harmless.
+#
+# electron-winstaller comes with electron-builder for its Squirrel target; the
+# installer here is NSIS, so its script has nothing to set up.
 allowBuilds:
+  electron-winstaller: false
   onnxruntime-node: false
   protobufjs: true
   sharp: false

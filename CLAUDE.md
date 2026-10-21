@@ -11,6 +11,8 @@ this file is about how this repository differs from it.
 pnpm dev          # Vite + Electron; main restarts on edit, preload reloads the page
 pnpm build        # vue-tsc, then renderer → dist/, main + preload → dist-electron/
 pnpm preview      # run the built app
+pnpm dist         # build, then the installer (electron-builder → release/)
+pnpm dist:dir     # build, then the packaged app unpacked (release/win-unpacked) — no installer
 pnpm typecheck    # vue-tsc -b: app, main process and tests
 pnpm test         # vitest, once
 pnpm test:unit    # the node project only
@@ -81,10 +83,13 @@ and a later fix in one can be carried to the other. Keep it that way.
     state when another is opened; Settings is drawn over the workspace instead.
   - Readers: no Manga OCR or Manga OCR 2025 (`READERS` in `utils/ocr/readers.ts`), and
     Kemolate OCR is the default (`useOcr`). Their code is kept; an entry put back brings
-    one back. Kemolate OCR's weights are never fetched (`kemolate/` is ours): put the
-    run's export — `E:\ml\export\out26-web` on the dev machine — at
-    `kemolate/kemolate-ocr-out26/resolve/main/` under the model store (`%APPDATA%\
-    kemolate-desktop\models` built, `.data/models` in dev), or every read is a 404.
+    one back. Kemolate OCR's weights (`kemolate/…`, ours, never asked of the Hub) are
+    downloaded from `OWN_MODELS` in `server/models.ts` — **not decided yet, so empty**
+    (`KEMOLATE_MODELS_URL` overrides it). Until it is set, a fresh install's first read says
+    in words that the reader is not here (`loadBeta` in `ocr/manga.ts`); on the dev machine
+    the run's export (`E:\ml\export\out26-web`) is copied in by hand at
+    `kemolate/kemolate-ocr-out26/resolve/main/` under the model store
+    (`%APPDATA%\kemolate-desktop\models`, or `.data/models` in dev).
   - `utils/export/letters.ts` waits for the faces inlined into a lettering plate's SVG before
     drawing it (`facesIn`): `decode()` does not, and the first export of a session came out in
     the fallback face with lines that no longer fitted their balloons clipped away. The web
@@ -138,6 +143,14 @@ rather than the account menu. The header has no account menu.
   what it can ask for. Add a named method there per need — no raw `ipcRenderer`. A handler
   that hands back anything secret checks the asking frame is the app's origin (`trusted` in
   `main.ts`).
+- The installer is electron-builder (`electron-builder.yml`): NSIS on Windows, `.kemolate`
+  registered, icon `build/icon.png` (the app's mark, rendered from `Logo.vue`). Only `dist/`,
+  `dist-electron/` and `package.json` are packed — Vite bundles every runtime dependency, so
+  no `node_modules` goes in. Unsigned: SmartScreen warns until a certificate is configured.
+- The profile folder is pinned to `%APPDATA%\kemolate-desktop` (`app.setPath('userData')`
+  in `main.ts`). Electron would name it after the product, and the installed app is
+  "Kemolate" where a development run is "kemolate-desktop" — two folders, two sets of
+  workspaces, keys and models. Never let it follow the product name.
 - Files in and out, natively:
   - **Open folder** is the File System Access picker (its native dialog says "Select a folder
     this site can view" — Chromium's words, not ours). A permission *check* handler in

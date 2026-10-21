@@ -16,8 +16,15 @@
  *   whether or not the repo has one, so a trailing `onnx/` is also tried
  *   without it — see `candidates`.
  * - `kemolate/…` is this project's own models (the fp16 detector, Kemolate OCR).
- *   They are placed on disk by hand and never fetched: a miss is a 404, not a
- *   request to a Hub namespace that is not ours.
+ *   They are never asked of the Hub, whose namespace that is not. In the web
+ *   build they are placed on disk by hand and a miss is a 404.
+ *
+ *   Desktop: Kemolate OCR is the default reader here, and an install that had
+ *   to have it copied in by hand could not read a page. So a miss is fetched
+ *   from **our own address** (`OWN_MODELS`) when one is set — `kemolate/<name>/…`
+ *   from `<OWN_MODELS>/<name>/…`, which a Hugging Face account's repos of the
+ *   same names answer as written — and kept like any other model. Unset, a
+ *   miss is the 404 it was, saying why.
  *
  * Whole files, not ranges, as in the web build: transformers.js and the model
  * store read a file at once, and the store needs its length (see `store.ts`).
@@ -27,7 +34,15 @@ import path from 'node:path'
 
 const UPSTREAM = 'https://huggingface.co'
 
-const LOCAL_ONLY = /^kemolate\//
+/**
+ * Where this project's own models are downloaded from — the base a model's
+ * name and file are put after, e.g. `https://huggingface.co/<account>`. Not
+ * decided yet, so empty; `KEMOLATE_MODELS_URL` in the environment overrides it,
+ * for trying an address before it is written in here.
+ */
+const OWN_MODELS = (process.env.KEMOLATE_MODELS_URL ?? '').replace(/\/+$/, '')
+
+const OURS = /^kemolate\//
 
 const SAFE = /^[\w.-]+(?:\/[\w.-]+)*$/
 
@@ -58,12 +73,18 @@ export async function answerModel (root: string, requested: string): Promise<Mod
     if (held) return { status: 200, body: held }
   }
 
-  if (LOCAL_ONLY.test(asked)) return { status: 404, message: 'That model is not installed on this machine.' }
+  const ours = OURS.test(asked)
+
+  if (ours && !OWN_MODELS) {
+    return { status: 404, message: 'Kemolate’s own models are not on this computer, and no address to download them from is set.' }
+  }
 
   let upstream: Response | null = null
 
   for (const each of tries) {
-    upstream = await fetch(`${UPSTREAM}/${each}`).catch(() => null)
+    const from = ours ? `${OWN_MODELS}/${each.slice('kemolate/'.length)}` : `${UPSTREAM}/${each}`
+
+    upstream = await fetch(from).catch(() => null)
 
     if (upstream?.ok) break
   }
