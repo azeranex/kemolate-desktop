@@ -178,6 +178,13 @@ rather than the account menu. The header has no account menu.
   registered, icon `build/icon.png` (the app's mark, rendered from `Logo.vue`). Only `dist/`,
   `dist-electron/` and `package.json` are packed — Vite bundles every runtime dependency, so
   no `node_modules` goes in. Unsigned: SmartScreen warns until a certificate is configured.
+  Per-user, into `%LOCALAPPDATA%\Programs\Kemolate`, no admin prompt; `/S` installs silently.
+  `.kemolate` is registered under the ProgID `Kemolate.Project` (the association's `name`;
+  its `description` is what Explorer shows). Tested installed on 2026-10-21: the app opens on
+  the development profile, Save project writes through the native dialog, a `.kemolate`
+  opened from the shell imports into a new workspace both cold and into a running app (which
+  the second launch hands it to, then quits), and installing over an earlier build replaces
+  its association rather than leaving the old ProgID behind.
 - The profile folder is pinned to `%APPDATA%\kemolate-desktop` (`app.setPath('userData')`
   in `main.ts`). Electron would name it after the product, and the installed app is
   "Kemolate" where a development run is "kemolate-desktop" — two folders, two sets of

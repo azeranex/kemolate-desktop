@@ -17,9 +17,14 @@ files:
 
 # A .kemolate double-clicked opens in the app — see electron/opening.ts, which takes
 # the path from the command line, or from a second launch through the single-instance lock.
+#
+# `name` is the ProgID the NSIS script registers under HKCU\Software\Classes, and
+# `description` the type Explorer shows. They were one string, "Kemolate project",
+# which made a ProgID with a space in it — something Windows asks programs not to
+# do. An upgrade's uninstall step takes the old key away with it.
 fileAssociations:
   - ext: kemolate
-    name: Kemolate project
+    name: Kemolate.Project
     description: Kemolate project
     role: Editor
 
