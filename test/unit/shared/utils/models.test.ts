@@ -40,7 +40,8 @@ describe('successorOf', () => {
   })
 
   it('leaves a current id and an unknown one alone', () => {
-    expect(successorOf('anthropic/claude-haiku-4.5')).toBe('anthropic/claude-haiku-4.5')
+    // Desktop: Haiku 5.5, Haiku 4.5 having been replaced by it here.
+    expect(successorOf('anthropic/claude-haiku-5.5')).toBe('anthropic/claude-haiku-5.5')
     expect(successorOf('someone/else')).toBe('someone/else')
   })
 

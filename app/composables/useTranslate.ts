@@ -350,7 +350,7 @@ export function useTranslate () {
 
   // The live list, so a price on screen is a price somebody will be billed —
   // see `useModels`, and the two ways the old snapshot could not be.
-  const { byId } = useModels()
+  const { byId, current: currentModels } = useModels()
 
   // Every call, as the provider reported it — see `useAiUsage`.
   const { record } = useAiUsage()
@@ -866,6 +866,9 @@ export function useTranslate () {
     let readying: Promise<string | undefined> | null = null
 
     const ready = () => (readying ??= (async () => {
+      // Desktop: on the newest version of the chosen family — see `useModels.current`.
+      if (usesModel.value) await currentModels()
+
       const key = usesModel.value ? await require('openrouter', model.value) : undefined
 
       await glossaryReady()
@@ -1369,6 +1372,9 @@ export function useTranslate () {
     // What this ask is about, held as it was when asked — see the header.
     const started = epoch.value
     const language = locale.value
+    // Desktop: on the newest version of the chosen family — see `useModels.current`.
+    await currentModels()
+
     const chosen = model.value
     const { id, source, translation } = line
     const batch = crypto.randomUUID()

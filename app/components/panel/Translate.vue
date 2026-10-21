@@ -43,7 +43,7 @@ const { terms } = useGlossary()
  * session — `refresh` returns immediately after the first — so re-opening the
  * dock column is free.
  */
-const { models, refresh: refreshModels } = useModels()
+const { models, byId, refresh: refreshModels } = useModels()
 
 onMounted(refreshModels)
 
@@ -81,8 +81,15 @@ const ENGINES: { value: TranslateEngine, label: string }[] = [
  * the price on every row, and the cost under it, were invented numbers with no
  * route to becoming real ones.
  */
-const MODELS = computed(() => models.value.map((model) => ({
+// Desktop: a free model chosen before the catalogue has answered is listed anyway, so the
+// picker shows what is in force rather than the first entry — see `useModels.byId`.
+const listed = computed(() => (models.value.some((model) => model.id === translate.value.model) || !isFreeModel(translate.value.model)
+  ? models.value
+  : [...models.value, byId(translate.value.model)]))
+
+const MODELS = computed(() => listed.value.map((model) => ({
   value: model.id,
+  free: Boolean(model.free),
   label: model.label,
   desc: model.note,
   vision: model.vision,
@@ -368,7 +375,8 @@ const done = computed(() => {
                   same word twice an inch apart. The rate is the one thing that
                   separates these three and cannot be read anywhere else.
                 -->
-                <span class="text-muted-foreground font-mono text-[10px]">${{ item.in }}/M</span>
+                <span v-if="item.free" class="text-muted-foreground font-mono text-[10px]">free</span>
+                <span v-else class="text-muted-foreground font-mono text-[10px]">${{ item.in }}/M</span>
               </UComboboxItem>
 
               <StepRail

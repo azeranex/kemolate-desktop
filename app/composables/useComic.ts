@@ -20,7 +20,7 @@
 import type { EffectScope, ShallowRef } from 'vue'
 
 // By hand, so a dev server already running picks up an export it has not seen.
-import { successorOf } from '#shared/utils/models'
+import { familyOf, isFreeModel, successorOf } from '#shared/utils/models'
 import { pickedName } from '~/utils/images'
 
 /** What a block turned out to be, once someone or something had read it. */
@@ -1055,7 +1055,18 @@ export function useComic () {
     // A retired id moves to its successor rather than to the first entry — see `successorOf`.
     const model = typeof held.model === 'string' ? successorOf(held.model) : null
 
-    if (AI_MODELS.some((one) => one.id === model)) next.model = model!
+    // Desktop: a free model is kept as chosen — the list does not name any; see `isFreeModel`.
+    if (AI_MODELS.some((one) => one.id === model) || isFreeModel(model)) {
+      next.model = model!
+    } else {
+      // Desktop: a version of a tracked family this list does not name — one a
+      // refresh moved to last session — stays with its family's entry, which
+      // the next refresh moves on again. See `AiModel.family`.
+      const family = familyOf(model)
+      const entry = family ? AI_MODELS.find((one) => one.family === family) : undefined
+
+      if (entry) next.model = entry.id
+    }
     if (EFFORT_ORDER.includes(held.effort as Effort)) next.effort = held.effort as Effort
     if (typeof held.honorifics === 'boolean') next.honorifics = held.honorifics
     if (typeof held.context === 'boolean') next.context = held.context

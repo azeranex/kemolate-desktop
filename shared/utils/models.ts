@@ -33,6 +33,21 @@ export interface AiModel {
   label: string
   /** A line about when to reach for it, for the picker. */
   note: string
+  /**
+   * Desktop: the family this entry stands for, where it should always be that
+   * family's newest version — `anthropic/claude-sonnet` for every Claude Sonnet.
+   * `useModels.refresh()` moves the entry to the newest id the catalogue has
+   * (`newestIn`), and a saved choice of an older version follows it
+   * (`familyOf`). The id written here is the newest known when the list was
+   * last brought up to date, which is what is used offline.
+   */
+  family?: string
+  /**
+   * Desktop: one of OpenRouter's free models (an id ending `:free`), offered
+   * from its catalogue rather than written here — see `useModels.refresh` and
+   * `isFreeModel`.
+   */
+  free?: boolean
   /** Whether it can be shown the page as well as told about it. */
   vision: boolean
   /**
@@ -66,6 +81,7 @@ export interface AiModel {
 export const AI_MODELS: AiModel[] = [
   {
     id: 'anthropic/claude-sonnet-5.5',
+    family: 'anthropic/claude-sonnet',
     label: 'Claude Sonnet 5.5',
     note: 'Best all-round for a whole volume',
     vision: true,
@@ -73,14 +89,16 @@ export const AI_MODELS: AiModel[] = [
   },
   {
     id: 'anthropic/claude-opus-5.5',
+    family: 'anthropic/claude-opus',
     label: 'Claude Opus 5.5',
     note: 'Hardest lines, most of the page held in mind',
     vision: true,
     price: { in: 4, out: 20 },
   },
   {
-    id: 'anthropic/claude-haiku-4.5',
-    label: 'Claude Haiku 4.5',
+    id: 'anthropic/claude-haiku-5.5',
+    family: 'anthropic/claude-haiku',
+    label: 'Claude Haiku 5.5',
     note: 'Quick passes and plain dialogue',
     vision: true,
     price: { in: 1, out: 5 },
@@ -208,6 +226,7 @@ export const DEFAULT_MODEL = AI_MODELS[0]!.id
 const SUCCESSORS: Record<string, string> = {
   'anthropic/claude-sonnet-5': 'anthropic/claude-sonnet-5.5',
   'anthropic/claude-opus-5': 'anthropic/claude-opus-5.5',
+  'anthropic/claude-haiku-4.5': 'anthropic/claude-haiku-5.5',
   'google/gemini-3.6-flash': 'google/gemini-3.8-flash',
   'openai/gpt-5.6-terra': 'openai/gpt-6.1-sol',
   'openai/gpt-5.6-luna': 'openai/gpt-6-luna',
@@ -219,6 +238,84 @@ export const successorOf = (id: string): string => SUCCESSORS[id] ?? id
 
 export const modelById = (id: string | null | undefined): AiModel =>
   AI_MODELS.find((model) => model.id === id) ?? AI_MODELS[0]!
+
+/** Two versions part by part, a missing part counting as nought — positive when `a` is later. */
+function compareVersions (a: number[], b: number[]): number {
+  for (let at = 0; at < Math.max(a.length, b.length); at++) {
+    const difference = (a[at] ?? 0) - (b[at] ?? 0)
+
+    if (difference) return difference
+  }
+
+  return 0
+}
+
+/** The version a family's id ends in — `[5, 5]` of `anthropic/claude-sonnet-5.5` — or null. */
+function versionIn (family: string, id: string): number[] | null {
+  if (!id.startsWith(`${family}-`)) return null
+
+  const rest = id.slice(family.length + 1)
+
+  return /^\d+(?:\.\d+)*$/.test(rest) ? rest.split('.').map(Number) : null
+}
+
+/**
+ * The tracked family a model id belongs to, or null — `anthropic/claude-haiku-4.5`
+ * is `anthropic/claude-haiku`. Only families an entry tracks (`family`), so an
+ * id this list knows nothing about is never taken for one.
+ */
+export function familyOf (id: string | null | undefined): string | null {
+  if (!id) return null
+
+  return AI_MODELS.find((model) => model.family && versionIn(model.family, id))?.family ?? null
+}
+
+/**
+ * The newest version of a family among some ids: the highest version, compared
+ * part by part (`5.10` is after `5.9`), or null for none. An id with anything
+ * after its version — a dated snapshot, a `:beta` — is not a version of the
+ * family and is passed over.
+ */
+export function newestIn (family: string, ids: Iterable<string>): string | null {
+  let best: { id: string, version: number[] } | null = null
+
+  for (const id of ids) {
+    const version = versionIn(family, id)
+
+    if (version && (!best || compareVersions(version, best.version) > 0)) best = { id, version }
+  }
+
+  return best?.id ?? null
+}
+
+/**
+ * Desktop: whether an id is one of OpenRouter's free models. They come and go
+ * by the week, so none is written into the list above; `useModels` offers what
+ * the catalogue has, and a reader's choice of one is kept by this test rather
+ * than by the list (`remember('kemolate:translate', …)` in `useComic`). Free
+ * still needs an OpenRouter key — a free one — and is rate-limited.
+ */
+export const isFreeModel = (id: string | null | undefined): boolean => Boolean(id?.endsWith(':free'))
+
+/** Desktop: an entry for a free model the catalogue has not answered for yet — see `useModels.byId`. */
+export function freeModel (id: string, found?: { name?: string, vision?: boolean, reasoning?: boolean }): AiModel {
+  return {
+    id,
+    label: (found?.name ?? id.replace(/^[^/]+\//, '')).replace(/\s*\(free\)$/i, ''),
+    note: 'Free on OpenRouter — slower, and rate-limited',
+    free: true,
+    vision: found?.vision ?? false,
+    reasoning: found?.reasoning ?? false,
+    price: { in: 0, out: 0 },
+  }
+}
+
+/** A tracked entry's label for another version of its family — `Claude Haiku 4.5` as `Claude Haiku 5.5`. */
+export function labelFor (model: AiModel, id: string): string {
+  const version = model.family ? versionIn(model.family, id) : null
+
+  return version ? model.label.replace(/\d+(?:\.\d+)*$/, version.join('.')) : model.label
+}
 
 /**
  * What to call a model, given only the id a row was written with.

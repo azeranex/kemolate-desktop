@@ -64,7 +64,7 @@ export function useRegion () {
   const { progress, error, running } = useOcr()
 
   const { require } = useProviderKeys()
-  const { byId } = useModels()
+  const { byId, current: currentModels } = useModels()
   const { record } = useAiUsage()
   const { target: locale } = useTargetLanguage()
   const { direction } = useReadingDirection()
@@ -236,6 +236,9 @@ export function useRegion () {
       // A model with no eyes, handed a message whose picture has been dropped,
       // answers fluently and invents the line — a failure indistinguishable from
       // a reading, so it is turned away at the same door as a missing key.
+      // Desktop: on the newest version of the chosen family — see `useModels.current`.
+      await currentModels()
+
       const blind = mode === 'translate' ? cannotSee(model.value) : null
 
       if (blind) throw new Error(blind)

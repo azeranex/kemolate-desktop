@@ -250,7 +250,7 @@ declare global {
   const exportEncoders: typeof import('./utils/resources').exportEncoders
   const extendRef: typeof import('@vueuse/core').extendRef
   const faceOf: typeof import('../shared/utils/fonts').faceOf
-  const familyOf: typeof import('./utils/ocr/detectors').familyOf
+  const familyOf: typeof import('../shared/utils/models').familyOf
   const featherOf: typeof import('./utils/ocr/clean').featherOf
   const fencesOf: typeof import('./utils/ocr/rooms').fencesOf
   const fetchModel: typeof import('./utils/ocr/onnx').fetchModel
@@ -271,6 +271,7 @@ declare global {
   const formatBytes: typeof import('./utils/bytes').formatBytes
   const framedBoxOf: typeof import('./composables/useComic').framedBoxOf
   const framesLettering: typeof import('./composables/useComic').framesLettering
+  const freeModel: typeof import('../shared/utils/models').freeModel
   const fullLabel: typeof import('./utils/ocr/detectors').fullLabel
   const fullPrecision: typeof import('./utils/ocr/detector').fullPrecision
   const gaveUp: typeof import('./utils/ocr/cuda').gaveUp
@@ -314,6 +315,7 @@ declare global {
   const isCastGender: typeof import('../shared/utils/cast').isCastGender
   const isDefined: typeof import('@vueuse/core').isDefined
   const isDistorted: typeof import('../shared/utils/transform').isDistorted
+  const isFreeModel: typeof import('../shared/utils/models').isFreeModel
   const isLanguage: typeof import('../shared/utils/prompt').isLanguage
   const isOffline: typeof import('./composables/useComic').isOffline
   const isOnGpu: typeof import('./utils/ocr/onnx').isOnGpu
@@ -331,6 +333,7 @@ declare global {
   const keepLayersLocally: typeof import('./composables/useLayerCache').keepLayersLocally
   const keepPlaced: typeof import('./utils/placed').keepPlaced
   const labEndpoint: typeof import('./utils/ocr/lab').labEndpoint
+  const labelFor: typeof import('../shared/utils/models').labelFor
   const layerDrafts: typeof import('./composables/useLayerSync').layerDrafts
   const layerEditable: typeof import('../shared/utils/layers').layerEditable
   const layerInk: typeof import('../shared/utils/layers').layerInk
@@ -371,6 +374,7 @@ declare global {
   const newGroupLayer: typeof import('../shared/utils/layers').newGroupLayer
   const newImageLayer: typeof import('../shared/utils/layers').newImageLayer
   const newPaintLayer: typeof import('../shared/utils/layers').newPaintLayer
+  const newestIn: typeof import('../shared/utils/models').newestIn
   const nextTick: typeof import('vue').nextTick
   const normaliseCast: typeof import('../shared/utils/cast').normaliseCast
   const nuxtReady: typeof import('./composables/nuxt').nuxtReady
@@ -1375,7 +1379,7 @@ declare module 'vue' {
     readonly exportEncoders: UnwrapRef<typeof import('./utils/resources')['exportEncoders']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly faceOf: UnwrapRef<typeof import('../shared/utils/fonts')['faceOf']>
-    readonly familyOf: UnwrapRef<typeof import('./utils/ocr/detectors')['familyOf']>
+    readonly familyOf: UnwrapRef<typeof import('../shared/utils/models')['familyOf']>
     readonly featherOf: UnwrapRef<typeof import('./utils/ocr/clean')['featherOf']>
     readonly fencesOf: UnwrapRef<typeof import('./utils/ocr/rooms')['fencesOf']>
     readonly fetchModel: UnwrapRef<typeof import('./utils/ocr/onnx')['fetchModel']>
@@ -1396,6 +1400,7 @@ declare module 'vue' {
     readonly formatBytes: UnwrapRef<typeof import('./utils/bytes')['formatBytes']>
     readonly framedBoxOf: UnwrapRef<typeof import('./composables/useComic')['framedBoxOf']>
     readonly framesLettering: UnwrapRef<typeof import('./composables/useComic')['framesLettering']>
+    readonly freeModel: UnwrapRef<typeof import('../shared/utils/models')['freeModel']>
     readonly fullLabel: UnwrapRef<typeof import('./utils/ocr/detectors')['fullLabel']>
     readonly fullPrecision: UnwrapRef<typeof import('./utils/ocr/detector')['fullPrecision']>
     readonly gaveUp: UnwrapRef<typeof import('./utils/ocr/cuda')['gaveUp']>
@@ -1439,6 +1444,7 @@ declare module 'vue' {
     readonly isCastGender: UnwrapRef<typeof import('../shared/utils/cast')['isCastGender']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isDistorted: UnwrapRef<typeof import('../shared/utils/transform')['isDistorted']>
+    readonly isFreeModel: UnwrapRef<typeof import('../shared/utils/models')['isFreeModel']>
     readonly isLanguage: UnwrapRef<typeof import('../shared/utils/prompt')['isLanguage']>
     readonly isOffline: UnwrapRef<typeof import('./composables/useComic')['isOffline']>
     readonly isOnGpu: UnwrapRef<typeof import('./utils/ocr/onnx')['isOnGpu']>
@@ -1456,6 +1462,7 @@ declare module 'vue' {
     readonly keepLayersLocally: UnwrapRef<typeof import('./composables/useLayerCache')['keepLayersLocally']>
     readonly keepPlaced: UnwrapRef<typeof import('./utils/placed')['keepPlaced']>
     readonly labEndpoint: UnwrapRef<typeof import('./utils/ocr/lab')['labEndpoint']>
+    readonly labelFor: UnwrapRef<typeof import('../shared/utils/models')['labelFor']>
     readonly layerDrafts: UnwrapRef<typeof import('./composables/useLayerSync')['layerDrafts']>
     readonly layerEditable: UnwrapRef<typeof import('../shared/utils/layers')['layerEditable']>
     readonly layerInk: UnwrapRef<typeof import('../shared/utils/layers')['layerInk']>
@@ -1496,6 +1503,7 @@ declare module 'vue' {
     readonly newGroupLayer: UnwrapRef<typeof import('../shared/utils/layers')['newGroupLayer']>
     readonly newImageLayer: UnwrapRef<typeof import('../shared/utils/layers')['newImageLayer']>
     readonly newPaintLayer: UnwrapRef<typeof import('../shared/utils/layers')['newPaintLayer']>
+    readonly newestIn: UnwrapRef<typeof import('../shared/utils/models')['newestIn']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly normaliseCast: UnwrapRef<typeof import('../shared/utils/cast')['normaliseCast']>
     readonly nuxtReady: UnwrapRef<typeof import('./composables/nuxt')['nuxtReady']>

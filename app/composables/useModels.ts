@@ -37,6 +37,9 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/models'
 
 const TIMEOUT = 15_000
 
+/** How long a run waits for the list before going on without it — see `current`. */
+const CURRENT_WAIT = 3000
+
 /**
  * A curated entry plus whether *its* price is OpenRouter's or still ours.
  *
@@ -66,8 +69,18 @@ export function useModels () {
    */
   const fetched = useState('ai-models-fetched', () => false)
 
-  const byId = (id: string | null | undefined) =>
-    models.value.find((model) => model.id === id) ?? models.value[0]!
+  /*
+   * Desktop: an older version of a tracked family is that family's entry — see
+   * `AiModel.family`. And a free model the catalogue has not answered for yet
+   * (offline, or before the first refresh) is itself, not the first entry: the
+   * first is a paid Claude, and a reader who chose free must never be moved onto
+   * a bill without being told. It is offered as text-only until the catalogue
+   * says it can see.
+   */
+  const byId = (id: string | null | undefined): PricedModel =>
+    models.value.find((model) => model.id === id)
+    ?? models.value.find((model) => model.family && model.family === familyOf(id))
+    ?? (isFreeModel(id) ? { ...freeModel(id!), priced: true } : models.value[0]!)
 
   /**
    * Ask what these models cost and whether they think.
@@ -88,12 +101,33 @@ export function useModels () {
         data?: {
           id: string
           supported_parameters?: string[]
-          architecture?: { input_modalities?: string[] }
+          name?: string
+          architecture?: { input_modalities?: string[], output_modalities?: string[] }
           pricing?: { prompt?: string, completion?: string }
         }[]
       }
 
       const live = new Map((data.data ?? []).map((model) => [model.id, model]))
+
+      /*
+       * Desktop: each tracked family on its newest version — Claude Sonnet,
+       * Opus and Haiku move on by their ids changing, and the catalogue is
+       * where a new one shows up first. Never backwards: the entry's own id is
+       * among the candidates, so a catalogue that lags keeps what the list
+       * already had. The choice a reader made follows its family, or the picker
+       * would find their id gone and show the first entry.
+       */
+      const { translate } = useComic()
+
+      models.value = models.value.map((model) => {
+        const newest = model.family ? newestIn(model.family, [model.id, ...live.keys()]) : null
+
+        if (!newest || newest === model.id) return model
+
+        if (translate.value.model === model.id) translate.value.model = newest
+
+        return { ...model, id: newest, label: labelFor(model, newest) }
+      })
 
       models.value = models.value.map((model) => {
         const found = live.get(model.id)
@@ -131,6 +165,30 @@ export function useModels () {
         }
       })
 
+      /*
+       * Desktop: OpenRouter's free models, after the curated ones — whatever
+       * the catalogue has this week (`isFreeModel`), so none goes stale in a
+       * list written by hand. Only ones that write text, and only ones that
+       * really charge nothing. The ones that can be shown a page first, since
+       * AI · Image is how most pages are translated.
+       */
+      const free = [...live.values()]
+        .filter((found) => isFreeModel(found.id)
+          && !models.value.some((model) => model.id === found.id)
+          && (found.architecture?.output_modalities ?? ['text']).includes('text')
+          && Number(found.pricing?.prompt) === 0 && Number(found.pricing?.completion) === 0)
+        .map((found) => ({
+          ...freeModel(found.id, {
+            name: found.name,
+            vision: found.architecture?.input_modalities?.includes('image') ?? false,
+            reasoning: found.supported_parameters?.includes('reasoning') ?? false,
+          }),
+          priced: true,
+        }))
+        .sort((a, b) => Number(b.vision) - Number(a.vision) || a.label.localeCompare(b.label))
+
+      models.value = [...models.value, ...free]
+
       fetched.value = true
     } catch {
       // Offline, or OpenRouter having a moment. The curated list still works,
@@ -138,5 +196,14 @@ export function useModels () {
     }
   }
 
-  return { models, byId, refresh }
+  /**
+   * Desktop: the list brought up to date before a model is asked for, so a run
+   * goes to each tracked family's newest version (`AiModel.family`) whether or
+   * not the Translate panel — the only other caller — was ever opened. Waits
+   * at most `CURRENT_WAIT`: offline, a run goes on with the list as it is
+   * rather than standing still for the fetch's whole timeout.
+   */
+  const current = () => Promise.race([refresh(), new Promise<void>((resolve) => setTimeout(resolve, CURRENT_WAIT))])
+
+  return { models, byId, refresh, current }
 }
