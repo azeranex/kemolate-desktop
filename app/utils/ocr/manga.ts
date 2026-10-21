@@ -63,6 +63,7 @@
  * how many go together is `batchSize`'s to say, by backend.
  */
 
+import { cudaRead, cudaSession, cudaWanted, gaveUp } from './cuda'
 import { quadWorthy, tiltedQuad, uprightRegion, worthStraightening } from './deskew'
 import { isOnGpu, transformersOnce } from './onnx'
 import { detBoxFor, detLeanFor, detLines, segFor, segmentedAlready } from './segment'
@@ -285,6 +286,11 @@ interface Loaded extends ReadingSessions {
   tokenizer: PreTrainedTokenizer
   /** Where both sessions run, which decides how many crops go together. */
   backend: Backend
+  /**
+   * Desktop: a batch read some other way than `readBatch` step by step from
+   * here — the CUDA process reading it whole (`cudaBeta`). Absent, `readBatch`.
+   */
+  read?: (pixels: Float32Array, count: number) => Promise<number[][]>
 }
 
 /**
@@ -454,7 +460,47 @@ async function load2025 (onProgress?: MangaProgress): Promise<Loaded> {
  * through transformers.js) with the precision chosen by backend, since unlike
  * the 2025 build it ships both. See `KEMOLATE_OCR_BETA_MODEL`.
  */
-async function loadBeta (onProgress?: MangaProgress, asked?: Precision): Promise<Loaded> {
+/**
+ * Desktop: the beta on CUDA — see `utils/ocr/cuda.ts`. Its fp32 pair, which is
+ * the model itself and which CUDA runs at full speed, opened in the CUDA
+ * process; a batch is read there whole (`read`), so these two sessions are
+ * never stepped from here. A batch CUDA fails on gives CUDA up for the session
+ * and is read again on WebGPU, so the reading in hand is not lost with it.
+ */
+async function cudaBeta (tokenizer: PreTrainedTokenizer, onProgress?: MangaProgress): Promise<Loaded> {
+  const files = betaFiles('fp32')
+  const at = `${KEMOLATE_OCR_BETA_MODEL}/resolve/main`
+
+  onProgress?.('Opening Kemolate OCR on CUDA…')
+
+  const encoder = await cudaSession(`${at}/${files.encoder}`)
+  const decoder = await cudaSession(`${at}/${files.decoder}`)
+
+  let fallback: Promise<Loaded> | null = null
+
+  return {
+    tokenizer,
+    encoder,
+    decoder,
+    makeTensor: (kind, data, dims) => ({ type: kind, data, dims }),
+    // As many crops together as on WebGPU: the batch the rest of the reading is sized for.
+    backend: 'webgpu',
+    read: async (pixels, count) => {
+      if (!fallback) {
+        try {
+          return await cudaRead(encoder, decoder, pixels, count, { edge: MODEL_EDGE, start: START_TOKEN, end: END_TOKEN, limit: MAX_TOKENS })
+        } catch (error) {
+          gaveUp('Kemolate OCR', error)
+          fallback = loadBeta(onProgress)
+        }
+      }
+
+      return readBatch(await fallback, pixels, count)
+    },
+  }
+}
+
+async function loadBeta (onProgress?: MangaProgress, asked?: Precision, cuda = false): Promise<Loaded> {
   await opfsModelCache()
 
   const { AutoTokenizer } = await transformersOnce()
@@ -489,6 +535,18 @@ async function loadBeta (onProgress?: MangaProgress, asked?: Precision): Promise
     throw error
   })
 
+  // Desktop: on CUDA where the reader switched it on, and WebGPU below where it
+  // will not open — said once, see `gaveUp`.
+  if (cuda) {
+    const onCuda = await cudaBeta(tokenizer, onProgress).catch((error: unknown) => {
+      gaveUp('Kemolate OCR', error)
+
+      return null
+    })
+
+    if (onCuda) return onCuda
+  }
+
   // An install that holds only the fp32 pair answers the fp16 one with a 404,
   // and a GPU may still refuse it; either way the beta reads at full precision.
   // Not for a precision asked for — that is the bench, see `loadBase`.
@@ -515,12 +573,16 @@ async function loadBeta (onProgress?: MangaProgress, asked?: Precision): Promise
  * `precision` is honoured by the original and the beta, the two with more than
  * one build to choose between; the 2025 retrain has one, and reads with it.
  */
-function loadOnce (model: MangaModel, onProgress?: MangaProgress, precision?: Precision): Promise<Loaded> {
-  const key = precision ? `${model}:${precision}` : model
+async function loadOnce (model: MangaModel, onProgress?: MangaProgress, precision?: Precision): Promise<Loaded> {
+  // Desktop: the beta on CUDA is a build of its own, kept beside the WebGPU one —
+  // so switching CUDA in Settings is honoured on the next read, not the next launch.
+  // A precision asked for is the bench's, and is WebGPU's to answer.
+  const cuda = model === 'beta' && !precision && await cudaWanted()
+  const key = (precision ? `${model}:${precision}` : model) + (cuda ? ':cuda' : '')
 
   if (!loading.has(key)) {
     const load = model === 'beta'
-      ? loadBeta(onProgress, precision)
+      ? loadBeta(onProgress, precision, cuda)
       : model === '2025' ? load2025(onProgress) : loadBase(onProgress, precision)
 
     const work = load.catch((error) => {
@@ -823,7 +885,10 @@ async function readPieces (loaded: Loaded, bitmap: ImageBitmap, pieces: Piece[],
 
     for (const [at, piece] of batch.entries()) writeCrop(pixels, at, bitmap, piece.region, piece.lean)
 
-    for (const ids of await readBatch(loaded, pixels, batch.length)) {
+    // Desktop: read whole elsewhere where the build says so — see `Loaded.read`.
+    const read = loaded.read ? await loaded.read(pixels, batch.length) : await readBatch(loaded, pixels, batch.length)
+
+    for (const ids of read) {
       texts.push(detokenise(loaded.tokenizer.decode(ids, { skip_special_tokens: true })))
     }
   }

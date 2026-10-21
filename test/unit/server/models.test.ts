@@ -4,7 +4,7 @@ import path from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { answerModel } from '~~/server/models'
+import { answerModel, modelFile } from '~~/server/models'
 
 /*
  * The model route's answers that need no network: a path refused, a file kept
@@ -51,5 +51,24 @@ describe('answerModel', () => {
 
     expect(answer.status).toBe(404)
     expect(answer.message).toMatch(/no address to download them from/)
+  })
+})
+
+/**
+ * Desktop: the file a model is in, for the CUDA process, which opens by path
+ * (`electron/cuda.ts`) — the same lookup the route makes, `onnx/` and all.
+ */
+describe('modelFile', () => {
+  it('finds a model kept on disk, by the path it was asked for', async () => {
+    expect(await modelFile(root, 'someone/model/resolve/main/config.json')).toBe(path.join(root, 'someone', 'model', 'resolve', 'main', 'config.json'))
+  })
+
+  it('finds one asked for under onnx/ where it is kept without that folder', async () => {
+    expect(await modelFile(root, 'someone/model/resolve/main/onnx/encoder.onnx')).toBe(path.join(root, 'someone', 'model', 'resolve', 'main', 'encoder.onnx'))
+  })
+
+  it('gives nothing for a path the route would refuse, or a model of ours it cannot fetch', async () => {
+    expect(await modelFile(root, '../secrets.txt')).toBeNull()
+    expect(await modelFile(root, 'kemolate/kemolate-ocr-out26/resolve/main/encoder_model.onnx')).toBeNull()
   })
 })

@@ -30,8 +30,10 @@
  * those three should be naming this file's builds.
  */
 
+import { cudaSession, cudaWanted, gaveUp } from './cuda'
 import { transformersOnce } from './onnx'
 
+import type { TensorLike } from './cuda'
 import type { PreTrainedModel, Processor, Tensor } from '@huggingface/transformers'
 import type { Backend } from '~/utils/resources'
 
@@ -175,8 +177,14 @@ const STALL_MS = 90_000
  */
 const loading = new Map<string, Promise<Loaded>>()
 
-function loadOnce (variant: ComicBuild, onProgress?: MangaProgress, asked?: FullPrecision): Promise<Loaded> {
-  const key = asked ? `${variant}:${asked}` : variant
+async function loadOnce (variant: ComicBuild, onProgress?: MangaProgress, asked?: FullPrecision): Promise<Loaded> {
+  // Desktop: `full` on CUDA where the reader switched it on — see
+  // `utils/ocr/cuda.ts` — kept beside the WebGPU build, so a change in Settings
+  // is honoured on the next page. The int8 builds stay where they are: they are
+  // the ones for a machine without a fast GPU, and a precision asked for is the
+  // bench's.
+  const cuda = variant === 'full' && !asked && await cudaWanted()
+  const key = (asked ? `${variant}:${asked}` : variant) + (cuda ? ':cuda' : '')
   const held = loading.get(key)
 
   if (held) return held
@@ -224,24 +232,58 @@ function loadOnce (variant: ComicBuild, onProgress?: MangaProgress, asked?: Full
       // WebAssembly if it has to — as `sessionFor` does for the raw sessions.
       // A precision asked for is not fallen back from: that is the bench, and
       // a quiet fallback would compare a build with itself.
-      const model = backend === 'webgpu'
-        ? await open('webgpu').catch((error: unknown) => {
-            if (asked) throw error
+      const onWeb = async () => {
+        const model = backend === 'webgpu'
+          ? await open('webgpu').catch((error: unknown) => {
+              if (asked) throw error
 
-            console.info('[kemolate] WebGPU would not open the text detector — running it at full precision instead.', error)
+              console.info('[kemolate] WebGPU would not open the text detector — running it at full precision instead.', error)
 
-            return half ? open('webgpu', false).catch(() => open('wasm', false)) : open('wasm')
-          })
-        : await open('wasm')
+              return half ? open('webgpu', false).catch(() => open('wasm', false)) : open('wasm')
+            })
+          : await open('wasm')
 
-      const sessions = (model as PreTrainedModel & { sessions: Record<string, OnnxSession> }).sessions
+        return (model as PreTrainedModel & { sessions: Record<string, OnnxSession> }).sessions.model!
+      }
 
-      return {
-        processor,
-        session: sessions.model!,
-        makeSizes: (width, height) =>
-          new Tensor('int64', BigInt64Array.from([BigInt(width), BigInt(height)]), [1, 2]),
-      } satisfies Loaded
+      const makeSizes = (width: number, height: number) =>
+        new Tensor('int64', BigInt64Array.from([BigInt(width), BigInt(height)]), [1, 2])
+
+      /*
+       * Desktop: the full build's graph on CUDA, the processor still this side's.
+       * The model is not opened on WebGPU at all unless CUDA fails — then once,
+       * said once (`gaveUp`), and the page in hand is detected there instead.
+       */
+      if (cuda) {
+        const onCuda = await cudaSession(`${DETECTOR_MODEL}/resolve/main/${DETECTOR_FILES.full}.onnx`).catch((error: unknown) => {
+          gaveUp('The text detector', error)
+
+          return null
+        })
+
+        if (onCuda) {
+          let fallback: Promise<OnnxSession> | null = null
+
+          const session: OnnxSession = {
+            run: async (feeds) => {
+              if (!fallback) {
+                try {
+                  return await onCuda.run(feeds as Record<string, TensorLike>) as unknown as Record<string, Tensor>
+                } catch (error) {
+                  gaveUp('The text detector', error)
+                  fallback = onWeb()
+                }
+              }
+
+              return (await fallback).run(feeds)
+            },
+          }
+
+          return { processor, session, makeSizes } satisfies Loaded
+        }
+      }
+
+      return { processor, session: await onWeb(), makeSizes } satisfies Loaded
     })()
 
     const stalled = new Promise<never>((_resolve, reject) => {

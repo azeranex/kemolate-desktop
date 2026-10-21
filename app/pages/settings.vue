@@ -298,6 +298,9 @@ useEventListener(document, 'focusin', (event: FocusEvent) => {
             </UButton>
           </div>
         </section>
+
+        <!-- Desktop: models on an NVIDIA GPU, opt-in — see `SettingsCuda`. -->
+        <SettingsCuda />
       </div>
     </Default>
   </div>

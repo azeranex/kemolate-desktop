@@ -15,6 +15,12 @@ files:
   - package.json
   - "!node_modules/**"
 
+# The CUDA process's script, beside the app rather than inside app.asar: it is run by the
+# reader's own Python, which cannot read an asar. See electron/cuda.ts.
+extraResources:
+  - from: electron/cuda/kemolate_cuda.py
+    to: cuda/kemolate_cuda.py
+
 # A .kemolate double-clicked opens in the app — see electron/opening.ts, which takes
 # the path from the command line, or from a second launch through the single-instance lock.
 #

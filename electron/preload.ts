@@ -25,6 +25,30 @@ export interface KeyStatus {
   keys: { provider: Provider, hint: string }[]
 }
 
+/** The CUDA process's settings, and what it says about itself — see `cuda.ts`. Here for the reason `KeyStatus` is. */
+export interface CudaSettings {
+  enabled: boolean
+  /** The Python that runs it — the reader's own, with `onnxruntime-gpu` in it. */
+  python: string
+}
+
+export interface CudaHello {
+  ready: boolean
+  python?: string
+  onnxruntime?: string
+  providers?: string[]
+  device?: string
+  error?: string
+}
+
+/** A tensor in a CUDA frame: its type and shape, and where its bytes sit in the body. */
+export interface TensorSpec {
+  dtype: string
+  dims: number[]
+  offset: number
+  length: number
+}
+
 export interface WindowState {
   maximized: boolean
   fullScreen: boolean
@@ -64,6 +88,23 @@ const api = {
         ipcRenderer.off('files:opened', forward)
       }
     },
+  },
+  /**
+   * Models on an NVIDIA GPU, through the reader's own Python — opt-in; see
+   * `cuda.ts`. `open` names a model by its store path and answers with the
+   * file it opened; `run` is one pass of it; `read` is Kemolate OCR's whole
+   * reading of a batch (`kemolate_cuda.py`). Every one rejects when CUDA is off
+   * or will not start, which the caller takes as "use WebGPU".
+   */
+  cuda: {
+    settings: (): Promise<CudaSettings> => ipcRenderer.invoke('cuda:settings'),
+    configure: (patch: Partial<CudaSettings>): Promise<CudaSettings> => ipcRenderer.invoke('cuda:configure', patch),
+    test: (): Promise<CudaHello> => ipcRenderer.invoke('cuda:test'),
+    open: (model: string): Promise<{ path: string, inputs: string[], outputs: string[] }> => ipcRenderer.invoke('cuda:open', model),
+    run: (file: string, feeds: Record<string, TensorSpec>, body: Uint8Array): Promise<{ outputs: Record<string, TensorSpec>, body: Uint8Array }> =>
+      ipcRenderer.invoke('cuda:run', file, feeds, body),
+    read: (request: { encoder: string, decoder: string, count: number, edge: number, start: number, end: number, limit: number }, body: Uint8Array): Promise<number[][]> =>
+      ipcRenderer.invoke('cuda:read', request, body),
   },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),

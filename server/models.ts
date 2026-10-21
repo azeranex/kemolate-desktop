@@ -29,7 +29,7 @@
  * Whole files, not ranges, as in the web build: transformers.js and the model
  * store read a file at once, and the store needs its length (see `store.ts`).
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const UPSTREAM = 'https://huggingface.co'
@@ -106,6 +106,34 @@ export async function answerModel (root: string, requested: string): Promise<Mod
     .catch((error: unknown) => { console.warn('[kemolate] model not cached:', asked, error) })
 
   return { status: 200, body: bytes }
+}
+
+/**
+ * Desktop: the file a model is kept in, on disk — fetched into the store first,
+ * the way the route above fetches, where it is not there yet. For the CUDA
+ * process (`electron/cuda.ts`), which opens models by path rather than being
+ * handed their bytes. Null for a path the route would refuse or cannot fetch.
+ */
+export async function modelFile (root: string, requested: string): Promise<string | null> {
+  const asked = decodeURIComponent(requested).replace(/^\/+/, '')
+
+  if (!asked || !SAFE.test(asked) || asked.includes('..')) return null
+
+  const kept = async () => {
+    for (const each of candidates(asked)) {
+      const file = path.join(root, ...each.split('/'))
+
+      if (await stat(file).then((found) => found.isFile(), () => false)) return file
+    }
+
+    return null
+  }
+
+  const found = await kept()
+
+  if (found) return found
+
+  return (await answerModel(root, asked)).status === 200 ? kept() : null
 }
 
 /** The headers every model answer carries. Immutable: a different model is a different path. */

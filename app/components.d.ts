@@ -59,6 +59,7 @@ declare module 'vue' {
     PdfPassword: typeof import('./components/PdfPassword.vue')['default']
     ProjectDrop: typeof import('./components/ProjectDrop.vue')['default']
     ProjectImport: typeof import('./components/ProjectImport.vue')['default']
+    SettingsCuda: typeof import('./components/SettingsCuda.vue')['default']
     StepRail: typeof import('./components/StepRail.vue')['default']
     TitleBar: typeof import('./components/TitleBar.vue')['default']
     ToolOptions: typeof import('./components/tool/Options.vue')['default']

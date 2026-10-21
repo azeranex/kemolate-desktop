@@ -210,6 +210,10 @@ declare global {
   const createWorkspace: typeof import('./composables/useShared').createWorkspace
   const cropOut: typeof import('./utils/images').cropOut
   const cssTransform: typeof import('../shared/utils/transform').cssTransform
+  const cudaChanged: typeof import('./utils/ocr/cuda').cudaChanged
+  const cudaRead: typeof import('./utils/ocr/cuda').cudaRead
+  const cudaSession: typeof import('./utils/ocr/cuda').cudaSession
+  const cudaWanted: typeof import('./utils/ocr/cuda').cudaWanted
   const customFrom: typeof import('../shared/utils/lettering').customFrom
   const customRef: typeof import('vue').customRef
   const dabSpots: typeof import('../shared/utils/raster').dabSpots
@@ -264,6 +268,7 @@ declare global {
   const framesLettering: typeof import('./composables/useComic').framesLettering
   const fullLabel: typeof import('./utils/ocr/detectors').fullLabel
   const fullPrecision: typeof import('./utils/ocr/detector').fullPrecision
+  const gaveUp: typeof import('./utils/ocr/cuda').gaveUp
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
@@ -1017,6 +1022,9 @@ declare global {
   export type { Inpainter, InpainterModel, FlatPaper, Patch, Runner, CleanOptions } from './utils/ocr/clean'
   import('./utils/ocr/clean')
   // @ts-ignore
+  export type { TensorLike, CudaSession } from './utils/ocr/cuda'
+  import('./utils/ocr/cuda')
+  // @ts-ignore
   export type { Upright } from './utils/ocr/deskew'
   import('./utils/ocr/deskew')
   // @ts-ignore
@@ -1309,6 +1317,10 @@ declare module 'vue' {
     readonly createWorkspace: UnwrapRef<typeof import('./composables/useShared')['createWorkspace']>
     readonly cropOut: UnwrapRef<typeof import('./utils/images')['cropOut']>
     readonly cssTransform: UnwrapRef<typeof import('../shared/utils/transform')['cssTransform']>
+    readonly cudaChanged: UnwrapRef<typeof import('./utils/ocr/cuda')['cudaChanged']>
+    readonly cudaRead: UnwrapRef<typeof import('./utils/ocr/cuda')['cudaRead']>
+    readonly cudaSession: UnwrapRef<typeof import('./utils/ocr/cuda')['cudaSession']>
+    readonly cudaWanted: UnwrapRef<typeof import('./utils/ocr/cuda')['cudaWanted']>
     readonly customFrom: UnwrapRef<typeof import('../shared/utils/lettering')['customFrom']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
     readonly dabSpots: UnwrapRef<typeof import('../shared/utils/raster')['dabSpots']>
@@ -1363,6 +1375,7 @@ declare module 'vue' {
     readonly framesLettering: UnwrapRef<typeof import('./composables/useComic')['framesLettering']>
     readonly fullLabel: UnwrapRef<typeof import('./utils/ocr/detectors')['fullLabel']>
     readonly fullPrecision: UnwrapRef<typeof import('./utils/ocr/detector')['fullPrecision']>
+    readonly gaveUp: UnwrapRef<typeof import('./utils/ocr/cuda')['gaveUp']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getCurrentWatcher: UnwrapRef<typeof import('vue')['getCurrentWatcher']>

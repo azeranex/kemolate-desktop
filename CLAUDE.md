@@ -193,6 +193,27 @@ rather than the account menu. The header has no account menu.
   opened from the shell imports into a new workspace both cold and into a running app (which
   the second launch hands it to, then quits), and installing over an earlier build replaces
   its association rather than leaving the old ProgID behind.
+- **CUDA is an opt-in second home for two models** (added 2026-10-21). The comic detector's
+  `full` build and Kemolate OCR can run on an NVIDIA GPU through a separate process
+  (`electron/cuda.ts`, `electron/cuda/kemolate_cuda.py`), with a Python the reader names in
+  Settings (`SettingsCuda.vue`) that has `onnxruntime-gpu` — the app does not ship CUDA, whose
+  runtime is gigabytes for one vendor's cards. Measured on an RTX 4090 with the app's own
+  models: a whole Read page 0.40–0.46 s warm against WebGPU's 0.77–0.85, 2.9 s cold against
+  5.4, the same text on every balloon. Why not DirectML, which `onnxruntime-node` does carry:
+  measured too, it was slower than WebGPU for Kemolate OCR and won only on the detector.
+  - The process speaks length-prefixed frames on its own stdin/stdout — no port — and is
+    started on the first model asked of it, or by Settings' Test. Kemolate OCR's batch is read
+    there whole (`read`): the encoder and the greedy decode together, by `readBatch`'s rules,
+    which the script repeats — change one, change the other. Stepping it from the window would
+    carry the encoder's states and the logits across the pipe at every token.
+  - The window asks the switch afresh at every model load (`cudaWanted`), and keeps a CUDA
+    build beside the WebGPU one in each `loadOnce` (`:cuda` in the key). Any failure — no
+    Python, no CUDA in it, a crash mid-page — gives CUDA up for the session, says so once
+    (`gaveUp`), and the same page is finished on WebGPU. A session onnxruntime quietly put
+    on the CPU is refused rather than used: `preload_dlls()` is what makes CUDA's DLLs load.
+  - The script is shipped beside the app (`extraResources` → `resources/cuda/`), not in the
+    asar, which the reader's Python cannot read. Testing it: launch the app from PowerShell, as
+    for anything that must see the real profile; the Python must be the reader's.
 - **Anime Ace 3 is read from the OS first** (`local()` in `app/assets/css/fonts.css`). Its files
   are not in the repo (Blambot's terms), and a file dropped into `app/assets/fonts/` would be
   bundled into the installer — redistributing it. Installed on the machine, it is the reader's
