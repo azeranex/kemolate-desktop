@@ -81,6 +81,7 @@
 // strokes *mean*; how soft one is belongs to `stamps`, which the paint plate,
 // the cursor and the live preview all read from too. Imported by hand because
 // only `utils/ocr` is auto-imported as a family — see `nuxt.config.ts`.
+import type { Point } from '#shared/utils/raster'
 import type { Boxed } from '#shared/utils/transform'
 
 import { cornersOf, isDistorted, mapped, matrixOf, toOriented } from '#shared/utils/transform'
@@ -121,8 +122,16 @@ export interface MaskRefusal {
   why: string
 }
 
-/** What one pass of the threshold found, and what it refused to touch. */
-export interface Ink {
+/**
+ * What one pass of the threshold found, and what it refused to touch.
+ *
+ * Desktop: `Ink` in the web build. `shared/utils/layers` has an `Ink` too —
+ * which kind of layer a stroke lands on — and the auto-imports hold one meaning
+ * per name; so this one is `InkMask`. (It used to also need importing by hand
+ * past the DOM's own `Ink`; see `clean.ts`.) The `Point` this file had is
+ * `shared/utils/raster`'s, which was the same shape under the same name.
+ */
+export interface InkMask {
   /** One where the lettering is, nought elsewhere: every region's, grown once. */
   mask: Float32Array
   /** How many of the regions had any pixels on the tile at all. */
@@ -1344,7 +1353,7 @@ export function autoMaskOver (
   polarityOver?: { x: number, y: number, w: number, h: number },
   /** Grown for the inpainter by default; `false` is `inkOnly`'s measuring path. */
   grow = true,
-): Ink {
+): InkMask {
   const grey = new Uint8Array(w * h)
 
   for (let i = 0; i < w * h; i++) {
@@ -1612,7 +1621,7 @@ export function learnedInk (
   w: number,
   h: number,
   regions: { x: number, y: number, w: number, h: number }[],
-): Ink | null {
+): InkMask | null {
   const tile = ontoTile(field, Math.max(1, Math.round(crop.w)), Math.max(1, Math.round(crop.h)), w, h)
 
   const raw = new Uint8Array(w * h)
@@ -1836,12 +1845,6 @@ function composited (auto: Float32Array, w: number, h: number, edits: MaskEdit[]
  * the sort of thing nobody finds for a month. Left out — which is every caller
  * that has not opted in — nothing about the threshold's path changes.
  */
-/** A point, in whichever pixels the caller is working in. */
-export interface Point {
-  x: number
-  y: number
-}
-
 /**
  * Where a block really is on the page: its outline, turned, leant and pulled
  * as it is drawn, and the upright rectangle around that — in page pixels.
@@ -1956,7 +1959,7 @@ export function effectiveMask (
   inner: { x: number, y: number, w: number, h: number },
   edits: MaskEdit[] = [],
   parts: { x: number, y: number, w: number, h: number }[] = [],
-  given?: Ink | null,
+  given?: InkMask | null,
   outline?: Point[] | null,
 ): Mask {
   // The pieces are thresholded one at a time; which side of those thresholds

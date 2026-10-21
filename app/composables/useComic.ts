@@ -27,14 +27,22 @@ import { pickedName } from '~/utils/images'
 export type BlockType = 'bubble' | 'caption' | 'sfx' | 'garbage'
 
 /** A box on the page, in percentages: `x`/`y` from the top left. */
-export interface Box {
+/**
+ * Desktop: `PageBox` where the web build says `Box`, and `PageScan` below
+ * where it says `Scan`. Each name is also a different type in `shared/utils`
+ * (`ocr.ts`'s `Box` is a centre and an angle, `transform.ts`'s `Scan` only a
+ * size), and the auto-imports can hold one meaning per name — they took the
+ * shared ones, and warned about the tie on every start. Renamed on this side
+ * so a bare name means one thing and nothing is left to warn about.
+ */
+export interface PageBox {
   x: number
   y: number
   w: number
   h: number
 }
 
-export interface Block extends Box {
+export interface Block extends PageBox {
   id: string
   type: BlockType
   /**
@@ -141,7 +149,7 @@ export interface Block extends Box {
    * Upright, in page percentages like the box. Never written by a drag — a drag
    * writes `letter` — and, like `letter`, never read by the cleaning path.
    */
-  room?: Box
+  room?: PageBox
 }
 
 /**
@@ -153,7 +161,7 @@ export interface Block extends Box {
  * it the same shape is what lets one `toOriented`/`toBoxed` pair serve both
  * boxes, so a transform cannot mean one thing on one and another on the other.
  */
-export interface LetterBox extends Box {
+export interface LetterBox extends PageBox {
   angle?: number
   skewX?: number
   skewY?: number
@@ -285,7 +293,8 @@ export const plateOf = (block: Block): PlateId => (block.type === 'sfx' ? 'sfx' 
  * scan is for later — reading its pixels, sending it to a peer, writing it back
  * out — wants the bytes.
  */
-export interface Scan {
+/** Desktop: `Scan` in the web build — see `PageBox`. */
+export interface PageScan {
   /** An object URL onto a local file. Making one uploads nothing. */
   url: string
   file: File
@@ -357,7 +366,7 @@ export interface ComicPage {
    * one by name. See `showMissing` in `useShared` for where they come from and
    * `link` in `useLibrary` for how a file is given to one.
    */
-  scan?: Scan
+  scan?: PageScan
   /**
    * How big the page is, for a page with no scan to measure.
    *
@@ -1690,7 +1699,7 @@ export function useComic () {
    * lettering frame and picking nothing, because the reading it was cut from is
    * still up the page where the detector left it, is the same class of surprise.
    */
-  function selectWithin (band: Box, add = false) {
+  function selectWithin (band: PageBox, add = false) {
     const keys = pickable.value
       .filter((block) => {
         const box = framedBox(block)
@@ -1960,7 +1969,7 @@ export function useComic () {
    * made where it cannot be drawn is one the reader cannot see, cannot select
    * and would place again.
    */
-  function addBlock (box: Box, patch: Partial<Block> = {}): Block | null {
+  function addBlock (box: PageBox, patch: Partial<Block> = {}): Block | null {
     const here = page.value
 
     if (!here) return null

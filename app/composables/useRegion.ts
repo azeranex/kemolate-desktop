@@ -41,8 +41,10 @@
  * angle, while a block's is a top-left corner in percentages. They are the same
  * word for two coordinate systems, and confusing them is the bug this file
  * would be most likely to have.
+ *
+ * Desktop: and so the block's is `PageBox` here — see `useComic`.
  */
-import type { Box, ComicPage } from '~/composables/useComic'
+import type { ComicPage, PageBox } from '~/composables/useComic'
 import type { CropShape } from '~/utils/images'
 
 /** Which of the two brushes made the stroke. */
@@ -115,7 +117,7 @@ export function useRegion () {
    * `blockBoxOf` rather than the lettering frame: this is about where the
    * reading was found, not where its translation has since been dragged to.
    */
-  function coveredBy (target: ComicPage, box: Box) {
+  function coveredBy (target: ComicPage, box: PageBox) {
     return target.blocks
       .filter((block) => {
         const at = blockBoxOf(block)
@@ -281,7 +283,7 @@ export function useRegion () {
       }
 
       // The block's box, in the percentages every consumer of a block reads.
-      const box: Box = {
+      const box: PageBox = {
         x: (region.x / scan.width) * 100,
         y: (region.y / scan.height) * 100,
         w: (region.w / scan.width) * 100,

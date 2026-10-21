@@ -20,7 +20,7 @@
  * pure and testable, and the reader's own choice overrides it there.
  */
 import type { Paper } from '#shared/utils/lettering'
-import type { ComicPage, Scan } from '~/composables/useComic'
+import type { ComicPage, PageScan } from '~/composables/useComic'
 import type { Sheet } from '~/utils/paper'
 
 // By hand, so a dev server already running picks the new export up.
@@ -46,9 +46,9 @@ let reading: { key: string, done: Promise<Sheet | null> } | null = null
  * the file has been identified, which happens well after the page is on screen,
  * and a key that is null for every page is one key for all of them.
  */
-const scanKey = (scan: Scan) => scan.url
+const scanKey = (scan: PageScan) => scan.url
 
-async function sheetOf (scan: Scan): Promise<Sheet | null> {
+async function sheetOf (scan: PageScan): Promise<Sheet | null> {
   const key = scanKey(scan)
 
   if (sheet?.key === key) return sheet.sheet

@@ -35,7 +35,8 @@
 // a DOM interface (`navigator.ink`), and a global always wins an auto-import —
 // so left implicit this file silently types the learned mask as the browser's
 // ink presenter, and the assignment fails somewhere that mentions neither.
-import type { Ink } from '~/utils/ocr/mask'
+// Desktop: it is `InkMask` here, which no global shares — see `ocr/mask.ts`.
+import type { InkMask } from '~/utils/ocr/mask'
 import type { OrtTensor } from '~/utils/ocr/onnx'
 
 import { isOnGpu } from '~/utils/ocr/onnx'
@@ -888,7 +889,7 @@ async function prepareRegion (
    * loud, because a repair quietly made from the other mask is the kind of
    * thing that makes a toggle look like it does nothing.
    */
-  let learned: Ink | null = null
+  let learned: InkMask | null = null
 
   if (seg) {
     learned = learnedInk(segFor(seg, { x, y, w, h }), { w, h }, size.w, size.h, tiled.length ? tiled : [inner])

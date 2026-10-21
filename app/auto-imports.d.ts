@@ -919,7 +919,7 @@ declare global {
   export type { ColorScheme } from './composables/useColorScheme'
   import('./composables/useColorScheme')
   // @ts-ignore
-  export type { BlockType, Block, LetterBox, Framing, ComicPage, Effort, TranslateEngine, TranslateSettings } from './composables/useComic'
+  export type { BlockType, PageBox, Block, LetterBox, Framing, PageScan, ComicPage, Effort, TranslateEngine, TranslateSettings } from './composables/useComic'
   import('./composables/useComic')
   // @ts-ignore
   export type { GlossaryRow } from './composables/useGlossary'
@@ -1057,7 +1057,7 @@ declare global {
   export type { Precision, MangaModel, Region, MangaProgress, ReadingSessions } from './utils/ocr/manga'
   import('./utils/ocr/manga')
   // @ts-ignore
-  export type { MaskRefusal, Mask, MaskEdit, InkRect, MaskSource } from './utils/ocr/mask'
+  export type { MaskRefusal, InkMask, Mask, MaskEdit, InkRect, MaskSource } from './utils/ocr/mask'
   import('./utils/ocr/mask')
   // @ts-ignore
   export type { InferenceSession, OrtTensor } from './utils/ocr/onnx'
