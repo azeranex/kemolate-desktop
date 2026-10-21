@@ -105,8 +105,13 @@ and a later fix in one can be carried to the other. Keep it that way.
     `useLayerCache` writes them. A page the cache had not looked up when the stage was
     pressed is staged as it lands (`stageArrival`), or its saved stack would undo the press.
     The server branch is kept for a shared workspace.
-  - Pending UI: `usePanelDock`'s `pending()` panels — Block images and Dev. The menus have
-    no stand-ins left.
+  - `WorkspaceSettings.vue` and `useWorkspaceName` are their local halves: name, reading
+    direction and what is kept where; no move to or from the cloud.
+  - A workspace keeps the name its reader gave it (`Workspace.named` in `useWorkspaces`),
+    laid over the chapter on every open by the workspace page. Opening names a chapter after
+    its folder, and in the web build a renamed local workspace went back to that on reload.
+    An imported project's title becomes the name (`useProjectFile`).
+  - Every panel has come across; there is no placeholder left in the dock or the menus.
 - **Component names follow Nuxt's rule** — `canvas/Engine.vue` is `CanvasEngine`. If a new
   component resolves under a bare name, check `app/components.d.ts`: the plugin drops folder
   prefixes when given `globs`, which is why it is configured with `dirs` and `excludeNames`.

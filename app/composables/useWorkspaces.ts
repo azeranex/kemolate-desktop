@@ -54,6 +54,18 @@ export interface Workspace {
    * nothing either way, and nothing is not "local".
    */
   cloud?: boolean
+  /**
+   * Desktop: the name the reader gave it, where they gave one.
+   *
+   * `title` is rewritten from the chapter every time it is opened (`note`, from
+   * `useLibrary.remember`) — the folder's own name, or "6 pages" for loose files
+   * — and in the web build a renamed *local* workspace went back to that on the
+   * next load; only a cloud one kept its name, because the server's wins. Every
+   * workspace here is local, so a rename lasted one session. Kept apart from
+   * `title` so `note` can go on refreshing what the chapter calls itself while
+   * the reader's word stands; `title` carries it too, so the list shows it.
+   */
+  named?: string
 }
 
 const INDEX = 'workspaces'
@@ -86,7 +98,9 @@ export function useWorkspaces () {
     // The cover is carried over rather than cleared: this is called on every
     // open, and the hash it would need is not known for a second or two yet.
     // Dropping it here would blank every cover on every visit.
-    await idb.set(INDEX, [...list, { id, title, opened: Date.now(), cover: held?.cover, cloud: held?.cloud }]).catch(() => {
+    // Desktop: a name the reader gave wins over what the chapter calls itself —
+    // see `Workspace.named`.
+    await idb.set(INDEX, [...list, { id, title: held?.named ?? title, opened: Date.now(), cover: held?.cover, cloud: held?.cloud, named: held?.named }]).catch(() => {
       // An index that cannot be written costs the user the front door remembering
       // where they were. The workspace itself is kept separately and is fine.
     })
@@ -137,10 +151,17 @@ export function useWorkspaces () {
     const list = await all()
     const held = list.find((workspace) => workspace.id === id)
 
-    if (!held || held.title === title) return
+    if (!held || (held.title === title && held.named === title)) return
 
+    // Desktop: written down as the reader's own name as well — see
+    // `Workspace.named` — or the next open puts the folder's back.
     await idb.set(INDEX, list.map((workspace) =>
-      (workspace.id === id ? { ...workspace, title } : workspace))).catch(() => {})
+      (workspace.id === id ? { ...workspace, title, named: title } : workspace))).catch(() => {})
+  }
+
+  /** Desktop: the name the reader gave a workspace, if they gave one — see `Workspace.named`. */
+  async function namedOf (id: string): Promise<string | null> {
+    return (await all()).find((workspace) => workspace.id === id)?.named ?? null
   }
 
   async function drop (id: string) {
@@ -205,5 +226,5 @@ export function useWorkspaces () {
     await drop(id)
   }
 
-  return { all, latest, create, note, retitle, cover, drop, purge, markKind }
+  return { all, latest, create, note, retitle, namedOf, cover, drop, purge, markKind }
 }

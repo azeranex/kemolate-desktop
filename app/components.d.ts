@@ -114,6 +114,7 @@ declare module 'vue' {
     UFieldLegend: typeof import('./components/ui/field/FieldLegend.vue')['default']
     UFieldSeparator: typeof import('./components/ui/field/FieldSeparator.vue')['default']
     UFieldSet: typeof import('./components/ui/field/FieldSet.vue')['default']
+    UFieldTitle: typeof import('./components/ui/field/FieldTitle.vue')['default']
     UInput: typeof import('./components/ui/input/Input.vue')['default']
     UKbd: typeof import('./components/ui/kbd/Kbd.vue')['default']
     ULabel: typeof import('./components/ui/label/Label.vue')['default']
@@ -156,6 +157,7 @@ declare module 'vue' {
     UTooltipProvider: typeof import('./components/ui/tooltip/TooltipProvider.vue')['default']
     UTooltipTrigger: typeof import('./components/ui/tooltip/TooltipTrigger.vue')['default']
     WorkspaceOpening: typeof import('./components/WorkspaceOpening.vue')['default']
+    WorkspaceSettings: typeof import('./components/WorkspaceSettings.vue')['default']
     WorkspaceZoom: typeof import('./components/WorkspaceZoom.vue')['default']
   }
 }

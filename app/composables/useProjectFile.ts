@@ -599,6 +599,11 @@ export function useProjectFile () {
 
       if (!await opened({ handle: null, images, title: project.title || null, rest: null }, dress)) return false
 
+      // Desktop: the chapter in the file is the workspace's name now — a name
+      // the reader gave the chapter it replaced is about that chapter, and the
+      // workspace page lays the kept name over every open (`Workspace.named`).
+      if (project.title) await useWorkspaces().retitle(workspace.value, project.title)
+
       const mine = epoch.value
 
       busy.value = 'Restoring the work…'

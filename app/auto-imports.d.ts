@@ -780,6 +780,7 @@ declare global {
   const useStepper: typeof import('@vueuse/core').useStepper
   const useStorage: typeof import('@vueuse/core').useStorage
   const useStorageAsync: typeof import('@vueuse/core').useStorageAsync
+  const useStorageStanding: typeof import('./composables/useStorageStanding').useStorageStanding
   const useStyleTag: typeof import('@vueuse/core').useStyleTag
   const useSupported: typeof import('@vueuse/core').useSupported
   const useSwarm: typeof import('./composables/useSwarm').useSwarm
@@ -829,6 +830,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core').useWindowFocus
   const useWindowScroll: typeof import('@vueuse/core').useWindowScroll
   const useWindowSize: typeof import('@vueuse/core').useWindowSize
+  const useWorkspaceName: typeof import('./composables/useWorkspaceName').useWorkspaceName
   const useWorkspaceReset: typeof import('./composables/useWorkspaceReset').useWorkspaceReset
   const useWorkspaces: typeof import('./composables/useWorkspaces').useWorkspaces
   const validPoints: typeof import('../shared/utils/lettering').validPoints
@@ -954,6 +956,9 @@ declare global {
   // @ts-ignore
   export type { StrokeEntry, BlockEntry, BlocksEntry, EraseEntry, GoneEntry, MadeEntry, BatchEntry, UndoEntry, BlockState } from './composables/useUndo'
   import('./composables/useUndo')
+  // @ts-ignore
+  export type { WorkspaceKeeping } from './composables/useWorkspaceName'
+  import('./composables/useWorkspaceName')
   // @ts-ignore
   export type { Workspace } from './composables/useWorkspaces'
   import('./composables/useWorkspaces')
@@ -1870,6 +1875,7 @@ declare module 'vue' {
     readonly useStepper: UnwrapRef<typeof import('@vueuse/core')['useStepper']>
     readonly useStorage: UnwrapRef<typeof import('@vueuse/core')['useStorage']>
     readonly useStorageAsync: UnwrapRef<typeof import('@vueuse/core')['useStorageAsync']>
+    readonly useStorageStanding: UnwrapRef<typeof import('./composables/useStorageStanding')['useStorageStanding']>
     readonly useStyleTag: UnwrapRef<typeof import('@vueuse/core')['useStyleTag']>
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
     readonly useSwarm: UnwrapRef<typeof import('./composables/useSwarm')['useSwarm']>
@@ -1917,6 +1923,7 @@ declare module 'vue' {
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
+    readonly useWorkspaceName: UnwrapRef<typeof import('./composables/useWorkspaceName')['useWorkspaceName']>
     readonly useWorkspaceReset: UnwrapRef<typeof import('./composables/useWorkspaceReset')['useWorkspaceReset']>
     readonly useWorkspaces: UnwrapRef<typeof import('./composables/useWorkspaces')['useWorkspaces']>
     readonly validPoints: UnwrapRef<typeof import('../shared/utils/lettering')['validPoints']>

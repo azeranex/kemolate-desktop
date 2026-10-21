@@ -22,7 +22,8 @@
  * The page is held hidden until it can be shown whole (`composing`), and every
  * other page's preview and sketch is made in the background.
  *
- * Not here yet, arriving with what it drives: workspace settings. And never, because
+ * And workspace settings — name, reading direction, what is kept where — beside
+ * the folder button (`WorkspaceSettings`, the web build's without its cloud half). And never, because
  * the desktop app has no cloud: signing in, the swarm, sharing and moving to
  * the cloud, and the live syncs.
  *
@@ -109,6 +110,22 @@ onMounted(() => Promise.all([restore(), restoreTarget(), restoreDirection(), res
  */
 watch(target, () => { loadGlossary() }, { immediate: true })
 loadCast()
+
+/*
+ * Desktop: the name the reader gave this workspace, laid over the chapter each
+ * time one is opened in it — see `Workspace.named`. Opening names a chapter
+ * after its folder (or "6 pages"), which in the web build is what a renamed local
+ * workspace went back to on every load; here every workspace is local.
+ */
+const { namedOf } = useWorkspaces()
+
+watch([epoch, open], async ([, showing]) => {
+  if (!showing) return
+
+  const named = await namedOf(String(useRoute().params.workspaceId ?? ''))
+
+  if (named && open.value) title.value = named
+}, { immediate: true })
 
 /*
  * The bytes behind the pictures a stack refers to — see `usePlacedImages`, and
@@ -441,6 +458,12 @@ const untranslated = computed(() =>
           <FolderOpenIcon class="size-4 flex-none" />
           <span class="truncate">{{ heading }}</span>
         </UButton>
+
+        <!--
+          What this workspace is — its name, how it reads, what is kept where.
+          Beside the name rather than inside it: that button opens a folder.
+        -->
+        <WorkspaceSettings v-if="!restoring" />
 
         <div class="bg-border h-5 w-px flex-none" />
 
