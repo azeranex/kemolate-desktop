@@ -197,7 +197,20 @@ export async function sync (context: Context, drafts: PageDraft[]): Promise<Page
     (draft) => (draft.hash && byHash.has(draft.hash)) || byPath.has(draft.path),
   ).length
 
-  if (existing.length && guessing.length && !recognised) {
+  /*
+   * Desktop: or a page that carries a name this workspace handed out. That is
+   * not a guess at all — it is the browser saying it holds this workspace's
+   * chapter — and it is the one evidence a PDF's own pages could offer. A PDF
+   * opens on its first page alone, which founds the workspace and is given a
+   * uid; the rest stream in afterwards, new and uid-less, and none of them can
+   * match a row that does not exist yet. Counting only the guessing drafts
+   * read that as a foreign chapter and refused every one, so a 28-page PDF's
+   * workspace kept one page row for good (found 2026-10-22). Still refused: a
+   * list that names none of this workspace's pages and matches none of them.
+   */
+  const named = drafts.some((draft) => draft.uid && byUid.has(draft.uid))
+
+  if (existing.length && guessing.length && !recognised && !named) {
     throw createError({
       statusCode: 409,
       statusMessage: 'Those pages are not this workspace’s chapter — none of them match what it already holds.',

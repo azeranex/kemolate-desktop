@@ -370,6 +370,27 @@ describe('sync — a page that names itself', () => {
     expect(synced).toHaveLength(3)
   })
 
+  /**
+   * Desktop: a PDF's pages, the rest of the book arriving after its first page.
+   * Page one founded the workspace and carries the uid it was given; the others
+   * are new and match nothing yet. Refused, they were never filed — the
+   * workspace held one page row and every other page's reading had nowhere to
+   * be kept.
+   */
+  it('adds the rest of a book alongside a page this workspace already named', async () => {
+    const context = await aWorkspace()
+    const [first] = await sync(context, [{ ...scan('book.pdf/001.png', 0, 'sha-001'), uid: crypto.randomUUID() }])
+
+    const synced = await sync(context, [
+      { ...scan('book.pdf/001.png', 0, 'sha-001'), uid: first!.uid },
+      scan('book.pdf/002.png', 1, 'sha-002'),
+      scan('book.pdf/003.png', 2, 'sha-003'),
+    ])
+
+    expect(synced.map((row) => row.path)).toEqual(['book.pdf/001.png', 'book.pdf/002.png', 'book.pdf/003.png'])
+    expect(synced[0]!.id).toBe(first!.id)
+  })
+
   it('still refuses a whole chapter that overlaps nothing', async () => {
     const context = await aWorkspace()
 

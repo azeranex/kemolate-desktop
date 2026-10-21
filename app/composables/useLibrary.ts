@@ -111,6 +111,9 @@ let keepingUids: ReturnType<typeof effectScope> | null = null
 /** How long a PDF's first compressed page waits for the workspace record — see `knowRowsBy`. */
 const ROWS_WAIT_MS = 30_000
 
+/** Desktop: how many of a streaming book's pages arrive before the workspace is told about them — see `drain`. */
+const TELL_EVERY = 10
+
 /**
  * What became of an attempt to give an absent page its file — see `link`.
  *
@@ -423,6 +426,20 @@ export function useLibrary () {
     const run = async () => {
       say({ done: 1, total: rest.expected, of: rest.of })
 
+      /*
+       * Desktop: pages since the workspace was last told about them — see
+       * `TELL_EVERY`. The pages a book streams in reach the comic by
+       * `appendImages`, which tells the workspace nothing, and `syncPages` adds
+       * no page to a workspace that already has rows (that is `align`'s rule,
+       * and a good one). So a PDF's workspace was founded on its first page
+       * alone, and every page after it stayed off the record: a reading taken
+       * on one had no row to be kept under, and the next open found the
+       * chapter "1 of 28 pages match this workspace" and the work unreachable
+       * (found 2026-10-22). The web build's drain is the same, so very likely
+       * its PDFs are too.
+       */
+      let untold = 0
+
       try {
         for await (const { image, done, total, of } of rest.pages) {
           // Somebody opened something else. The book is dropped mid-sentence,
@@ -434,6 +451,14 @@ export function useLibrary () {
           say({ done, total, of })
 
           if (into) await addIn(into, [image]).catch(unsaved)
+
+          // Every few pages rather than once at the end: a reader turning ahead
+          // while a long book is still arriving should find each page already
+          // has a row to keep its reading under.
+          if (++untold >= TELL_EVERY) {
+            untold = 0
+            await push()
+          }
         }
 
         // The pages that just streamed in were slotted by path, which is right
@@ -441,6 +466,9 @@ export function useLibrary () {
         // the book is whole, not per page, and only if this is still the comic
         // the order belongs to.
         if (epoch.value === mine) await applyMeta(openPages.value[openAt.value]?.id)
+
+        // And the whole book onto the workspace, in the order it now has.
+        if (epoch.value === mine) await push()
       } catch (error) {
         // The pages that did arrive are open and kept. What went wrong stopped
         // the rest of that book, which is worth saying once, plainly.
