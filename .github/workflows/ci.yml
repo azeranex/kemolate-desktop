@@ -1,0 +1,33 @@
+# Every push to main and every pull request: the same three checks as before a
+# commit here — types, lint, tests. On Windows, because that is what ships, and
+# because the paths the app handles (drive letters, backslashes) are Windows'.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pnpm in package.json's `packageManager`, so CI resolves the lockfile
+      # exactly as a local install does.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test

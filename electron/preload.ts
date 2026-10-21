@@ -101,6 +101,21 @@ export interface Backup {
   bytes: number
 }
 
+/**
+ * Where the app's own update stands — see `updates.ts`. `off` in development
+ * and on a test profile; `ready` once a downloaded release waits for a restart.
+ */
+export interface UpdateState {
+  status: 'off' | 'idle' | 'checking' | 'none' | 'downloading' | 'ready' | 'error'
+  /** The version running now. */
+  version: string
+  /** The release on its way, or waiting. */
+  next?: string
+  /** How much of it has come down, 0–100. */
+  percent?: number
+  message?: string
+}
+
 /** What happened while opening, for the window to say. */
 export interface DataNotice {
   /** The damaged file, moved aside. */
@@ -136,6 +151,22 @@ const api = {
    * method and path, answered by the same services. The rest are the backups,
    * for Settings → Your data; `restore` relaunches the app.
    */
+  /**
+   * The app's own updates — see `updates.ts`. `install` restarts into the
+   * downloaded release; `onChanged` hears every step. Returns the unsubscribe.
+   */
+  updates: {
+    state: (): Promise<UpdateState> => ipcRenderer.invoke('updates:state'),
+    check: (): Promise<UpdateState> => ipcRenderer.invoke('updates:check'),
+    install: (): Promise<void> => ipcRenderer.invoke('updates:install'),
+    onChanged: (listener: (state: UpdateState) => void) => {
+      const forward = (_event: IpcRendererEvent, state: UpdateState) => listener(state)
+      ipcRenderer.on('updates:changed', forward)
+      return () => {
+        ipcRenderer.off('updates:changed', forward)
+      }
+    },
+  },
   data: {
     call: (request: DataRequest): Promise<DataAnswer> => ipcRenderer.invoke('data:call', request),
     /** What opening the database found — a damaged file moved aside, a backup restored. */

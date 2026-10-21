@@ -1,0 +1,63 @@
+# A release: push a tag `v<version>` — the version in package.json — and this
+# checks, builds the Windows installer and publishes it to a GitHub Release with
+# `latest.yml` and the blockmap. Installed copies find it there on their own
+# (electron/updates.ts, electron-updater) and offer "Restart to update".
+#
+#   1. bump "version" in package.json, commit
+#   2. git tag v0.2.0 && git push origin main v0.2.0
+#
+# The tag has to match package.json: the updater compares the version inside
+# the app with the one in latest.yml, and a mismatch is a release nobody's copy
+# would ever take — or one that offers itself forever.
+#
+# Unsigned for now: SmartScreen warns on a first install from the Release page;
+# updates are not warned about. See electron/updates.ts.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  # To create the Release and upload its files.
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: The tag is the version in package.json
+        shell: bash
+        run: |
+          want="v$(node -p "require('./package.json').version")"
+          if [ "$want" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json ($want)."
+            exit 1
+          fi
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+
+      # `pnpm build` is vue-tsc and Vite: the renderer into dist/, the main
+      # process and preload into dist-electron/ (emptied first, see vite.config.ts).
+      - run: pnpm build
+
+      - name: Build and publish the installer
+        run: pnpm exec electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

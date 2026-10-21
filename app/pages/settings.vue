@@ -304,6 +304,9 @@ useEventListener(document, 'focusin', (event: FocusEvent) => {
 
         <!-- Desktop: where the work is kept, and its backups — see `SettingsData`. -->
         <SettingsData />
+
+        <!-- Desktop: the app's own updates — see `SettingsUpdates`. -->
+        <SettingsUpdates />
       </div>
     </Default>
   </div>

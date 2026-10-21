@@ -241,6 +241,28 @@ cleaned repairs' rows — is `<profile>/kemolate.db`, and its pictures stay the 
   the build before the database moved whole, a damaged file set aside and restored, and a
   restore through Settings.
 
+## Releases and updates
+
+Decided 2026-10-21: the repository is public on GitHub (`azeranex/kemolate-desktop`), and
+releases are GitHub Releases the installed app updates itself from.
+
+- **To release:** bump `version` in `package.json`, commit, then
+  `git tag v<version> && git push origin main v<version>`. `.github/workflows/release.yml`
+  checks the tag matches `package.json`, runs typecheck, lint and tests, builds, and
+  `electron-builder --publish always` uploads the installer, its blockmap and `latest.yml`.
+  `ci.yml` runs the same checks on every push to `main` and every pull request.
+- **The app updates itself** (`electron/updates.ts`, `electron-updater`): checks 15 s after
+  launch and every four hours, downloads in the background, then offers "Restart to update"
+  (a toast, and Settings › Updates) — never restarts on its own, and otherwise installs on
+  the next quit. The database is backed up on that quit and before any migration. Off in
+  development and on a test profile (`KEMOLATE_PROFILE`).
+- **Unsigned.** A first install from the Release page meets SmartScreen; updates do not,
+  since the updater downloads them itself. macOS needs signing and notarisation first.
+- `pnpm build` empties `dist-electron/` before building the main process: its chunks are
+  hashed, dev builds write there too, and the installer packs the whole folder.
+- Packaging into `release/` failed on 2026-10-21 with `EPERM` renaming `win-unpacked.tmp`,
+  something holding the folder; `--config.directories.output=out/release` sidesteps it.
+
 ## Electron
 
 - `titleBarStyle: 'hidden'`, not `frame: false` — keeps resize borders, snap and rounded

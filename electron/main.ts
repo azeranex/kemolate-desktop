@@ -28,6 +28,7 @@ import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
 import { opened, projectsIn, serveOpening } from './opening'
 import { APP_ORIGIN, serveApp } from './protocol'
+import { serveUpdates } from './updates'
 import { keepWindowPlace, windowPlace } from './windowState'
 
 import type { WindowState } from './preload'
@@ -157,6 +158,9 @@ serveKeys(trusted)
 // Models on an NVIDIA GPU, opt-in — see `cuda.ts`. The same store the model route serves.
 serveCuda(trusted, () => path.join(app.getPath('userData'), 'models'))
 serveCudaSetup(trusted)
+
+// The app's own updates, from this repository's GitHub Releases — see `updates.ts`.
+serveUpdates(trusted)
 
 // Checked, because it arrives from the page: anything but the three names is ignored.
 ipcMain.on('theme:set', (_event, source: unknown) => {

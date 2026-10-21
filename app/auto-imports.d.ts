@@ -840,6 +840,7 @@ declare global {
   const useTranslationSync: typeof import('./composables/useTranslationSync').useTranslationSync
   const useUndo: typeof import('./composables/useUndo').useUndo
   const useUndoShortcuts: typeof import('./composables/useUndo').useUndoShortcuts
+  const useUpdates: typeof import('./composables/useUpdates').useUpdates
   const useUrlSearchParams: typeof import('@vueuse/core').useUrlSearchParams
   const useUserMedia: typeof import('@vueuse/core').useUserMedia
   const useUserSession: typeof import('./composables/useUserSession').useUserSession
@@ -1968,6 +1969,7 @@ declare module 'vue' {
     readonly useTranslationSync: UnwrapRef<typeof import('./composables/useTranslationSync')['useTranslationSync']>
     readonly useUndo: UnwrapRef<typeof import('./composables/useUndo')['useUndo']>
     readonly useUndoShortcuts: UnwrapRef<typeof import('./composables/useUndo')['useUndoShortcuts']>
+    readonly useUpdates: UnwrapRef<typeof import('./composables/useUpdates')['useUpdates']>
     readonly useUrlSearchParams: UnwrapRef<typeof import('@vueuse/core')['useUrlSearchParams']>
     readonly useUserMedia: UnwrapRef<typeof import('@vueuse/core')['useUserMedia']>
     readonly useUserSession: UnwrapRef<typeof import('./composables/useUserSession')['useUserSession']>

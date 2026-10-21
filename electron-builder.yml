@@ -5,6 +5,15 @@ appId: app.kemolate.desktop
 productName: Kemolate
 copyright: Kemolate
 
+# Where releases are published, and where the installed app looks for the next one
+# (electron/updates.ts). A public repository, so the app needs no token to read it;
+# the release workflow publishes with GITHUB_TOKEN (.github/workflows/release.yml).
+publish:
+  provider: github
+  owner: azeranex
+  repo: kemolate-desktop
+  releaseType: release
+
 directories:
   output: release
   buildResources: build

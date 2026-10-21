@@ -103,8 +103,12 @@ async function sayHowDataOpened () {
   }
 }
 
+// The app's own updates: heard from the main process, and offered when one is ready — see `useUpdates`.
+const { listen: hearUpdates } = useUpdates()
+
 onMounted(async () => {
   sayHowDataOpened()
+  hearUpdates()
 
   const handed = await openWaiting().catch(() => false)
 

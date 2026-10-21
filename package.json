@@ -1,9 +1,10 @@
 {
   "name": "kemolate-desktop",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Kemolate as a desktop app: Electron, one machine, local data.",
   "type": "module",
+  "packageManager": "pnpm@12.10.1",
   "main": "dist-electron/main.mjs",
   "scripts": {
     "dev": "vite",
@@ -33,6 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "1.0.0-rc.4",
+    "electron-updater": "6.8.10",
     "onnxruntime-web": "1.26.0-dev.20260416-b7804b056c",
     "reka-ui": "^2.11.0",
     "tailwind-merge": "^3.7.0",

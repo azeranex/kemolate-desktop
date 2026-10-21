@@ -22,7 +22,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
@@ -431,6 +431,12 @@ function electron (): Plugin {
       for (const file of readdirSync(ortDist()).filter((name) => ORT_FILE.test(name))) {
         copyFileSync(`${ortDist()}/${file}`, `${config.root}/dist/ort/${file}`)
       }
+      // Emptied first: each build splits the main process into hashed chunks
+      // (the database's code is imported only once the file is open), dev builds
+      // write theirs here too, and nothing else clears them — the installer packs
+      // the whole folder, so every stale chunk would ship. Not by `emptyOutDir`,
+      // which would let the preload's build take the main's with it.
+      rmSync(`${config.root}/${OUT_DIR}`, { recursive: true, force: true })
       for (const entry of ENTRIES) await buildEntry(config, entry, false)
     },
   }
