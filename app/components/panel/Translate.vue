@@ -28,7 +28,7 @@ const {
   revertRun,
 } = useTranslate()
 
-// Desktop: whether a server keeps revisions — see the run's undo, below.
+// Desktop: whether the database keeps this workspace's revisions — see the run's undo, below.
 const { shared } = useShared()
 
 // Only the count. The list, its editor and everything that failed while saving
@@ -684,10 +684,10 @@ const done = computed(() => {
       It is not destructive of anything older: the run's own revisions go, and
       what was underneath comes back exactly as it was, typed lines included.
 
-      Desktop: only where a server keeps the revisions (`shared`), which is never
-      here — `revertRun` filters out every page with no row and reverts nothing,
-      so the web build offers a local workspace an undo that silently does not
-      happen. Hidden until the desktop keeps revisions of its own.
+      Desktop: only where the database keeps the revisions (`shared`) — a
+      workspace not moved into it yet has none, and `revertRun` filters out every
+      page with no row and reverts nothing, so the web build offers a local
+      workspace an undo that silently does not happen.
     -->
     <UButton
       v-if="lastRun && !running && shared"

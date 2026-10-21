@@ -1,8 +1,10 @@
 # CLAUDE.md
 
 Kemolate as a desktop app: the web build (`../kemolate`) migrated onto Electron, for one
-machine and one user. No cloud workspaces, no accounts, no peer-to-peer sharing — a chapter
-travels as a `.kemolate` project file. Read `../kemolate/CLAUDE.md` for what the app *is*;
+machine and one user. No accounts and no peer-to-peer sharing — a chapter travels as a
+`.kemolate` project file. A workspace's work is kept the way the web build keeps a cloud
+workspace's, through the same composables and services, but in a SQLite file the main process
+owns (see **The workspace database**). Read `../kemolate/CLAUDE.md` for what the app *is*;
 this file is about how this repository differs from it.
 
 ## Commands
@@ -18,6 +20,7 @@ pnpm lint         # eslint, the web build's rules; --fix handles most of it
 pnpm test         # vitest, both projects, once
 pnpm test:unit    # the node project only
 pnpm test:coverage  # both, with coverage into out/coverage — and the floor in vitest.config.ts
+pnpm db:generate  # a migration from server/database/schema.ts — read it for `__new_` first
 ```
 
 **Lint is the web build's** — `eslint.config.mjs` is its file, rule for rule, with the
@@ -33,21 +36,24 @@ runs on the app's own Vite plugins (Vue, the auto-imports, the components), and 
 asked of `@nuxt/test-utils/runtime` is `test/app/support/`, aliased under that name so the
 files are unchanged: `mockNuxtImport` is a transform into `vi.mock` of the module the name is
 auto-imported from (`mockNuxtImport.ts`, reading `app/auto-imports.d.ts`); `mountSuspended`
-mounts under `<Suspense>`; `registerEndpoint` answers `fetch` only — `$fetch` still refuses.
+mounts under `<Suspense>`; `registerEndpoint` answers `fetch`, which is also what `$fetch` uses
+when there is no bridge (`composables/nuxt.ts`) — so it answers the app's requests as Nuxt's
+did, and an `/api/` path nobody registered is a 404, never a connection. `setup.ts` *assigns*
+`fetch` rather than `vi.stubGlobal`ging it: tests that `vi.unstubAllGlobals()` took it away
+mid-file, and every later request went to the network.
 Two things the Nuxt environment did that this one does by hand, and that fail quietly if lost:
 `import.meta.client`/`.server`/`.dev` are written in by a transform (`define` does not reach
 them under Vitest — every one read `undefined` and the app took its server branches), and
 `setup.ts` calls `nuxtReady()` (no `main.ts` runs, so no `remember`ed setting ever loaded).
 `test/app/tsconfig.json`, referenced from the root, is what makes `pnpm typecheck` cover them.
 
-What did **not** come across from `test/nuxt/` is the cloud: the sync composables'
-(`useBlockSync`, `useLayerSync`, `useLiveSync`, `useTranslationSync.frames`, `Paint.sync`),
-`useShared`, `useSwarm`, `wire`, `vault`, the auth middleware, the read errands, a cloud
-workspace's reading (`useOcr.persist`/`.measure`) and translation saves (`useTranslate.persist`),
-and the payload tests — there is no Nuxt payload here. Tests that only *used* a cloud
-workspace to exercise a run (`useTranslate.*`, `useAutoRun`, `useClean.run`) run on a local
-one, and the readers' tests name Kemolate OCR where they named Manga OCR; each says so in its
-header. A fix carried from the web build's tests should land at the same path under `test/app/`.
+The sync composables' tests came back with the database (2026-10-21), as the web build has
+them. What did **not** come across from `test/nuxt/` is the swarm and the accounts — `useSwarm`,
+`wire`, `vault`, the auth middleware, the read errands — and the payload tests: there is no
+Nuxt payload here. The readers' tests name Kemolate OCR where they named Manga OCR, and say so.
+The server's tests are the web build's `test/unit/server/` on the same harness (an in-memory
+database, the real migrations replayed), less every case about people, roles and the swarm.
+A fix carried from the web build's tests should land at the same path here.
 
 `electron . --smoke=out/smoke.png` opens the built window, saves a capture of it and quits —
 the way to see the real window, title bar included, without anybody looking at it.
@@ -66,7 +72,7 @@ there — check those inside Electron.
 | `test/unit/` | `test/unit/` | node, mirrors the tree it covers |
 | `test/app/` | `test/nuxt/` | the app's tests — see Commands |
 | `electron/` | — | main process and preload (the bridge, `window.kemolate`) |
-| `server/` | `server/` | the model store (`models.ts`) and the stroke types `database/` exports — no data layer: a workspace keeps everything in the renderer's IndexedDB and OPFS, as the web build's local workspaces do |
+| `server/` | `server/` | the model store (`models.ts`), and the web build's data layer — `database/` (schema, relations, client, migrations) and `services/` — run by the main process, not a server; see **The workspace database** |
 
 A file migrated from the web build goes to **the same path** here, so the two can be diffed
 and a later fix in one can be carried to the other. Keep it that way.
@@ -81,7 +87,7 @@ and a later fix in one can be carried to the other. Keep it that way.
 - **Nuxt's runtime is shimmed, so ported files stay verbatim.** `app/composables/nuxt.ts`
   provides `useState`, `useRoute`/`useRouter`/`navigateTo` (one in-memory route: `/`,
   `/w/<id>`, `/settings` or `/ocr-lab` — 34 files read `route.params.workspaceId`, which the
-  last two keep), `useNuxtApp`, `useCookie` (local storage), `$fetch` (refuses: no server),
+  last two keep), `useNuxtApp`, `useCookie` (local storage), `$fetch` (over IPC to the main process),
   `useHead`, `onNuxtReady`, and `definePageMeta` (ignored — `App.vue` decides layout and key). `import.meta.client`,
   `.server` and `.dev` are defined in `vite.config.ts`. Do not hand-convert these in a ported
   file — the first three files ported (`usePanelDock`, `useTools`, `useColorScheme`) were,
@@ -91,27 +97,29 @@ and a later fix in one can be carried to the other. Keep it that way.
 - **Unmigrated dependencies get stand-ins, never silent no-ops.** A stand-in is shaped so the
   original stays unchanged and reads it truthfully: things that need a chapter disable
   themselves; things that cannot, say so with a toast. Each stand-in names what replaces it.
-  - Cloud-only, permanent: `useShared` (no shared workspace — every caller already steps
-    around `null`), `useSwarm` (no room: `peers` is empty and a live stroke is told to
-    nobody — `sendLive`, `onSwarmLive`), `useBlockSync`, `useLiveSync` (their exports used on the
-    server-row branch only), `utils/strokes.ts` (server stroke
-    calls → "the server would not"), `useUserSession` (nobody is ever signed in).
+  - Permanent: `useSwarm` (no room: `peerHeader` is `{}`, `peers` is empty, a live stroke is
+    told to nobody and no change notice ever arrives — there is one window), and
+    `useUserSession` (always signed in, as nobody in particular — see the database section).
   - Nuxt's `<NuxtLink>` is `components/NuxtLink.vue`: an anchor that goes through
     `navigateTo`.
-  - Partial ports at the original path, growing as their dependencies arrive:
-    `pages/w/[workspaceId].vue`
-    (opening, restoring, the reading and repairs restore, paging, zoom),
-    `server/database/index.ts` (row types only),
-    `composables/useLayerSync.ts` (the helpers others import — `useLayerClaims`, `stackOf`,
-    `serverStacks` — without `useLayerSync()` itself; a local workspace's stacks are
-    `useLayerCache`'s).
+  - `pages/w/[workspaceId].vue` is the desktop's page with the web build's open chain in it
+    (`look`, `syncPages`, `showMissing`, the four syncs mounted, sizes filled) — not the web
+    file, which also joins the swarm and serves MCP errands. Its `composing` wait asks once
+    before watching: the web build's `immediate` watch called `stop()` before `watch` had
+    returned it whenever the page's reading was already there, which is every absent page —
+    the web build very likely has the same bug.
+  - `useLayerSync` is the web build's, with `flatten` lifted out as `layerDrafts` (for
+    `useMoveIn`) and its `LayerDraft` taken from the schema: the window's project cannot load
+    the services, which open the database.
   - `ProjectImport.vue` keeps the dialog's openness apart from the file it asks about. In the
     web build's version, Import closed the dialog (reka's `DialogClose` runs its own click
     first), the close cleared the file, and nothing was imported. The web build has the same
     code, so it very likely has the same bug.
-  - `pages/index.vue`, the list of workspaces: local workspaces only, its server branches
-    never reached, its wording about signing in and "this browser" made true here. A launch
-    lands in the last workspace (`App.vue`); the mark goes to the list. Leaving for the list
+  - `pages/index.vue`, the list of workspaces: the web build's script, signed in — listed
+    from the database merged with the window's own index, made there first (`mint`) — and
+    worded for one person: no roles, no Cloud or Local badge, no signing in. A launch lands
+    in the last workspace, or the most recently changed one in the database when the window
+    has no record of a last one (`App.vue`); the mark goes to the list. Leaving for the list
     unmounts the workspace as in the web build, and `useWorkspaceReset` lets go of its
     state when another is opened; Settings is drawn over the workspace instead.
   - The OCR lab (`pages/ocr-lab.vue`, verbatim but for its starting reader) is View › OCR
@@ -137,20 +145,19 @@ and a later fix in one can be carried to the other. Keep it that way.
     the OS (`electron/keys.ts`), so nothing is ever locked. `pages/settings.vue` is the web
     page's key section alone (no passcode, no access tokens), drawn *over* the open
     workspace — see `App.vue` and the page's header for why it stops every key press.
-  - `panel/Text.vue` says earlier wordings are not kept here, where the web build says to
-    move the workspace to the cloud (`useRevisions` keeps them only server-side).
-  - `panel/Translate.vue` hides "Undo that run" without a server (`shared`): run revisions are
-    kept only server-side, and `revertRun` on a local workspace reverts nothing, silently.
-    That is a web build bug as well, reached there only by local workspaces.
+  - `panel/Text.vue` and `panel/Translate.vue` keep the web build's versions and "Undo that
+    run" for a workspace in the database; for one not moved in yet, Text says it will be when
+    it opens, and Translate hides the undo, since `revertRun` reverts nothing without rows —
+    silently, which is a web build bug for its local workspaces too.
   - Layer presets (Read / Clean / Letter / Final) work on a local chapter. The web build's
     need a shared workspace — the server's `layers.preset` reaches the pages not on screen —
     so `useLayerPresets` has a local branch: every page's stack is arranged in memory by
     `stageStack` (`shared/utils/presets.ts`, the server's allowlist restated) and
     `useLayerCache` writes them. A page the cache had not looked up when the stage was
     pressed is staged as it lands (`stageArrival`), or its saved stack would undo the press.
-    The server branch is kept for a shared workspace.
-  - `WorkspaceSettings.vue` and `useWorkspaceName` are their local halves: name, reading
-    direction and what is kept where; no move to or from the cloud.
+    The server branch is what a workspace in the database takes.
+  - `useWorkspaceName` is the web build's; `WorkspaceSettings.vue` drops its switch to and
+    from the cloud — a workspace moves into the database on its own (`useMoveIn`).
   - A workspace keeps the name its reader gave it (`Workspace.named` in `useWorkspaces`),
     laid over the chapter on every open by the workspace page. Opening names a chapter after
     its folder, and in the web build a renamed local workspace went back to that on reload.
@@ -166,11 +173,67 @@ and a later fix in one can be carried to the other. Keep it that way.
 
 ## Left out, deliberately
 
-From `shared/`: `abilities`, `socials`, and the `auth`, `invite`, `token`, `vault` schemas —
-accounts and the server-sealed key vault are cloud concerns. (`roles` came across after all:
-it is pure, and `useOcr` asks `atLeast` on its cloud branch.) Provider keys live in the OS
+From `shared/`: `socials`, and the `auth`, `invite`, `token`, `vault` schemas — accounts and
+the server-sealed key vault. `roles` is the web build's; `abilities` is the desktop's own,
+names only, since `must` allows everything (see the database section). Provider keys live in the OS
 credential store instead (`electron/keys.ts`), and Settings is File › Settings… (Ctrl+,)
 rather than the account menu. The header has no account menu.
+
+## The workspace database
+
+Decided 2026-10-21, the day a reader lost a 114-page chapter's reading and translation:
+everything a desktop workspace kept lived in the window's IndexedDB, and Chromium answers a
+corrupt IndexedDB by deleting it and starting empty, without a word. Now a workspace's record —
+pages, blocks, translations with every revision, layer stacks, strokes, glossary, cast,
+cleaned repairs' rows — is `<profile>/kemolate.db`, and its pictures stay the reader's files.
+
+- **The web build's cloud half, on this machine.** Its composables keep a workspace on the
+  server when signed in; here the window is always signed in (`useUserSession`) and `$fetch`
+  goes over IPC (`window.kemolate.data.call`) to `electron/data.ts`, a table of the web
+  build's routes — same method and path, same zod schemas, same service calls — answering as
+  JSON would have (dates as strings), a repair as bytes, a refusal as `{ status, message,
+  data }` that `$fetch` throws as ofetch's `FetchError`. No HTTP server, no router. A route
+  added in the web build is a row added there, beside the one it copies; logic stays in the
+  services.
+- **The services are the web build's, verbatim where they can be.** Different on purpose:
+  `access.ts` (one person: `contextFor` finds the workspace, `must` allows everything,
+  `notify` tells nobody), `workspaces.ts` (no owner or contributors; `listAll`), `repairs.ts`
+  (its store is `server/utils/repairStore.ts`, files under `<profile>/repairs`, not Nitro's
+  storage), `logs.ts` (no user join). `createError` and `useEvent` are globals the main
+  process installs (`server/utils/errors.ts`), as Nitro's auto-imports were.
+- **Schema and migrations are the desktop's own**: the web build's workspace tables without
+  users, accounts, passkeys, contributors, invitations, tokens, vaults or site settings, and
+  author/user columns kept with no foreign key (always null). `pnpm db:generate` writes a
+  migration with drizzle-kit; applied at every launch by Drizzle's migrator, shipped as
+  `extraResources` (`resources/migrations`). The web build's rule stands and matters more
+  here: read the generated SQL for `__new_` before shipping — a table rebuild inside the
+  migrator's transaction fires every cascade.
+- **`server/database` opens the file the moment it is imported**, so `electron/database.ts`
+  sets `DATABASE_URL` and imports it dynamically, and `main.ts` imports `data.ts` only
+  after the database is open. The window's project maps `~~/server/database` to
+  `schema.ts` (row types only) and never imports a service.
+- **A damaged file is never deleted** (`electron/database.ts`). `PRAGMA quick_check` before
+  it is trusted; a file that fails, will not open, or is empty is moved aside as
+  `kemolate.db.corrupt-<time>` and the newest backup that passes is put in its place, and
+  the window says so in a toast that stays. Backups are `VACUUM INTO` copies under
+  `<profile>/backups` — at launch if the newest is over an hour old, before any migration,
+  hourly while there were writes, on quit — a day of them kept, then the newest of each day
+  for 30, never fewer than three. The repair sweep spares every hash a backup names.
+  Settings › Your data (`SettingsData.vue`) shows them, makes one, and restores one at the
+  next launch (the app relaunches), keeping the replaced file as `kemolate.db.replaced-<time>`.
+- **Workspaces from before move in on their own** (`useMoveIn`), the first time they are
+  opened, from the end of a restore pass that began with every page hashed — one that began
+  with a page unhashed had skipped that page's reading. `toCloud` carries the record, pages,
+  readings, translations, glossary and cast; the move adds every page's layer stack and
+  strokes, which `toCloud` leaves to go up as each page is shown. The IndexedDB copy is left.
+- **What a lost window storage costs now**: the chapter's pictures, which come back by
+  opening their folder or giving each page its file (`CanvasAbsent`, `useLibrary.link`), and
+  this window's small records (last workspace, last page, settings). The work is in the
+  database, and the pages are shown with it, absent (`useShared.showMissing`).
+- Verified on test profiles only (`KEMOLATE_PROFILE`, see below): a workspace's record
+  written and read back, kept across a relaunch and a deleted IndexedDB, a workspace made by
+  the build before the database moved whole, a damaged file set aside and restored, and a
+  restore through Settings.
 
 ## Electron
 
@@ -230,7 +293,8 @@ rather than the account menu. The header has no account menu.
   its own, and the CDP harness sets it unless asked otherwise. On 2026-10-21 test runs against the
   real profile, from a sandbox that kept their writes but let their deletes through, corrupted its
   IndexedDB; Chromium answers a corrupt IndexedDB by deleting it and starting empty, and the
-  reader lost a workspace's reading and translation. Nothing in the app tells anyone when that happens.
+  reader lost a workspace's reading and translation. That is why the work is now in a database
+  of the app's own (see above) — and still why tests never touch the reader's profile.
 - The profile folder is pinned to `%APPDATA%\kemolate-desktop` (`app.setPath('userData')`
   in `main.ts`). Electron would name it after the product, and the installed app is
   "Kemolate" where a development run is "kemolate-desktop" — two folders, two sets of
@@ -265,6 +329,9 @@ rather than the account menu. The header has no account menu.
   encryption (Linux's `basic_text`), saving refuses and Settings says why.
 - The Electron build is the inline plugin at the bottom of `vite.config.ts`, not
   vite-plugin-electron or electron-vite. Its header says how dev and build work.
+- The renderer's IndexedDB now holds only small records (the workspace index, which chapter
+  and page were open, settings) and the reading of a workspace not yet moved into the
+  database; OPFS holds the caches and the pages a chapter was copied into.
 - The built app is served from `https://app.kemolate.invalid/` (`electron/protocol.ts`),
   not `file://`: OPFS and IndexedDB need an ordinary, stable origin, and a store is keyed by
   its origin — **never change the scheme or host**, or everything kept under the old one is

@@ -129,12 +129,12 @@ const comparable = computed(() => available.value && list.value.length > 0)
 /**
  * Why there is no list, when there is none — see `useRevisions.missing`.
  *
- * Desktop: `unclaimed` is the only answer here, since versions are kept only by
- * a server, and the web build's sentence sends the reader to move the workspace
- * to the cloud — which the desktop app does not have. So it says what is true.
+ * Desktop: versions are kept in the app's database, which a workspace from
+ * before it is moved into when its chapter is next opened (`useMoveIn`); the web
+ * build's sentence sends the reader to a cloud the desktop does not have.
  */
 const WHY: Record<'unclaimed' | 'unsaved', string> = {
-  unclaimed: 'Earlier wordings of a line are not kept in the desktop app yet.',
+  unclaimed: 'Earlier wordings are kept once this chapter is in Kemolate’s database — it moves there when it opens.',
   unsaved: 'This block has not been saved to the chapter yet, so it has no versions.',
 }
 
