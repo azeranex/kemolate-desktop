@@ -42,8 +42,15 @@ const devUrl = process.env.KEMOLATE_DEV_URL
  * place a development run had kept, and the reverse. Everything the app keeps
  * lives in here (IndexedDB and OPFS are the page's storage inside it), so it is
  * set before anything reads it.
+ *
+ * `KEMOLATE_PROFILE` puts a run on a profile of its own — for tests, which must
+ * never open the reader's. On 2026-10-21 test runs driven against the real
+ * profile, from a sandbox that kept their writes to itself but let their deletes
+ * through, left its IndexedDB corrupt; Chromium answers a corrupt IndexedDB by
+ * deleting it and starting empty, and a reader's workspace went with it. A test
+ * that needs the reader's models can link `<profile>/models` to the real store.
  */
-app.setPath('userData', path.join(app.getPath('appData'), 'kemolate-desktop'))
+app.setPath('userData', process.env.KEMOLATE_PROFILE || path.join(app.getPath('appData'), 'kemolate-desktop'))
 
 /**
  * `--smoke=<file.png>`: open the window, save a capture of it and quit. A way to

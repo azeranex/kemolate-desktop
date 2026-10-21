@@ -226,6 +226,11 @@ rather than the account menu. The header has no account menu.
   bundled into the installer — redistributing it. Installed on the machine, it is the reader's
   own copy, used on screen and inside export's SVG alike (tested 2026-10-21). Without it the
   dialogue falls back to Shantell Sans.
+- **Tests never open the reader's profile.** `KEMOLATE_PROFILE` (`main.ts`) puts a run on a profile of
+  its own, and the CDP harness sets it unless asked otherwise. On 2026-10-21 test runs against the
+  real profile, from a sandbox that kept their writes but let their deletes through, corrupted its
+  IndexedDB; Chromium answers a corrupt IndexedDB by deleting it and starting empty, and the
+  reader lost a workspace's reading and translation. Nothing in the app tells anyone when that happens.
 - The profile folder is pinned to `%APPDATA%\kemolate-desktop` (`app.setPath('userData')`
   in `main.ts`). Electron would name it after the product, and the installed app is
   "Kemolate" where a development run is "kemolate-desktop" — two folders, two sets of
