@@ -66,7 +66,7 @@ there — check those inside Electron.
 | `test/unit/` | `test/unit/` | node, mirrors the tree it covers |
 | `test/app/` | `test/nuxt/` | the app's tests — see Commands |
 | `electron/` | — | main process and preload (the bridge, `window.kemolate`) |
-| `server/` *(to come)* | `server/` | the local data layer, run in the main process |
+| `server/` | `server/` | the model store (`models.ts`) and the stroke types `database/` exports — no data layer: a workspace keeps everything in the renderer's IndexedDB and OPFS, as the web build's local workspaces do |
 
 A file migrated from the web build goes to **the same path** here, so the two can be diffed
 and a later fix in one can be carried to the other. Keep it that way.
