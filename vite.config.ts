@@ -53,19 +53,21 @@ export const aliases = {
   '~~': root,
 }
 
+/**
+ * Nuxt's build-time flags, which the web build's files test as they are — a
+ * desktop renderer is always the client, never the server, and is in
+ * development exactly when Vite is. See `composables/nuxt.ts` for the runtime
+ * half of the same arrangement. The app's tests take them too.
+ */
+export const nuxtFlags = (dev: boolean) => ({
+  'import.meta.client': 'true',
+  'import.meta.server': 'false',
+  'import.meta.dev': JSON.stringify(dev),
+})
+
 export default defineConfig(({ mode }) => ({
   resolve: { alias: aliases },
-  /**
-   * Nuxt's build-time flags, which the web build's files test as they are — a
-   * desktop renderer is always the client, never the server, and is in
-   * development exactly when Vite is. See `composables/nuxt.ts` for the runtime
-   * half of the same arrangement.
-   */
-  define: {
-    'import.meta.client': 'true',
-    'import.meta.server': 'false',
-    'import.meta.dev': JSON.stringify(mode === 'development'),
-  },
+  define: nuxtFlags(mode === 'development'),
   plugins: [vue(), tailwindcss(), ...nuxtStyleImports(), electron()],
   build: {
     rolldownOptions: {
@@ -124,7 +126,7 @@ export default defineConfig(({ mode }) => ({
  * - shadcn-vue's components under the web build's `U` prefix — `UButton`,
  *   `UAccordionItem` — whichever folder of `components/ui` holds them.
  */
-function nuxtStyleImports () {
+export function nuxtStyleImports () {
   const uiDir = `${appDir}/components/ui`
 
   /**

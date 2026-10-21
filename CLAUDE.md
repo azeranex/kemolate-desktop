@@ -14,9 +14,32 @@ pnpm preview      # run the built app
 pnpm dist         # build, then the installer (electron-builder → release/)
 pnpm dist:dir     # build, then the packaged app unpacked (release/win-unpacked) — no installer
 pnpm typecheck    # vue-tsc -b: app, main process and tests
-pnpm test         # vitest, once
+pnpm test         # vitest, both projects, once
 pnpm test:unit    # the node project only
 ```
+
+**Tests are vitest, in two projects** (`vitest.config.ts`): `unit` (node, `test/unit/`, for
+`shared/` and `server/`) and `app` (happy-dom, `test/app/`, for anything in `app/`). `app` is
+the web build's `test/nuxt/`, carried across with one rename — there is no Nuxt here, so it
+runs on the app's own Vite plugins (Vue, the auto-imports, the components), and what the tests
+asked of `@nuxt/test-utils/runtime` is `test/app/support/`, aliased under that name so the
+files are unchanged: `mockNuxtImport` is a transform into `vi.mock` of the module the name is
+auto-imported from (`mockNuxtImport.ts`, reading `app/auto-imports.d.ts`); `mountSuspended`
+mounts under `<Suspense>`; `registerEndpoint` answers `fetch` only — `$fetch` still refuses.
+Two things the Nuxt environment did that this one does by hand, and that fail quietly if lost:
+`import.meta.client`/`.server`/`.dev` are written in by a transform (`define` does not reach
+them under Vitest — every one read `undefined` and the app took its server branches), and
+`setup.ts` calls `nuxtReady()` (no `main.ts` runs, so no `remember`ed setting ever loaded).
+`test/app/tsconfig.json`, referenced from the root, is what makes `pnpm typecheck` cover them.
+
+What did **not** come across from `test/nuxt/` is the cloud: the sync composables'
+(`useBlockSync`, `useLayerSync`, `useLiveSync`, `useTranslationSync.frames`, `Paint.sync`),
+`useShared`, `useSwarm`, `wire`, `vault`, the auth middleware, the read errands, a cloud
+workspace's reading (`useOcr.persist`/`.measure`) and translation saves (`useTranslate.persist`),
+and the payload tests — there is no Nuxt payload here. Tests that only *used* a cloud
+workspace to exercise a run (`useTranslate.*`, `useAutoRun`, `useClean.run`) run on a local
+one, and the readers' tests name Kemolate OCR where they named Manga OCR; each says so in its
+header. A fix carried from the web build's tests should land at the same path under `test/app/`.
 
 `electron . --smoke=out/smoke.png` opens the built window, saves a capture of it and quits —
 the way to see the real window, title bar included, without anybody looking at it.
@@ -33,6 +56,7 @@ there — check those inside Electron.
 | `app/` | `app/` | the renderer: components, composables, utils, layouts, assets |
 | `shared/` | `shared/` | pure logic both sides use; explicit relative imports |
 | `test/unit/` | `test/unit/` | node, mirrors the tree it covers |
+| `test/app/` | `test/nuxt/` | the app's tests — see Commands |
 | `electron/` | — | main process and preload (the bridge, `window.kemolate`) |
 | `server/` *(to come)* | `server/` | the local data layer, run in the main process |
 

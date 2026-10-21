@@ -1,0 +1,34 @@
+{
+  // The app's tests, checked with the app they test. They sit in no other
+  // project — `tsconfig.app.json` is the app alone, and the tests also reach for
+  // Node (`node:zlib`, `node:crypto`) and for Vitest — so they get their own,
+  // which takes the app's files in with them: a test is only checked against
+  // the auto-imports and components it reads if those are in the same program.
+  // Referenced from the root `tsconfig.json`, which is the only reason
+  // `pnpm typecheck` covers them; drop the reference and they stop being
+  // checked without anything going red, as `test/tsconfig.json` warns too.
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.test-app.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client", "@webgpu/types", "node"],
+    "jsx": "preserve",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "@/*": ["../../app/*"],
+      "~/*": ["../../app/*"],
+      "#shared/*": ["../../shared/*"],
+      "~~/*": ["../../*"],
+      "@nuxt/test-utils/runtime": ["./support/test-utils.ts"],
+      "h3": ["./support/h3.ts"]
+    }
+  },
+  "include": ["../../app/**/*.ts", "../../app/**/*.vue", "../../shared/**/*.ts", "./**/*.ts"],
+  "exclude": ["./support/mockNuxtImport.ts"]
+}
