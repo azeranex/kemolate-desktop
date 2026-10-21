@@ -1,11 +1,12 @@
-import type { Plugin } from 'vite'
+import { fileURLToPath } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 import { mockNuxtImports } from './test/app/support/mockNuxtImport.ts'
 import { aliases, nuxtFlags, nuxtStyleImports } from './vite.config.ts'
+
+import type { Plugin } from 'vite'
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 

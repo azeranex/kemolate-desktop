@@ -32,8 +32,8 @@
  * last one's state.
  */
 import CollectionPage from './pages/index.vue'
-import WorkspacePage from './pages/w/[workspaceId].vue'
 import SettingsPage from './pages/settings.vue'
+import WorkspacePage from './pages/w/[workspaceId].vue'
 
 useHead({ title: 'Kemolate' })
 

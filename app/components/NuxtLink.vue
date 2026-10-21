@@ -17,7 +17,7 @@ function go (event: MouseEvent) {
 
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
 
-  void navigateTo(props.to)
+  navigateTo(props.to)
 }
 </script>
 

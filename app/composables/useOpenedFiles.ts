@@ -62,7 +62,7 @@ export function useOpenedFiles () {
 
   /** Open each file the OS hands over from now on. Returns the unsubscribe. */
   function listen (): () => void {
-    return window.kemolate?.files.onOpened(() => { void openWaiting() }) ?? (() => {})
+    return window.kemolate?.files.onOpened(() => { openWaiting() }) ?? (() => {})
   }
 
   return { openWaiting, listen }

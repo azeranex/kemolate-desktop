@@ -1,6 +1,6 @@
-import type { EndpointEvent } from './test-utils'
-
 import { EndpointError } from './test-utils'
+
+import type { EndpointEvent } from './test-utils'
 
 /**
  * The few h3 helpers the web build's endpoint handlers call, over the event

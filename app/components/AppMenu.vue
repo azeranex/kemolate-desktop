@@ -85,7 +85,7 @@ function exportAgain () {
  * it is bound here, beside the item that shows it.
  */
 function openSettings () {
-  void navigateTo('/settings')
+  navigateTo('/settings')
 }
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {

@@ -14,8 +14,8 @@
  *
  * `pathOfPage` and `rowOfPage` are pure and are the web build's, verbatim.
  */
-import type { ComicPage } from '~/composables/useComic'
 import type { WorkspaceRole } from '#shared/utils/roles'
+import type { ComicPage } from '~/composables/useComic'
 
 /** The parts of a shared workspace's page rows that the app reads. */
 export interface RemotePage {

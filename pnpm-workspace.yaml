@@ -1,7 +1,8 @@
 # Postinstall scripts, decided — pnpm otherwise refuses to run anything until
 # they are. The same choices as the web build's: onnxruntime-node arrives with
 # transformers.js and is Node-side, as is sharp — the renderer uses neither, so nothing
-# needs compiling; protobufjs's script is harmless.
+# needs compiling; protobufjs's script is harmless. unrs-resolver comes with the
+# lint plugins and ships prebuilt binaries, as the web build also decided.
 #
 # electron-winstaller comes with electron-builder for its Squirrel target; the
 # installer here is NSIS, so its script has nothing to set up.
@@ -10,3 +11,4 @@ allowBuilds:
   onnxruntime-node: false
   protobufjs: true
   sharp: false
+  unrs-resolver: false

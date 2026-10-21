@@ -26,11 +26,13 @@
  * Written when the window moves or resizes (after it settles) and when it
  * closes, beside and renamed over so a crash mid-write cannot leave half a file.
  */
-import type { BrowserWindow, Rectangle } from 'electron'
 
-import { app, screen } from 'electron'
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+
+import { app, screen } from 'electron'
+
+import type { BrowserWindow, Rectangle } from 'electron'
 
 interface Kept {
   bounds: Rectangle

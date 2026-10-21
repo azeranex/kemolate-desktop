@@ -1,8 +1,8 @@
 import { vi } from 'vitest'
 
-import { nuxtReady } from '~/composables/nuxt'
-
 import { fetchWithEndpoints } from './test-utils'
+
+import { nuxtReady } from '~/composables/nuxt'
 
 /**
  * Every app test file, set up as Nuxt's test environment set it up:

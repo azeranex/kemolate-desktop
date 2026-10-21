@@ -29,11 +29,13 @@
  * Only files inside `dist/` are served; anything that resolves outside it is a
  * 404, so a crafted path cannot read the rest of the disk through the page.
  */
-import { net, protocol } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+import { net, protocol } from 'electron'
+
 import { answerModel, MODEL_HEADERS } from '../server/models'
+
 import { openedFile } from './opening'
 
 const APP_HOST = 'app.kemolate.invalid'

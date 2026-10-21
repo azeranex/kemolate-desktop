@@ -6,11 +6,10 @@
  * page needs from the machine — files, models, the database — gets its own
  * method here rather than a general channel.
  */
-import type { IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
 import type { Provider } from '../shared/utils/providers'
-
-import { contextBridge, ipcRenderer } from 'electron'
+import type { IpcRendererEvent } from 'electron'
 
 /**
  * What the settings page is told about the keys (`keys.ts`): which are stored,

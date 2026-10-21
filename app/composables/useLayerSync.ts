@@ -11,7 +11,7 @@
  * imported project file stakes its claim through it), `stackOf` and
  * `serverStacks`, which `useProjectFile` calls only under a shared workspace.
  * Left out with `useLayerSync()` are its two imports, `readPaint` and the
- * server's `LayerDraft` type, which nothing else here needs.
+ * server's `LayerDraft` type, and its `SETTLE`, which nothing else here needs.
  *
  * The web build's header — why a whole stack at a time, why upsert and never
  * rewrite, why a stack belongs to a page — is about the sync, and is there.
@@ -36,16 +36,6 @@ interface StoredLayer {
   adjust: Adjustment | null
   image: PlacedImage | null
 }
-
-/**
- * How long the stack has to sit still before it is sent.
- *
- * Longer than a block's settle, because the gestures are coarser and come in
- * bursts: dragging the opacity slider is a change a frame, and sweeping the eye
- * across a group is one per row it crosses. Nothing here is at risk from a
- * slower hand — a layer is not a sentence somebody is halfway through typing.
- */
-const SETTLE = 600
 
 /**
  * The row id each layer was filed under, by its uid.

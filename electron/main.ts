@@ -14,18 +14,20 @@
  * the page is served from `dist/` at `https://app.kemolate.invalid/` — see `protocol.ts` for why
  * not from files.
  */
-import type { WindowState } from './preload'
 
-import { app, BrowserWindow, ipcMain, nativeTheme, session, shell } from 'electron'
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { app, BrowserWindow, ipcMain, nativeTheme, session, shell } from 'electron'
 
 import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
 import { opened, projectsIn, serveOpening } from './opening'
 import { APP_ORIGIN, serveApp } from './protocol'
 import { keepWindowPlace, windowPlace } from './windowState'
+
+import type { WindowState } from './preload'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const devUrl = process.env.KEMOLATE_DEV_URL
@@ -85,7 +87,7 @@ function createWindow () {
 
   // Links leave the app for the browser; the app never opens a second window by accident.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+    if (/^https?:\/\//.test(url)) shell.openExternal(url)
     return { action: 'deny' }
   })
 
@@ -111,8 +113,8 @@ function createWindow () {
     }
   })
 
-  if (devUrl) void win.loadURL(devUrl)
-  else void win.loadURL(`${APP_ORIGIN}/index.html`)
+  if (devUrl) win.loadURL(devUrl)
+  else win.loadURL(`${APP_ORIGIN}/index.html`)
 }
 
 const owner = (sender: Electron.WebContents) => BrowserWindow.fromWebContents(sender)
@@ -209,7 +211,7 @@ const mainWindow = () => BrowserWindow.getAllWindows()[0] ?? null
 
 serveOpening(trusted, mainWindow)
 
-void app.whenReady().then(() => {
+app.whenReady().then(() => {
   keepFolderAccess()
   askWhereToSave()
 

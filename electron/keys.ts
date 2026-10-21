@@ -36,16 +36,17 @@
  * that is not one of `PROVIDER_IDS` is refused rather than becoming a key in the
  * file.
  */
-import type { IpcMainInvokeEvent } from 'electron'
 
-import type { Provider } from '../shared/utils/providers'
-import type { KeyStatus } from './preload'
-
-import { app, ipcMain, safeStorage } from 'electron'
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
+import { app, ipcMain, safeStorage } from 'electron'
+
 import { PROVIDER_IDS } from '../shared/utils/providers'
+
+import type { KeyStatus } from './preload'
+import type { Provider } from '../shared/utils/providers'
+import type { IpcMainInvokeEvent } from 'electron'
 
 /** A key longer than this is not a key; it is a paste gone wrong. */
 const MAX_KEY = 1024
@@ -162,8 +163,9 @@ export function serveKeys (trusted: (event: IpcMainInvokeEvent) => boolean) {
 
       if (key.length > MAX_KEY) throw new Error(`That ${provider} key is too long to be a key.`)
 
-      if (key) sealed[provider] = safeStorage.encryptString(key).toString('base64')
-      else delete sealed[provider]
+      // An empty key removes the stored one: `undefined` is left out of the
+      // file by `JSON.stringify`, so the provider is simply not in it.
+      sealed[provider] = key ? safeStorage.encryptString(key).toString('base64') : undefined
     }
 
     writeAll(sealed)

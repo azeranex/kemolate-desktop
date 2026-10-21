@@ -40,9 +40,9 @@
  * modal over the workspace in fact, and says so (`role="dialog"`). Escape, or
  * the button at the top, goes back.
  */
-import type { KeyStatus } from '../../electron/preload'
-
 import { ArrowLeftIcon, CheckIcon, ExternalLinkIcon, KeyRoundIcon, Trash2Icon } from '@lucide/vue'
+
+import type { KeyStatus } from '../../electron/preload'
 
 import Default from '~/layouts/Default.vue'
 
@@ -153,7 +153,7 @@ const route = useRoute()
 function back () {
   const id = route.params.workspaceId
 
-  void navigateTo(id ? `/w/${encodeURIComponent(id)}` : '/')
+  navigateTo(id ? `/w/${encodeURIComponent(id)}` : '/')
 }
 
 /**

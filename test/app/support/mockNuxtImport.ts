@@ -1,6 +1,6 @@
-import type { Plugin } from 'vite'
-
 import { readFileSync } from 'node:fs'
+
+import type { Plugin } from 'vite'
 
 /**
  * `mockNuxtImport`, done the way `@nuxt/test-utils` does it: at transform time.

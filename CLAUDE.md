@@ -14,9 +14,16 @@ pnpm preview      # run the built app
 pnpm dist         # build, then the installer (electron-builder → release/)
 pnpm dist:dir     # build, then the packaged app unpacked (release/win-unpacked) — no installer
 pnpm typecheck    # vue-tsc -b: app, main process and tests
+pnpm lint         # eslint, the web build's rules; --fix handles most of it
 pnpm test         # vitest, both projects, once
 pnpm test:unit    # the node project only
 ```
+
+**Lint is the web build's** — `eslint.config.mjs` is its file, rule for rule, with the
+one part that came from Nuxt (`.nuxt/eslint.config.mjs`) rebuilt from `@nuxt/eslint-config`,
+which runs standalone, and the auto-imports read as globals from `app/auto-imports.d.ts`. A
+file carried across verbatim passes as it did there; keep it that way, so a lint failure
+here always means desktop code.
 
 **Tests are vitest, in two projects** (`vitest.config.ts`): `unit` (node, `test/unit/`, for
 `shared/` and `server/`) and `app` (happy-dom, `test/app/`, for anything in `app/`). `app` is

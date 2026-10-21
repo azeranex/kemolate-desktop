@@ -15,9 +15,9 @@
  * cost anybody a sheet, a group, an adjustment or a placed picture. The scan's
  * lock is `fixed` and stays shut whatever a stage says.
  */
-import type { LayerPreset, StackLayer } from './layers'
-
 import { DEFAULT_STACK, standardUids } from './layers'
+
+import type { LayerPreset, StackLayer } from './layers'
 
 /**
  * Set the rows a preset names, in place, and hand the same stack back.

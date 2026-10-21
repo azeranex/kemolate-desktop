@@ -12,10 +12,11 @@
  * Nothing is saved without the dialog. A download the reader cancels is simply
  * not written; Chromium's partial file is its own to clean up.
  */
-import type { DownloadItem } from 'electron'
+import path from 'node:path'
 
 import { app, session } from 'electron'
-import path from 'node:path'
+
+import type { DownloadItem } from 'electron'
 
 /** What each kind of file is called in the dialog, by extension. */
 const KINDS: Record<string, { title: string, filter: string }> = {

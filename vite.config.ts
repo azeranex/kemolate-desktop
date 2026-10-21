@@ -20,20 +20,22 @@
  *     `pnpm preview` runs the result. Packaging an installer is a separate step
  *     and not this plugin's job.
  */
-import type { ChildProcess } from 'node:child_process'
-import type { Plugin, ResolvedConfig } from 'vite'
 
-import tailwindcss from '@tailwindcss/vite'
-import vue from '@vitejs/plugin-vue'
 import { spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+
+import tailwindcss from '@tailwindcss/vite'
+import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { defineConfig, build as viteBuild } from 'vite'
 
 import { answerModel, MODEL_HEADERS } from './server/models.ts'
+
+import type { ChildProcess } from 'node:child_process'
+import type { Plugin, ResolvedConfig } from 'vite'
 
 // Forward slashes even on Windows: these paths are written into generated
 // imports, where a backslash is an escape and `X:\repos` arrives as `X:epos`.
@@ -319,7 +321,7 @@ function electron (): Plugin {
           // The window was closed, or Electron died: the dev session is over.
           if (!stopping) {
             log(`exited${code ? ` with code ${code}` : ''} — stopping the dev server`)
-            void server.close().then(() => process.exit(code ?? 0))
+            server.close().then(() => process.exit(code ?? 0))
           }
         })
       }
@@ -364,7 +366,7 @@ function electron (): Plugin {
               return
             }
             if (event.code !== 'BUNDLE_END') return
-            void event.result?.close()
+            event.result?.close()
 
             // The first build of each only counts towards starting the app.
             if (!built.has(entry.name)) {

@@ -25,8 +25,8 @@
  * from the main process — the web build's `/api/settings/status`. The key itself
  * is never in it.
  */
-import type { KeyStatus } from '../../electron/preload'
 import type { Provider } from '#shared/utils/providers'
+import type { KeyStatus } from '../../electron/preload'
 
 /** Keys asked for so far — plaintext, in memory only. Module level: one answer for every caller. */
 const keys = ref<Partial<Record<Provider, string>>>({})
@@ -134,11 +134,7 @@ export function useProviderKeys () {
     loaded.value = true
     trouble.value = null
 
-    const next = { ...keys.value }
-
-    for (const provider of Object.keys(patch) as Provider[]) delete next[provider]
-
-    keys.value = next
+    keys.value = Object.fromEntries(Object.entries(keys.value).filter(([provider]) => !(provider in patch)))
   }
 
   /** Whether a key is stored for this provider — from the status, so it needs no key in memory. */

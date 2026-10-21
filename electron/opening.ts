@@ -26,13 +26,15 @@
  * is up (`files:pending`), and is told about anything that arrives later
  * (`files:opened`).
  */
-import type { BrowserWindow } from 'electron'
 
-import { ipcMain, net } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+
+import { ipcMain, net } from 'electron'
+
+import type { BrowserWindow } from 'electron'
 
 export const PROJECT_EXTENSION = '.kemolate'
 

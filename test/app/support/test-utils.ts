@@ -1,9 +1,8 @@
-import type { Component } from 'vue'
-
-import type { VueWrapper } from '@vue/test-utils'
-
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, reactive, Suspense } from 'vue'
+
+import type { VueWrapper } from '@vue/test-utils'
+import type { Component } from 'vue'
 
 /**
  * `@nuxt/test-utils/runtime`, as far as the web build's app tests use it — the
