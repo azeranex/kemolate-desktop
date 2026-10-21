@@ -106,6 +106,15 @@ useLiveSync()
 useLayerSync()
 
 /*
+ * Whether the record has been asked for on the way in — so that "no record"
+ * means there is none, rather than that the answer has not come back yet. A
+ * workspace with none is one still kept in this window's storage, and is moved
+ * into the database (`useMoveIn`) at the end of a restore pass.
+ */
+const looked = ref(false)
+const { moveIn } = useMoveIn()
+
+/*
  * The way in — the web build's gather: what was open, the workspace's record
  * (`look`), and this machine's last target language, reading direction and AI
  * ledger, together. Then the pages the record holds that no file here accounts
@@ -114,7 +123,7 @@ useLayerSync()
  * handed over to be opened here (`useProjectFile.claim`) — after the restore,
  * which is what lowers `restoring`; see the web build.
  */
-onMounted(() => Promise.all([restore(), look(), restoreTarget(), restoreDirection(), restoreUsage()])
+onMounted(() => Promise.all([restore(), look().then(() => { looked.value = true }), restoreTarget(), restoreDirection(), restoreUsage()])
   .then(() => { showMissing() })
   .then(() => restorePosition())
   .then(() => claimProject()))
@@ -197,6 +206,9 @@ function settle (): Promise<void> {
 async function restoreChain () {
   const pass = ++begun
 
+  // Whether every page had its hash as this pass began — see the move below.
+  const whole = pages.value.every((entry) => !entry.scan || entry.scan.hash)
+
   await syncPages()
 
   // Outside `syncPages`, as in the web build: it does nothing for a reader who
@@ -213,6 +225,14 @@ async function restoreChain () {
   read.value = pass
 
   await restorePatches()
+
+  // Desktop: a workspace from before the database, moved into it now that the
+  // whole chapter is back on screen — see `useMoveIn`, which moves a workspace
+  // once. Only after a pass that began with every page hashed, and with no
+  // pass queued behind it: the reading comes back by hash, and a hash that
+  // lands mid-pass is a page this pass skipped, whose reading the move would
+  // then leave behind — it did, on the first test of this.
+  if (whole && !again && looked.value && !shared.value) await moveIn()
 }
 
 /*
@@ -519,7 +539,15 @@ const untranslated = computed(() =>
         Laid out but not shown until the page this window was last on has been
         turned to — otherwise page one is drawn for a frame or two first.
       -->
-      <CanvasBoard v-else :class="{ invisible: placing || composing }" />
+      <template v-else>
+        <CanvasBoard :class="{ invisible: placing || composing }" />
+
+        <!--
+          Over the chapter rather than instead of it: pages whose files are not
+          here are still on screen and workable. See the component.
+        -->
+        <CanvasAbsent />
+      </template>
     </CanvasDrop>
 
     <template #toolbar>

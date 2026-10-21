@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AppMenu: typeof import('./components/AppMenu.vue')['default']
     AutoRun: typeof import('./components/AutoRun.vue')['default']
+    CanvasAbsent: typeof import('./components/canvas/Absent.vue')['default']
     CanvasBoard: typeof import('./components/canvas/Board.vue')['default']
     CanvasBrushCursor: typeof import('./components/canvas/BrushCursor.vue')['default']
     CanvasDrop: typeof import('./components/canvas/Drop.vue')['default']
@@ -60,6 +61,7 @@ declare module 'vue' {
     ProjectDrop: typeof import('./components/ProjectDrop.vue')['default']
     ProjectImport: typeof import('./components/ProjectImport.vue')['default']
     SettingsCuda: typeof import('./components/SettingsCuda.vue')['default']
+    SettingsData: typeof import('./components/SettingsData.vue')['default']
     StepRail: typeof import('./components/StepRail.vue')['default']
     TitleBar: typeof import('./components/TitleBar.vue')['default']
     ToolOptions: typeof import('./components/tool/Options.vue')['default']

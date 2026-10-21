@@ -301,6 +301,9 @@ useEventListener(document, 'focusin', (event: FocusEvent) => {
 
         <!-- Desktop: models on an NVIDIA GPU, opt-in — see `SettingsCuda`. -->
         <SettingsCuda />
+
+        <!-- Desktop: where the work is kept, and its backups — see `SettingsData`. -->
+        <SettingsData />
       </div>
     </Default>
   </div>

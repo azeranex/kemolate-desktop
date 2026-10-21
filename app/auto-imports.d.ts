@@ -266,6 +266,7 @@ declare global {
   const forgetAgreed: typeof import('./composables/useBlockSync').forgetAgreed
   const forgetAgreedTranslations: typeof import('./composables/useTranslationSync').forgetAgreedTranslations
   const forgetHistory: typeof import('./utils/history').forgetHistory
+  const forgetMoves: typeof import('./composables/useMoveIn').forgetMoves
   const forgetPaintSync: typeof import('./composables/usePaintSync').forgetPaintSync
   const formatBytes: typeof import('./utils/bytes').formatBytes
   const framedBoxOf: typeof import('./composables/useComic').framedBoxOf
@@ -330,6 +331,7 @@ declare global {
   const keepLayersLocally: typeof import('./composables/useLayerCache').keepLayersLocally
   const keepPlaced: typeof import('./utils/placed').keepPlaced
   const labEndpoint: typeof import('./utils/ocr/lab').labEndpoint
+  const layerDrafts: typeof import('./composables/useLayerSync').layerDrafts
   const layerEditable: typeof import('../shared/utils/layers').layerEditable
   const layerInk: typeof import('../shared/utils/layers').layerInk
   const layerRemovable: typeof import('../shared/utils/layers').layerRemovable
@@ -732,6 +734,7 @@ declare global {
   const useMouse: typeof import('@vueuse/core').useMouse
   const useMouseInElement: typeof import('@vueuse/core').useMouseInElement
   const useMousePressed: typeof import('@vueuse/core').useMousePressed
+  const useMoveIn: typeof import('./composables/useMoveIn').useMoveIn
   const useMutationObserver: typeof import('@vueuse/core').useMutationObserver
   const useNavigatorLanguage: typeof import('@vueuse/core').useNavigatorLanguage
   const useNetwork: typeof import('@vueuse/core').useNetwork
@@ -1388,6 +1391,7 @@ declare module 'vue' {
     readonly forgetAgreed: UnwrapRef<typeof import('./composables/useBlockSync')['forgetAgreed']>
     readonly forgetAgreedTranslations: UnwrapRef<typeof import('./composables/useTranslationSync')['forgetAgreedTranslations']>
     readonly forgetHistory: UnwrapRef<typeof import('./utils/history')['forgetHistory']>
+    readonly forgetMoves: UnwrapRef<typeof import('./composables/useMoveIn')['forgetMoves']>
     readonly forgetPaintSync: UnwrapRef<typeof import('./composables/usePaintSync')['forgetPaintSync']>
     readonly formatBytes: UnwrapRef<typeof import('./utils/bytes')['formatBytes']>
     readonly framedBoxOf: UnwrapRef<typeof import('./composables/useComic')['framedBoxOf']>
@@ -1452,6 +1456,7 @@ declare module 'vue' {
     readonly keepLayersLocally: UnwrapRef<typeof import('./composables/useLayerCache')['keepLayersLocally']>
     readonly keepPlaced: UnwrapRef<typeof import('./utils/placed')['keepPlaced']>
     readonly labEndpoint: UnwrapRef<typeof import('./utils/ocr/lab')['labEndpoint']>
+    readonly layerDrafts: UnwrapRef<typeof import('./composables/useLayerSync')['layerDrafts']>
     readonly layerEditable: UnwrapRef<typeof import('../shared/utils/layers')['layerEditable']>
     readonly layerInk: UnwrapRef<typeof import('../shared/utils/layers')['layerInk']>
     readonly layerRemovable: UnwrapRef<typeof import('../shared/utils/layers')['layerRemovable']>
@@ -1853,6 +1858,7 @@ declare module 'vue' {
     readonly useMouse: UnwrapRef<typeof import('@vueuse/core')['useMouse']>
     readonly useMouseInElement: UnwrapRef<typeof import('@vueuse/core')['useMouseInElement']>
     readonly useMousePressed: UnwrapRef<typeof import('@vueuse/core')['useMousePressed']>
+    readonly useMoveIn: UnwrapRef<typeof import('./composables/useMoveIn')['useMoveIn']>
     readonly useMutationObserver: UnwrapRef<typeof import('@vueuse/core')['useMutationObserver']>
     readonly useNavigatorLanguage: UnwrapRef<typeof import('@vueuse/core')['useNavigatorLanguage']>
     readonly useNetwork: UnwrapRef<typeof import('@vueuse/core')['useNetwork']>

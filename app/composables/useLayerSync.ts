@@ -128,6 +128,36 @@ export const useLayerRows = () => useState<Record<string, number>>('layer-rows',
 export const useLayerClaims = () => useState<string[]>('layer-claimed', () => [])
 
 /**
+ * A stack flattened into the rows the server takes, each naming its parent by
+ * uid — see `layerSyncSchema`.
+ *
+ * Desktop: lifted out of `useLayerSync`, where it was `flatten`, so a
+ * workspace moving into the database can send every page's stack at once
+ * (`useMoveIn`) without standing up a second copy of the sync's watchers.
+ */
+export function layerDrafts (stack: StackLayer[], parentUid: string | null = null): LayerDraft[] {
+  return stack.flatMap((layer, position) => [
+    {
+      uid: layer.id,
+      parentUid,
+      position,
+      label: layer.label,
+      hint: layer.hint ?? null,
+      plate: layer.plate ?? null,
+      visible: layer.visible,
+      opacity: layer.opacity,
+      locked: layer.locked ?? false,
+      paint: layer.paint ?? false,
+      fixed: layer.fixed ?? false,
+      clipped: layer.clipped ?? false,
+      adjust: layer.adjust ?? null,
+      image: layer.image ?? null,
+    },
+    ...layerDrafts(layer.children ?? [], layer.id),
+  ])
+}
+
+/**
  * A page's stored rows, folded back into the tree the canvas draws.
  *
  * `open` comes from `twirls` where given — the rows do not carry it and should
@@ -280,28 +310,6 @@ export function useLayerSync () {
    * row dragged into a group that sorts after it would otherwise name a parent
    * that does not exist yet.
    */
-  function flatten (stack: StackLayer[], parentUid: string | null = null): LayerDraft[] {
-    return stack.flatMap((layer, position) => [
-      {
-        uid: layer.id,
-        parentUid,
-        position,
-        label: layer.label,
-        hint: layer.hint ?? null,
-        plate: layer.plate ?? null,
-        visible: layer.visible,
-        opacity: layer.opacity,
-        locked: layer.locked ?? false,
-        paint: layer.paint ?? false,
-        fixed: layer.fixed ?? false,
-        clipped: layer.clipped ?? false,
-        adjust: layer.adjust ?? null,
-        image: layer.image ?? null,
-      },
-      ...flatten(layer.children ?? [], layer.id),
-    ])
-  }
-
   /**
    * The rows, folded back into the tree the canvas draws.
    *
@@ -327,10 +335,10 @@ export function useLayerSync () {
   }
 
   /** The stack as one string, for noticing that it moved. */
-  const shape = computed(() => JSON.stringify(flatten(layers.value)))
+  const shape = computed(() => JSON.stringify(layerDrafts(layers.value)))
 
   /** What a page with no rows on the server is — see `pull`. */
-  const DEFAULT_SHAPE = JSON.stringify(flatten(DEFAULT_STACK))
+  const DEFAULT_SHAPE = JSON.stringify(layerDrafts(DEFAULT_STACK))
 
   /* ---------- out ---------- */
 
@@ -373,7 +381,7 @@ export function useLayerSync () {
     // workspace, and it has nothing worth writing down yet.
     if (!page || !stack) return
 
-    const body = flatten(stack)
+    const body = layerDrafts(stack)
     const was = JSON.stringify(body)
 
     const written = await $fetch<StoredLayer[]>(`/api/workspaces/${workspace.value}/layers`, {
@@ -587,7 +595,7 @@ export function useLayerSync () {
     // Taken as agreed, so applying what the server just said does not read as
     // an edit and get sent straight back — the echo the block sync had to be
     // taught the same lesson about.
-    sent.set(asked, JSON.stringify(flatten(built)))
+    sent.set(asked, JSON.stringify(layerDrafts(built)))
   }
 
   /**

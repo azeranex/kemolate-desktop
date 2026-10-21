@@ -643,12 +643,17 @@ export function useLibrary () {
        * Deleting it is still one choice away, on the list. The warning is filed
        * under the workspace and taken down when pages arrive (`opened`), since a
        * warning stays until it is dismissed and this one is answered by a drop.
+       *
+       * Since the database (2026-10-21) the workspace's record puts its pages
+       * back on screen with their work, pictures absent (`useShared.showMissing`,
+       * which raises `open` again), and the reader gives each its file back —
+       * `CanvasAbsent`. The warning says so.
        */
       if (!images.length) {
         open.value = false
         toast.warning('This chapter’s pages are missing', {
           id: missingToast(workspace.value),
-          description: 'The copy the app kept of them is gone. Drop the same pages in again — the readings, translations and layers made on them come back with them.',
+          description: 'The copy the app kept of them is gone. The work on them is safe — open their folder, or give each page its file from the page list.',
         })
 
         return
@@ -678,7 +683,7 @@ export function useLibrary () {
         open.value = false
         toast.warning('This chapter’s files are missing', {
           id: missingToast(workspace.value),
-          description: 'They have been moved or deleted since it was opened. Drop the same pages in again — the readings, translations and layers made on them come back with them.',
+          description: 'They have been moved or deleted since it was opened. The work on them is safe — open their folder, or give each page its file from the page list.',
         })
 
         return
@@ -695,7 +700,7 @@ export function useLibrary () {
 
       if (found.missing) {
         toast.warning(`${found.missing} of this chapter’s files ${found.missing === 1 ? 'is' : 'are'} missing`, {
-          description: 'Moved or deleted since the chapter was opened, so their pages are not here. Dropping them in again brings their work back.',
+          description: 'Moved or deleted since the chapter was opened, so their pictures are not here. The work on them is safe — give each page its file from the page list.',
         })
       }
 

@@ -62,11 +62,54 @@ const { openWaiting, listen } = useOpenedFiles()
 
 onBeforeUnmount(listen())
 
+/**
+ * The workspace a launch lands in: the last one this window opened, or — where
+ * the window's own storage has no record of one, which is what losing it looks
+ * like — the one most recently changed in the database. Null for none.
+ */
+async function landing (): Promise<string | null> {
+  const last = await latest().catch(() => null)
+
+  if (last) return last
+
+  const kept = await $fetch<{ publicId: string }[]>('/api/workspaces').catch(() => [])
+
+  return kept[0]?.publicId ?? null
+}
+
+/**
+ * What opening the database found, said once — see `electron/database.ts`. A
+ * damaged file is moved aside and the newest backup put in its place, and that
+ * must never happen without a word: the reader's last hour or so of work may
+ * be in the file that was set aside.
+ */
+async function sayHowDataOpened () {
+  const notice = await window.kemolate?.data.notice().catch(() => null)
+
+  if (!notice) return
+
+  if (notice.chosen && notice.restoredFrom) {
+    toast.success('Backup restored', { description: 'Every workspace’s work is as it was in that backup.' })
+  } else if (notice.quarantined && notice.restoredFrom) {
+    toast.warning('Kemolate’s database was damaged, and a backup was put back', {
+      duration: Infinity,
+      description: `Work done since the backup may be missing. The damaged file was kept, as ${notice.quarantined}, in the app’s data folder.`,
+    })
+  } else if (notice.quarantined) {
+    toast.error('Kemolate’s database was damaged, and there was no backup to put back', {
+      duration: Infinity,
+      description: `A new one was started. The damaged file was kept, as ${notice.quarantined}, in the app’s data folder.`,
+    })
+  }
+}
+
 onMounted(async () => {
+  sayHowDataOpened()
+
   const handed = await openWaiting().catch(() => false)
 
   if (!handed && route.path === '/') {
-    const last = await latest().catch(() => null)
+    const last = await landing()
 
     if (last) await navigateTo(`/w/${last}`)
   }

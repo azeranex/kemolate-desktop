@@ -277,8 +277,9 @@ function onLoad (event: Event) {
           Not on this computer
         </p>
         <p class="max-w-64 text-xs">
-          “{{ page.name }}” is part of this chapter; its scan is on the machine
-          it was opened from.
+          <!-- Desktop: the reader's own file, not found — see `CanvasAbsent`. -->
+          “{{ page.name }}” is part of this chapter, and its work is safe; the
+          file itself was not found. Give it back from the page list.
         </p>
       </template>
     </div>
