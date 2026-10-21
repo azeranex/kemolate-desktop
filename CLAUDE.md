@@ -1,7 +1,8 @@
 # CLAUDE.md
 
 Kemolate as a desktop app: the web build (`../kemolate`) migrated onto Electron, for one
-machine and one user. No accounts and no peer-to-peer sharing — a chapter travels as a
+machine and one user — public at [azeranex/kemolate-desktop](https://github.com/azeranex/kemolate-desktop),
+released through GitHub Releases that installed copies update themselves from. No accounts and no peer-to-peer sharing — a chapter travels as a
 `.kemolate` project file. A workspace's work is kept the way the web build keeps a cloud
 workspace's, through the same composables and services, but in a SQLite file the main process
 owns (see **The workspace database**). Read `../kemolate/CLAUDE.md` for what the app *is*;
@@ -42,9 +43,9 @@ did, and an `/api/` path nobody registered is a 404, never a connection. `setup.
 `fetch` rather than `vi.stubGlobal`ging it: tests that `vi.unstubAllGlobals()` took it away
 mid-file, and every later request went to the network.
 Two things the Nuxt environment did that this one does by hand, and that fail quietly if lost:
-`import.meta.client`/`.server`/`.dev` are written in by a transform (`define` does not reach
-them under Vitest — every one read `undefined` and the app took its server branches), and
-`setup.ts` calls `nuxtReady()` (no `main.ts` runs, so no `remember`ed setting ever loaded).
+`import.meta.client`/`.server`/`.dev` are written in by a transform (`nuxtFlagsInCode`, see
+**Migration rules**), and `setup.ts` calls `nuxtReady()` (no `main.ts` runs, so no
+`remember`ed setting ever loaded).
 `test/app/tsconfig.json`, referenced from the root, is what makes `pnpm typecheck` cover them.
 
 The sync composables' tests came back with the database (2026-10-21), as the web build has
@@ -60,8 +61,17 @@ the way to see the real window, title bar included, without anybody looking at i
 
 **Never start the dev server with Bash**; use the Browser preview tools (the config is
 `kemolate-desktop` in `../kemolate/.claude/launch.json`). A renderer opened in the browser
-pane has no `window.kemolate`, so window controls and anything else on the bridge are absent
-there — check those inside Electron.
+pane has no `window.kemolate`, so window controls, the database and anything else on the
+bridge are absent there — check those inside Electron.
+
+**`pnpm dev` runs on the reader's real profile** (`%APPDATA%\kemolate-desktop`), the same one
+the installed app uses, and only one of them can hold it at a time (see **One window per
+profile**). Its window is served from `http://localhost:5173`, a different origin from the
+built app's, so it has its own IndexedDB and OPFS: chapters opened in the installed app show
+their pages as absent there until their folder is given again — their work is in the shared
+database. To drive a dev window from a test, start a second Electron against the running dev
+server on a test profile (`KEMOLATE_DEV_URL=http://localhost:5173/` with `KEMOLATE_PROFILE`);
+never attach to the reader's.
 
 ## Layout — the web build's, on purpose
 
@@ -73,6 +83,7 @@ there — check those inside Electron.
 | `test/app/` | `test/nuxt/` | the app's tests — see Commands |
 | `electron/` | — | main process and preload (the bridge, `window.kemolate`) |
 | `server/` | `server/` | the model store (`models.ts`), and the web build's data layer — `database/` (schema, relations, client, migrations) and `services/` — run by the main process, not a server; see **The workspace database** |
+| `.github/workflows/` | — | CI on every push and pull request, and the release on a `v*` tag — see **Releases and updates** |
 
 A file migrated from the web build goes to **the same path** here, so the two can be diffed
 and a later fix in one can be carried to the other. Keep it that way.
@@ -88,10 +99,21 @@ and a later fix in one can be carried to the other. Keep it that way.
   provides `useState`, `useRoute`/`useRouter`/`navigateTo` (one in-memory route: `/`,
   `/w/<id>`, `/settings` or `/ocr-lab` — 34 files read `route.params.workspaceId`, which the
   last two keep), `useNuxtApp`, `useCookie` (local storage), `$fetch` (over IPC to the main process),
-  `useHead`, `onNuxtReady`, and `definePageMeta` (ignored — `App.vue` decides layout and key). `import.meta.client`,
-  `.server` and `.dev` are defined in `vite.config.ts`. Do not hand-convert these in a ported
-  file — the first three files ported (`usePanelDock`, `useTools`, `useColorScheme`) were,
-  before the shim existed, and say so.
+  `useHead`, `onNuxtReady`, and `definePageMeta` (ignored — `App.vue` decides layout and key). Do
+  not hand-convert these in a ported file — the first three files ported (`usePanelDock`,
+  `useTools`, `useColorScheme`) were, before the shim existed, and say so.
+- **`import.meta.client`, `.server` and `.dev` are written into the code** by
+  `nuxtFlagsInCode` (`vite.config.ts`), for dev, the build and Vitest alike — not left to
+  `define`, which the production build applies and **the dev server and Vitest do not**. Left to
+  `define`, every `import.meta.client` guard read `undefined` in dev: the page engine never
+  asked for a device and no page was drawn (a grey sheet, fixed 2026-10-21); in the tests,
+  `remember` never wired a setting.
+- **One meaning per auto-imported name.** The auto-imports hold one export per name across
+  `app/` and `shared/utils`, and a tie is a warning on every start and a bare name that means
+  whichever won. Four ties were removed on 2026-10-21 by renaming the `app/` side —
+  `useComic`'s `PageScan` and `PageBox` (`Scan` and `Box` in the web build) and `ocr/mask`'s
+  `InkMask` (`Ink`), with its `Point` dropped for `shared/utils/raster`'s identical one. Check
+  the dev server's output for "Duplicated imports" when adding an export.
 - **What changes is said in the file**, in the house style (decisions, not syntax — see the
   web build's CLAUDE.md).
 - **Unmigrated dependencies get stand-ins, never silent no-ops.** A stand-in is shaped so the
@@ -149,6 +171,13 @@ and a later fix in one can be carried to the other. Keep it that way.
     drawing it (`facesIn`): `decode()` does not, and the first export of a session came out in
     the fallback face with lines that no longer fitted their balloons clipped away. The web
     build's file draws at once, so it very likely does the same.
+  - The model picker (`shared/utils/models.ts`, `useModels`): each Claude entry tracks its
+    family (`AiModel.family`) and moves to the newest version in OpenRouter's public
+    catalogue, never backwards, taking the reader's choice with it; a run reads the catalogue
+    first (`useModels.current`, at most 3 s). OpenRouter's free models (ids ending `:free`,
+    text out, price 0) are offered after the curated ones, from the catalogue each session; a
+    free choice stays itself offline rather than falling back to the first, paid entry. Both
+    added 2026-10-21; the web build's list is fixed ids.
   - `useProviderKeys` is the web build's with the passcode vault taken out: keys are kept by
     the OS (`electron/keys.ts`), so nothing is ever locked. `pages/settings.vue` is the web
     page's key section alone (no passcode, no access tokens), drawn *over* the open
@@ -250,9 +279,15 @@ releases are GitHub Releases the installed app updates itself from.
 
 - **To release:** bump `version` in `package.json`, commit, then
   `git tag v<version> && git push origin main v<version>`. `.github/workflows/release.yml`
-  checks the tag matches `package.json`, runs typecheck, lint and tests, builds, and
-  `electron-builder --publish always` uploads the installer, its blockmap and `latest.yml`.
-  `ci.yml` runs the same checks on every push to `main` and every pull request.
+  checks the tag matches `package.json`, runs typecheck, lint and tests, builds, **creates the
+  Release itself**, then `electron-builder --publish always` uploads the installer, its
+  blockmap and `latest.yml` into it, and a last step fails the run unless the tag has exactly
+  one release holding all three. `ci.yml` runs the same checks on every push to `main` and
+  every pull request. Both run on Windows.
+- **Why the workflow makes the Release:** electron-builder uploads in parallel, and each upload
+  that finds no release creates one. v0.1.0 (the first, 2026-10-21) came out as two releases on
+  one tag — the blockmap in one, the installer and `latest.yml` in the other — and was put
+  right by hand. The fix has not run yet; the next release is its first test.
 - **The app updates itself** (`electron/updates.ts`, `electron-updater`): checks 15 s after
   launch and every four hours, downloads in the background, then offers "Restart to update"
   (a toast, and Settings › Updates) — never restarts on its own, and otherwise installs on
@@ -402,6 +437,8 @@ releases are GitHub Releases the installed app updates itself from.
 - A component used in a template but never brought across renders its slot inline rather
   than failing — the Detect panel's `InfoTip` did, as five lines beside a switch. Check
   `app/components.d.ts` when a ported panel lays out oddly.
-- The page's CSP is the meta tag in `index.html`. `connect-src` names the two services the
-  renderer talks to directly — `translate.googleapis.com` (the Google engine) and
-  `openrouter.ai` (the AI engines and the model list); a new one has to be added there.
+- The page's CSP is the meta tag in `index.html`. `connect-src` names the services the
+  renderer talks to directly — `translate.googleapis.com` (the Google engine), `openrouter.ai`
+  (the AI engines and the model list), `api.anthropic.com` (Claude on an Anthropic key) and
+  `vision.googleapis.com` (the Google vision reader); a new one has to be added there. The
+  updater and the model downloads run in the main process, which the CSP does not cover.
