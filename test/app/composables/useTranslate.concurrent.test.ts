@@ -1,4 +1,5 @@
-import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { mockNuxtImport, registerEndpoint } from '@nuxt/test-utils/runtime'
+import { readBody } from 'h3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
 
@@ -26,13 +27,7 @@ import { forgetAgreedTranslations } from '~/composables/useTranslationSync'
  * Seam: `translatePage`, answered by hand, so every test decides which page's
  * answer arrives when — the one thing a real provider never lets you choose.
  * The glossary is a stand-in that folds first-translation-wins the way both real
- * stores do.
- *
- * Desktop: on a local workspace, which is the only kind there is. The web build's
- * version ran on a cloud one and also checked the order the *saves* reached the
- * server, and that one press was one batch there; with no server, the order a
- * run wrote its pages in is `lastRun.pageIds`, which every test here still
- * checks, and the batch is a server's idea.
+ * stores do, and the saves land on endpoints that record the order they came in.
  */
 
 interface Ask {
@@ -105,6 +100,22 @@ mockNuxtImport('translatePage', () => (_key: string, input: TranslateInput) =>
     })
   }))
 
+/** Every save, in the order the server received them. */
+const saved: { page: number, blocks: number[], batch: string | null }[] = []
+
+for (const row of [101, 102, 103, 104, 105]) {
+  registerEndpoint(`/api/workspaces/ws/pages/${row}/translations`, {
+    method: 'PUT',
+    handler: async (event) => {
+      const body = await readBody<{ entries: { blockId: number }[], origin?: { batch: string | null } }>(event)
+
+      saved.push({ page: row, blocks: body.entries.map((entry) => entry.blockId), batch: body.origin?.batch ?? null })
+
+      return []
+    },
+  })
+}
+
 const block = (id: string, source: string) => ({
   id,
   type: 'bubble',
@@ -118,7 +129,7 @@ const block = (id: string, source: string) => ({
   hidden: false,
 })
 
-/** Page `n`, one balloon, its block named `block:<n * 10>` as the web build's rows named it. */
+/** Page `n`, one balloon, saved under row `100 + n` with its block under row `n * 10`. */
 const pageOf = (n: number, source: string, id = `block:${n * 10}`) => ({
   id: `scan:${n}.png`,
   name: `${n}.png`,
@@ -141,7 +152,9 @@ describe('a run of several pages', () => {
   beforeEach(() => {
     scope = effectScope()
     model.asks.length = 0
+    saved.length = 0
     state.terms.value = []
+    state.shared.value = { role: 'editor', pages: [101, 102, 103, 104, 105].map((id) => ({ id })) }
     forgetAgreedTranslations()
 
     const comic = useComic()
@@ -187,6 +200,7 @@ describe('a run of several pages', () => {
     await settle()
 
     expect(lines()).toEqual(['', '', '', ''])
+    expect(saved).toEqual([])
     expect(model.asks).toHaveLength(3)
 
     ask('いち').answer(['One'])
@@ -198,6 +212,10 @@ describe('a run of several pages', () => {
     await running
 
     expect(lines()).toEqual(['One', 'Two', 'Three', 'Four'])
+    expect(saved.map((each) => each.page)).toEqual([101, 102, 103, 104])
+
+    // One press, one batch — Undo still takes the whole run back.
+    expect(new Set(saved.map((each) => each.batch)).size).toBe(1)
     expect(lastRun.value?.pageIds).toEqual(['scan:1.png', 'scan:2.png', 'scan:3.png', 'scan:4.png'])
   })
 
@@ -306,6 +324,7 @@ describe('a run of several pages', () => {
     expect(lines()).toEqual(['One', '', '', ''])
     expect(error.value).toMatch(/402/)
     expect(model.asks).toHaveLength(3)
+    expect(saved.map((each) => each.page)).toEqual([101])
     expect(lastRun.value?.pageIds).toEqual(['scan:1.png'])
   })
 
@@ -328,6 +347,7 @@ describe('a run of several pages', () => {
     await running
 
     expect(lines()).toEqual([''])
+    expect(saved).toEqual([])
     expect(state.terms.value).toEqual([])
   })
 
@@ -351,5 +371,6 @@ describe('a run of several pages', () => {
     await running
 
     expect(lines()).toEqual(['One'])
+    expect(saved).toEqual([{ page: 101, blocks: [57], batch: expect.any(String) }])
   })
 })

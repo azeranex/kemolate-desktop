@@ -27,10 +27,11 @@ export type SwarmChange =
   | { scope: 'layers' }
   | { scope: 'cast' }
   | { scope: 'glossary', locale: string }
+  | { scope: 'repairs', pageId: number }
 
 /**
  * Hear another window of a shared workspace change something. Nothing is ever
- * heard — a local workspace's windows hear each other through `useLocalChanges`.
+ * heard: there is one window, and nobody else at the database it writes to.
  * Returns the unsubscribe, as the web build's does.
  */
 export function onSwarmChange (_listener: (room: string, change: SwarmChange) => void): () => void {

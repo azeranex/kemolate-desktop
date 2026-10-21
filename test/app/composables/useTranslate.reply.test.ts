@@ -19,10 +19,7 @@ import { forgetAgreedTranslations } from '~/composables/useTranslationSync'
  * lines land, the bad one stays a gap, and the reader is told.
  *
  * Seam: `translatePage`, answered here, so nothing reaches a provider; the
- * errand's own reading of a reply is `test/app/utils/openrouter.test.ts`.
- *
- * Desktop: on a local workspace, the only kind there is — the web build's ran
- * on a cloud one, whose save this app has no server to make.
+ * errand's own reading of a reply is `test/nuxt/utils/openrouter.test.ts`.
  */
 
 const { shared, target, terms, reply } = await vi.hoisted(async () => {
@@ -80,6 +77,7 @@ describe('a reply that is not all lines', () => {
   beforeEach(() => {
     scope = effectScope()
     forgetAgreedTranslations()
+    shared.value = { role: 'editor', pages: [{ id: 7 }] }
 
     const comic = useComic()
 

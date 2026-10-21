@@ -77,7 +77,6 @@ declare module 'vue' {
     UAlertDialogFooter: typeof import('./components/ui/alert-dialog/AlertDialogFooter.vue')['default']
     UAlertDialogHeader: typeof import('./components/ui/alert-dialog/AlertDialogHeader.vue')['default']
     UAlertDialogTitle: typeof import('./components/ui/alert-dialog/AlertDialogTitle.vue')['default']
-    UBadge: typeof import('./components/ui/badge/Badge.vue')['default']
     UButton: typeof import('./components/ui/button/Button.vue')['default']
     UButtonGroup: typeof import('./components/ui/button-group/ButtonGroup.vue')['default']
     UCombobox: typeof import('./components/ui/combobox/Combobox.vue')['default']

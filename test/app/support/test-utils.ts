@@ -15,11 +15,10 @@ import type { Component } from 'vue'
  *   so a component with an async setup is ready when the test gets it, and
  *   hands back the component's own wrapper — with `setProps` working on it,
  *   which a child wrapper's does not.
- * - `registerEndpoint` answers `fetch` for one path. There is no server in the
- *   desktop app and `$fetch` still refuses (`composables/nuxt.ts`), so an
- *   endpoint registered here is only reached by code that calls `fetch` itself —
- *   the model store, for one. A test that needed the server to be called is a
- *   test of the cloud, and did not come across.
+ * - `registerEndpoint` answers `fetch` for one path. In the app `$fetch` goes
+ *   to the main process over IPC (`composables/nuxt.ts`); with no bridge, which
+ *   is a test, it goes over `fetch` instead — so an endpoint registered here
+ *   answers `$fetch` as it does in the web build's tests.
  */
 export function mockNuxtImport<T = any> (name: string, _factory: () => T | Promise<T>): void {
   throw new Error(`mockNuxtImport('${name}') was not rewritten — it must be a top-level call with a string literal name`)
@@ -91,6 +90,12 @@ export async function fetchWithEndpoints (input: RequestInfo | URL, init?: Reque
   const request = new Request(typeof input === 'string' && input.startsWith('/') ? `http://localhost${input}` : input, init)
   const url = new URL(request.url)
   const entry = endpoints.get(url.pathname)?.find((each) => !each.method || each.method.toUpperCase() === request.method)
+
+  // The app's own requests that no test answered are a 404, as Nuxt's test
+  // environment makes them — not a connection to whatever holds port 3000.
+  if (!entry && url.pathname.startsWith('/api/')) {
+    return Response.json({ statusCode: 404, message: `No endpoint registered for ${url.pathname}` }, { status: 404 })
+  }
 
   if (!entry) return realFetch(input, init)
 

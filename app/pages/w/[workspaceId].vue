@@ -23,9 +23,15 @@
  * other page's preview and sketch is made in the background.
  *
  * And workspace settings — name, reading direction, what is kept where — beside
- * the folder button (`WorkspaceSettings`, the web build's without its cloud half). And never, because
- * the desktop app has no cloud: signing in, the swarm, sharing and moving to
- * the cloud, and the live syncs.
+ * the folder button (`WorkspaceSettings`).
+ *
+ * The workspace's record — its pages, readings, translations, layer stacks,
+ * strokes, glossary and cast — is the web build's cloud half, kept in this
+ * machine's own database (`electron/database.ts`) rather than on a server:
+ * `look` fetches it, `syncPages` and the syncs mounted below keep it, and a
+ * page it knows whose picture is not here is still shown (`showMissing`). Not
+ * here, because the desktop has neither: the swarm, sharing, and the MCP
+ * errands.
  *
  * `NuxtLayout name="workspace"` is the workspace layout, imported here — there
  * is no layout system, only the one layout.
@@ -56,6 +62,7 @@ useWorkspaceReset()
 const { open, pages, title, at, page, selection, epoch, room, go, zoomAt, resetView } = useComic()
 const { kind, pending, restoring, openFolder, restore, reopen, forget, identify } = useLibrary()
 const { tool } = useTools()
+const { shared, standing, look, syncPages, showMissing, fill: fillPages } = useShared()
 const { restore: restoreBlocks } = useOcr()
 const { restore: restoreCached } = useBlockCache()
 const { restore: restoreLayers } = useLayerCache()
@@ -88,28 +95,39 @@ useUndoShortcuts()
 // before they look for a button — see `useDeleteShortcut`.
 useDeleteShortcut()
 
+// The workspace's record, kept as it changes — the web build's four, mounted
+// once here rather than wired into each of the dozen places that edit a page:
+// a block back to its row (`useBlockSync`), what it says and how it is set
+// (`useTranslationSync`), what the database answered being laid in
+// (`useLiveSync`), and the layer stack (`useLayerSync`).
+useBlockSync()
+useTranslationSync()
+useLiveSync()
+useLayerSync()
+
 /*
- * The way in — the web build's gather, with the halves a local workspace has:
- * what was open, and beside it this machine's last target language, reading
- * direction and AI ledger, none of which waits on the pages. Then back to the
- * page this window was on, and last of all a project file handed over to be
- * opened here (`useProjectFile.claim`) — after the restore, which is what
- * lowers `restoring`; see the web build.
+ * The way in — the web build's gather: what was open, the workspace's record
+ * (`look`), and this machine's last target language, reading direction and AI
+ * ledger, together. Then the pages the record holds that no file here accounts
+ * for (`showMissing`), which needs both answers; then back to the page this
+ * window was on, which may be one of those; and last of all a project file
+ * handed over to be opened here (`useProjectFile.claim`) — after the restore,
+ * which is what lowers `restoring`; see the web build.
  */
-onMounted(() => Promise.all([restore(), restoreTarget(), restoreDirection(), restoreUsage()])
+onMounted(() => Promise.all([restore(), look(), restoreTarget(), restoreDirection(), restoreUsage()])
+  .then(() => { showMissing() })
   .then(() => restorePosition())
   .then(() => claimProject()))
 
 /*
  * The chapter's glossary, which goes out with every page put through the model,
  * and its cast — read here rather than by the panels that draw them, because a
- * run reads both and those panels may never have been opened. The glossary on
- * the target language too: its target half is written in one. See the web
- * build, where both also wait on the workspace's standing; a local workspace has
- * nothing to wait on.
+ * run reads both and those panels may never have been opened. Both wait on the
+ * workspace's record; the glossary on the target language too, since its target
+ * half is written in one. See the web build.
  */
-watch(target, () => { loadGlossary() }, { immediate: true })
-loadCast()
+watch([standing, target], () => { loadGlossary() }, { immediate: true })
+watch(standing, () => { loadCast() }, { immediate: true })
 
 /*
  * Desktop: the name the reader gave this workspace, laid over the chapter each
@@ -135,11 +153,12 @@ watch(placedAsked, () => { restorePlaced() }, { immediate: true })
 
 /*
  * What has been done to the chapter comes back after the chapter does — the web
- * build's `restoreChain`, with the steps a local workspace has: the reading
- * (`useOcr.restore`, which is the server's copy and returns at once without
- * one, then this machine's own, `useBlockCache.restore`), and the repairs
- * (`useClean.restore`), with the layer stacks between them. The web build's
- * page-list sync and swarm announce are not here at all — see the header.
+ * build's `restoreChain`: the page list agreed with the record (`syncPages`)
+ * and the pages it has that are not here laid in (`showMissing`); the reading
+ * (`useOcr.restore`, the record's, then `useBlockCache.restore` for a
+ * workspace still kept in this window's storage); a local workspace's layer
+ * stacks; and the repairs (`useClean.restore`). The web build's swarm announce
+ * is not here — there is nobody to tell.
  *
  * One chain at a time; a trigger that lands mid-run asks for one more pass
  * rather than a second chain racing the first.
@@ -149,6 +168,8 @@ let again = false
 let begun = 0
 const read = ref(0)
 
+const opening = useOpening()
+
 function settle (): Promise<void> {
   if (running) {
     again = true
@@ -156,18 +177,31 @@ function settle (): Promise<void> {
     return running
   }
 
+  // The chain as a whole, for the status bar: it is what stops "not cleaned"
+  // being said in the gap between one stage ending and the next starting.
+  opening.begin('opening')
+
   running = (async () => {
     do {
       again = false
       await restoreChain()
     } while (again)
-  })().finally(() => { running = null })
+  })().finally(() => {
+    running = null
+    opening.end('opening')
+  })
 
   return running
 }
 
 async function restoreChain () {
   const pass = ++begun
+
+  await syncPages()
+
+  // Outside `syncPages`, as in the web build: it does nothing for a reader who
+  // may not amend the chapter, and showing the chapter is not an amendment.
+  showMissing()
 
   await restoreBlocks()
   await restoreCached()
@@ -183,14 +217,21 @@ async function restoreChain () {
 
 /*
  * Run it as the pages arrive, as their hashes land — everything kept is filed
- * by hash, so a page without one has nothing to look up yet — and whenever the
- * chapter is opened again (`epoch`), which the counts cannot see: reopening
- * gives the same pages back as new objects with no blocks on them.
+ * by hash, so a page without one has nothing to look up yet — as the record's
+ * rows change (only what the chain reads from them, so a rename does not re-run
+ * it), and whenever the chapter is opened again (`epoch`), which the counts
+ * cannot see: reopening gives the same pages back as new objects with no blocks
+ * on them. See the web build.
  */
 watch(
   [
     () => pages.value.length,
     () => pages.value.filter((entry) => entry.scan?.hash).length,
+    () => (shared.value
+      ? `${shared.value.role}|${shared.value.workspace.name}|${shared.value.pages
+        .map((row) => `${row.id}:${row.uid}:${row.hash}:${row.position}:${row.path}:${row.name}:${row.width}:${row.height}`)
+        .join(',')}`
+      : null),
     epoch,
   ],
   () => { settle() },
@@ -239,13 +280,23 @@ watch(placing, async (stillPlacing) => {
   // The page's own reading back is the usual answer, and arrives long before a
   // fresh pass can. The pass is for the page that has no blocks at all, which
   // only it can vouch for.
+  //
+  // Asked once before watching rather than with `immediate`: a page whose
+  // reading is already there (one the database holds and this machine has no
+  // file for, above all) answered inside the immediate call, and called `stop`
+  // before `watch` had returned it — a ReferenceError, and the page held hidden
+  // for the whole of `COMPOSE_MS`.
   await new Promise<void>((resolve) => {
+    const waiting = () => !page.value?.blocks.length && read.value < wanted && composing.value
+
+    if (!waiting()) return resolve()
+
     const stop = watch([read, composing, () => page.value?.blocks.length], () => {
-      if (!page.value?.blocks.length && read.value < wanted && composing.value) return
+      if (waiting()) return
 
       stop()
       resolve()
-    }, { immediate: true })
+    })
   })
 
   if (!composing.value) return
@@ -352,6 +403,24 @@ watch(() => (page.value ? shownRepairs.value[page.value.id] : null), () => {
   keeping = setTimeout(() => { keeping = null; keepShown(target) }, 500)
 })
 
+/*
+ * Each page's size, told to the record once this window has measured it — see
+ * `useShared.fill`. Once the burst of measurements has gone quiet, one request
+ * for the lot; rows already sized cost nothing.
+ */
+let sizing: ReturnType<typeof setTimeout> | null = null
+
+watch(() => pages.value.filter((entry) => entry.scan?.width).length, (sized) => {
+  if (sizing) clearTimeout(sizing)
+  if (!sized) return
+
+  sizing = setTimeout(() => { sizing = null; fillPages() }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (sizing) clearTimeout(sizing)
+})
+
 /**
  * Every page gets its hash once it is listed — which is what everything keyed
  * by content (thumbnails, previews, repairs) waits on. On the count and on the
@@ -365,7 +434,7 @@ const heading = computed(() => {
   if (restoring.value) return 'Kemolate'
   if (open.value) return title.value
 
-  return pending.value?.title ?? 'No comic open'
+  return pending.value?.title ?? shared.value?.workspace.name ?? 'No comic open'
 })
 
 const dimensions = computed(() => {

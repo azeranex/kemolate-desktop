@@ -21,7 +21,8 @@
  *   The web build used cookies so its server could render with them; here
  *   storage is read synchronously before the first paint, which is the same
  *   guarantee by the plainer route.
- * - `$fetch` — refuses: there is no server, see below.
+ * - `$fetch` — the web build's requests to its server, answered by the main
+ *   process over IPC (`electron/data.ts`); see below.
  * - `useHead` and `onNuxtReady` — the title, and "once the app is up".
  *
  * `import.meta.client`, `.server` and `.dev` are defined at build time in
@@ -128,14 +129,132 @@ export function useCookie<T> (name: string, options: { default?: () => T } = {})
   return cookie
 }
 
+export interface FetchOptions {
+  method?: string
+  /** JSON, or the bytes of a repair (a `Blob`). */
+  body?: unknown
+  query?: Record<string, unknown>
+  params?: Record<string, unknown>
+  headers?: Record<string, string>
+  responseType?: 'json' | 'blob' | 'arrayBuffer' | 'text'
+  signal?: AbortSignal | null
+}
+
 /**
- * The web build's server client. There is no server here, so a call that gets
- * this far is a cloud path a local workspace should never have taken — and it
- * fails aloud, naming the endpoint, rather than resolving to nothing and leaving
- * the caller to believe the server agreed.
+ * A refused request, shaped as ofetch's `FetchError` is — the composables read
+ * `statusCode`, and `data.data` for what the handler attached (`useBlockSync`
+ * reads `data.data.missing` off a 409).
  */
-export async function $fetch<T = unknown> (url: string, _options?: unknown): Promise<T> {
-  throw new Error(`The desktop app has no server — nothing answers ${url}.`)
+export class FetchError extends Error {
+  readonly status: number
+  readonly statusCode: number
+  readonly statusMessage: string
+  readonly data: { statusCode: number, statusMessage: string, message: string, data?: unknown }
+
+  constructor (method: string, url: string, status: number, message: string, data?: unknown) {
+    super(`[${method}] "${url}": ${status} ${message}`)
+    this.name = 'FetchError'
+    this.status = status
+    this.statusCode = status
+    this.statusMessage = message
+    this.data = { statusCode: status, statusMessage: message, message, data }
+  }
+}
+
+/** A query as a URL would carry it: strings, with nothing for `undefined`. */
+function queryOf (options: FetchOptions): Record<string, string> {
+  const query: Record<string, string> = {}
+
+  for (const [key, value] of Object.entries(options.query ?? options.params ?? {})) {
+    if (value !== undefined && value !== null) query[key] = String(value)
+  }
+
+  return query
+}
+
+/** Rejects when the signal does, as an aborted `fetch` does — the IPC call itself cannot be taken back. */
+function untilAborted (signal: AbortSignal): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    if (signal.aborted) reject(signal.reason)
+    else signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+  })
+}
+
+async function overIpc<T> (bridge: NonNullable<Window['kemolate']>['data'], url: string, options: FetchOptions): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase()
+  const raw = options.body
+  // Bytes as bytes; anything else as JSON would carry it — which is also what
+  // makes a reactive proxy something IPC can copy.
+  const body = raw instanceof Blob
+    ? new Uint8Array(await raw.arrayBuffer())
+    : raw instanceof ArrayBuffer
+      ? new Uint8Array(raw)
+      : raw instanceof Uint8Array || raw === undefined
+        ? raw
+        : JSON.parse(JSON.stringify(raw))
+
+  options.signal?.throwIfAborted()
+
+  const call = bridge.call({ method, path: url, query: queryOf(options), body })
+  const answer = await (options.signal ? Promise.race([call, untilAborted(options.signal)]) : call)
+
+  if ('error' in answer) throw new FetchError(method, url, answer.error.status, answer.error.message, answer.error.data)
+
+  if ('bytes' in answer) {
+    const bytes = answer.bytes
+
+    return (options.responseType === 'arrayBuffer'
+      ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+      : new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'image/png' })) as T
+  }
+
+  return answer.ok as T
+}
+
+/** The same request over `fetch` — where there is no bridge, which is the app tests (`registerEndpoint`). */
+async function overFetch<T> (url: string, options: FetchOptions): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase()
+  const search = new URLSearchParams(queryOf(options)).toString()
+  const target = search ? `${url}${url.includes('?') ? '&' : '?'}${search}` : url
+  const raw = options.body
+  const binary = raw instanceof Blob || raw instanceof ArrayBuffer || raw instanceof Uint8Array
+  const response = await fetch(target, {
+    method,
+    headers: { ...(binary || raw === undefined ? {} : { 'content-type': 'application/json' }), ...options.headers },
+    body: raw === undefined ? undefined : binary ? raw as BodyInit : JSON.stringify(raw),
+    signal: options.signal ?? undefined,
+  })
+
+  if (!response.ok) {
+    const said = await response.json().catch(() => ({})) as { message?: string, statusMessage?: string, data?: unknown }
+
+    throw new FetchError(method, url, response.status, said.statusMessage ?? said.message ?? response.statusText, said.data)
+  }
+
+  if (options.responseType === 'blob') return await response.blob() as T
+  if (options.responseType === 'arrayBuffer') return await response.arrayBuffer() as T
+
+  const text = await response.text()
+
+  if (options.responseType === 'text') return text as T
+
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
+/**
+ * The web build's server client, answered by this machine.
+ *
+ * The web build's composables keep a workspace's work through `$fetch` calls
+ * on `/api/workspaces/**`. Here the same method, path, query and body go to the
+ * main process (`window.kemolate.data`, see `electron/data.ts`), which runs the
+ * same services against the app's own database, and the answer comes back as
+ * ofetch would have parsed it: JSON as JSON, a repair as a `Blob`, a refusal as
+ * a thrown `FetchError`. Nothing leaves the machine.
+ */
+export async function $fetch<T = unknown> (url: string, options: FetchOptions = {}): Promise<T> {
+  const bridge = typeof window === 'undefined' ? undefined : window.kemolate?.data
+
+  return bridge ? overIpc<T>(bridge, url, options) : overFetch<T>(url, options)
 }
 
 /**

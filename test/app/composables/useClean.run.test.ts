@@ -9,6 +9,10 @@ import type { RepairRow } from '#shared/utils/repairs'
 
 import { useClean } from '~/composables/useClean'
 import { useComic } from '~/composables/useComic'
+import { paddedBox } from '~/utils/ocr/clean'
+import { blockOutline } from '~/utils/ocr/mask'
+import { patchKey } from '~/utils/ocr/patches'
+import { REPAIR_DOWNLOADS } from '~/utils/resources'
 
 /**
  * "Clean all", as the server and the model see it.
@@ -25,20 +29,14 @@ import { useComic } from '~/composables/useComic'
  * behind `readPatch`/`writePatch`, and the model is the stand-in runtime of
  * `harness.ts`, whose runs a test can hold open. The chapter closing is
  * `useComic`'s own epoch moving, which is what every stop in the app is.
- *
- * Desktop: the two tests that do not need a server. The web build's other three
- * were about a cloud workspace's repairs — the list asked for once a run, the
- * downloads six at a time, a page's downloads dropped when its chapter closed —
- * and there is no server here to keep repairs on. The server stays, answering
- * nothing, so "nothing was sent" is still a thing a test can say.
  */
 
 const { shared, disk, wrote, server } = await vi.hoisted(async () => {
   const { ref } = await import('vue')
 
   return {
-    // A local workspace, the only kind there is here — see `keepsRepairs`.
-    shared: ref<{ role: string } | null>(null),
+    // A cloud workspace this browser may keep repairs in — see `keepsRepairs`.
+    shared: ref<{ role: string } | null>({ role: 'editor' }),
     disk: new Map<string, Blob>(),
     wrote: [] as string[],
     server: {
@@ -144,6 +142,22 @@ function page (n: number, blocks: number): ComicPage {
   }
 }
 
+/** The server's row for a repair somebody else made of this block, under the name this browser would ask for. */
+function made (target: ComicPage, block: Block): RepairRow {
+  const region = blockOutline(block, W, H).region
+  const row = Number(block.id.replace(/\D/g, ''))
+
+  return {
+    key: patchKey({ scan: target.scan!.hash!, region, model: 'aot', source: 'threshold' }),
+    hash: String(row).padStart(4, '0').repeat(16),
+    pageId: Number(target.id.replace(/\D/g, '')),
+    blockId: row,
+    from: region,
+    box: paddedBox(region, W, H),
+    createdAt: 1,
+  }
+}
+
 /**
  * How long a download takes where no test holds it: long enough that every one
  * the pool starts together is still in flight when the last of them arrives,
@@ -189,7 +203,7 @@ describe('Clean all', () => {
     reset()
     disk.clear()
     wrote.length = 0
-    shared.value = null
+    shared.value = { role: 'editor' }
     Object.assign(server, { rows: [], lists: 0, puts: 0, deletes: 0, downloads: 0, flying: 0, peak: 0, gate: null })
 
     vi.stubGlobal('OffscreenCanvas', Canvas)
@@ -223,6 +237,65 @@ describe('Clean all', () => {
 
     return clean
   }
+
+  it('asks for the chapter\'s repair list once a run, not once a page', async () => {
+    const { cleanAll } = cleaner()
+    const { pages } = useComic()
+    const chapter = [page(1, 2), page(2, 2), page(3, 2)]
+
+    offer(chapter.flatMap((target) => target.blocks.map((block) => made(target, block))))
+    pages.value = chapter
+
+    await cleanAll()
+
+    expect(server.lists).toBe(1)
+    // Every balloon borrowed and kept on this disk, none cleaned here.
+    expect(wrote).toHaveLength(6)
+    expect(log).not.toContain('run 1')
+  })
+
+  it(`brings a page's repairs down ${REPAIR_DOWNLOADS} at a time`, async () => {
+    const { cleanAll, patches } = cleaner()
+    const { pages } = useComic()
+    const target = page(1, 10)
+
+    offer(target.blocks.map((block) => made(target, block)))
+    pages.value = [target]
+
+    await cleanAll()
+
+    expect(server.downloads).toBe(10)
+    // As many as the browser will talk to one host with, and never more.
+    expect(server.peak).toBe(REPAIR_DOWNLOADS)
+    expect(shown(patches.value)[target.id]).toHaveLength(10)
+  })
+
+  it('keeps nothing of a page whose repairs were still arriving when the chapter closed', async () => {
+    const { cleanAll, patches } = cleaner()
+    const { pages, epoch } = useComic()
+    const chapter = [page(1, 3), page(2, 2)]
+
+    let open!: () => void
+
+    server.gate = new Promise((resolve) => { open = resolve })
+    offer(chapter.flatMap((target) => target.blocks.map((block) => made(target, block))))
+    pages.value = chapter
+
+    const cleaning = cleanAll()
+
+    await vi.waitFor(() => expect(server.flying).toBeGreaterThan(0))
+
+    epoch.value++
+    open()
+    await cleaning
+
+    // Not on the disk, not on the page, not sent anywhere.
+    expect(wrote).toEqual([])
+    expect(shown(patches.value)).toEqual({})
+    expect(server.puts).toBe(0)
+    // And the next page's were never asked for.
+    expect(server.downloads).toBeLessThanOrEqual(3)
+  })
 
   it('keeps nothing of a page whose balloons were still in the model when the chapter closed', async () => {
     const { cleanAll, patches, error } = cleaner()

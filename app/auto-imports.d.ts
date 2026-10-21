@@ -46,6 +46,7 @@ declare global {
   const FAMILIES: typeof import('./utils/ocr/detectors').FAMILIES
   const FONTS: typeof import('../shared/utils/fonts').FONTS
   const FONTS_BY_KEY: typeof import('../shared/utils/fonts').FONTS_BY_KEY
+  const FetchError: typeof import('./composables/nuxt').FetchError
   const HANDLES: typeof import('../shared/utils/transform').HANDLES
   const HYPHENATE: typeof import('./utils/letterCss').HYPHENATE
   const IMAGES_DIR: typeof import('./utils/project').IMAGES_DIR
@@ -139,6 +140,7 @@ declare global {
   const appendStroke: typeof import('./utils/strokes').appendStroke
   const applyLut: typeof import('../shared/utils/adjust').applyLut
   const arrangeStack: typeof import('../shared/utils/presets').arrangeStack
+  const arrived: typeof import('./composables/useBlockSync').arrived
   const askAgain: typeof import('../shared/utils/glossary').askAgain
   const askShape: typeof import('./composables/useTranslate').askShape
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
@@ -223,6 +225,7 @@ declare global {
   const defineComponent: typeof import('vue').defineComponent
   const definePageMeta: typeof import('./composables/nuxt').definePageMeta
   const deletesSelection: typeof import('./composables/useDeleteShortcut').deletesSelection
+  const departed: typeof import('./composables/useBlockSync').departed
   const detBoxFor: typeof import('./utils/ocr/segment').detBoxFor
   const detLeanFor: typeof import('./utils/ocr/segment').detLeanFor
   const detLines: typeof import('./utils/ocr/segment').detLines
@@ -630,6 +633,7 @@ declare global {
   const useBattery: typeof import('@vueuse/core').useBattery
   const useBlockCache: typeof import('./composables/useBlockCache').useBlockCache
   const useBlockMerge: typeof import('./composables/useBlockMerge').useBlockMerge
+  const useBlockSync: typeof import('./composables/useBlockSync').useBlockSync
   const useBluetooth: typeof import('@vueuse/core').useBluetooth
   const useBreakpoints: typeof import('@vueuse/core').useBreakpoints
   const useBroadcastChannel: typeof import('@vueuse/core').useBroadcastChannel
@@ -706,11 +710,13 @@ declare global {
   const useLayerClaims: typeof import('./composables/useLayerSync').useLayerClaims
   const useLayerPresets: typeof import('./composables/useLayerPresets').useLayerPresets
   const useLayerRows: typeof import('./composables/useLayerSync').useLayerRows
+  const useLayerSync: typeof import('./composables/useLayerSync').useLayerSync
   const useLetteringFit: typeof import('./composables/useLetteringFit').useLetteringFit
   const useLetteringStandard: typeof import('./composables/useLetteringStandard').useLetteringStandard
   const useLibrary: typeof import('./composables/useLibrary').useLibrary
   const useLiveAnnouncer: typeof import('@vueuse/core').useLiveAnnouncer
   const useLiveStrokes: typeof import('./composables/useLiveStrokes').useLiveStrokes
+  const useLiveSync: typeof import('./composables/useLiveSync').useLiveSync
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
   const useMagicKeys: typeof import('@vueuse/core').useMagicKeys
   const useManualRefHistory: typeof import('@vueuse/core').useManualRefHistory
@@ -867,6 +873,7 @@ declare global {
   const webGpuHalf: typeof import('./utils/resources').webGpuHalf
   const webGpuOffered: typeof import('./utils/resources').webGpuOffered
   const whenever: typeof import('@vueuse/core').whenever
+  const withAbsent: typeof import('./composables/useShared').withAbsent
   const worthStraightening: typeof import('./utils/ocr/deskew').worthStraightening
   const wrapDeg: typeof import('../shared/utils/transform').wrapDeg
   const writeModel: typeof import('./utils/ocr/store').writeModel
@@ -880,7 +887,7 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { DesktopRoute } from './composables/nuxt'
+  export type { FetchError, DesktopRoute, FetchOptions } from './composables/nuxt'
   import('./composables/nuxt')
   // @ts-ignore
   export type { AiUse, AiTotals } from './composables/useAiUsage'
@@ -949,7 +956,7 @@ declare global {
   export type { Revision } from './composables/useRevisions'
   import('./composables/useRevisions')
   // @ts-ignore
-  export type { RemotePage, SharedWorkspace } from './composables/useShared'
+  export type { RemotePage, SharedState } from './composables/useShared'
   import('./composables/useShared')
   // @ts-ignore
   export type { SwarmChange, SwarmLive, SwarmPeer } from './composables/useSwarm'
@@ -1161,6 +1168,7 @@ declare module 'vue' {
     readonly FAMILIES: UnwrapRef<typeof import('./utils/ocr/detectors')['FAMILIES']>
     readonly FONTS: UnwrapRef<typeof import('../shared/utils/fonts')['FONTS']>
     readonly FONTS_BY_KEY: UnwrapRef<typeof import('../shared/utils/fonts')['FONTS_BY_KEY']>
+    readonly FetchError: UnwrapRef<typeof import('./composables/nuxt')['FetchError']>
     readonly HANDLES: UnwrapRef<typeof import('../shared/utils/transform')['HANDLES']>
     readonly HYPHENATE: UnwrapRef<typeof import('./utils/letterCss')['HYPHENATE']>
     readonly IMAGES_DIR: UnwrapRef<typeof import('./utils/project')['IMAGES_DIR']>
@@ -1254,6 +1262,7 @@ declare module 'vue' {
     readonly appendStroke: UnwrapRef<typeof import('./utils/strokes')['appendStroke']>
     readonly applyLut: UnwrapRef<typeof import('../shared/utils/adjust')['applyLut']>
     readonly arrangeStack: UnwrapRef<typeof import('../shared/utils/presets')['arrangeStack']>
+    readonly arrived: UnwrapRef<typeof import('./composables/useBlockSync')['arrived']>
     readonly askAgain: UnwrapRef<typeof import('../shared/utils/glossary')['askAgain']>
     readonly askShape: UnwrapRef<typeof import('./composables/useTranslate')['askShape']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -1338,6 +1347,7 @@ declare module 'vue' {
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly definePageMeta: UnwrapRef<typeof import('./composables/nuxt')['definePageMeta']>
     readonly deletesSelection: UnwrapRef<typeof import('./composables/useDeleteShortcut')['deletesSelection']>
+    readonly departed: UnwrapRef<typeof import('./composables/useBlockSync')['departed']>
     readonly detBoxFor: UnwrapRef<typeof import('./utils/ocr/segment')['detBoxFor']>
     readonly detLeanFor: UnwrapRef<typeof import('./utils/ocr/segment')['detLeanFor']>
     readonly detLines: UnwrapRef<typeof import('./utils/ocr/segment')['detLines']>
@@ -1745,6 +1755,7 @@ declare module 'vue' {
     readonly useBattery: UnwrapRef<typeof import('@vueuse/core')['useBattery']>
     readonly useBlockCache: UnwrapRef<typeof import('./composables/useBlockCache')['useBlockCache']>
     readonly useBlockMerge: UnwrapRef<typeof import('./composables/useBlockMerge')['useBlockMerge']>
+    readonly useBlockSync: UnwrapRef<typeof import('./composables/useBlockSync')['useBlockSync']>
     readonly useBluetooth: UnwrapRef<typeof import('@vueuse/core')['useBluetooth']>
     readonly useBreakpoints: UnwrapRef<typeof import('@vueuse/core')['useBreakpoints']>
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
@@ -1821,10 +1832,12 @@ declare module 'vue' {
     readonly useLayerClaims: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerClaims']>
     readonly useLayerPresets: UnwrapRef<typeof import('./composables/useLayerPresets')['useLayerPresets']>
     readonly useLayerRows: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerRows']>
+    readonly useLayerSync: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerSync']>
     readonly useLetteringFit: UnwrapRef<typeof import('./composables/useLetteringFit')['useLetteringFit']>
     readonly useLetteringStandard: UnwrapRef<typeof import('./composables/useLetteringStandard')['useLetteringStandard']>
     readonly useLibrary: UnwrapRef<typeof import('./composables/useLibrary')['useLibrary']>
     readonly useLiveStrokes: UnwrapRef<typeof import('./composables/useLiveStrokes')['useLiveStrokes']>
+    readonly useLiveSync: UnwrapRef<typeof import('./composables/useLiveSync')['useLiveSync']>
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
@@ -1979,6 +1992,7 @@ declare module 'vue' {
     readonly webGpuHalf: UnwrapRef<typeof import('./utils/resources')['webGpuHalf']>
     readonly webGpuOffered: UnwrapRef<typeof import('./utils/resources')['webGpuOffered']>
     readonly whenever: UnwrapRef<typeof import('@vueuse/core')['whenever']>
+    readonly withAbsent: UnwrapRef<typeof import('./composables/useShared')['withAbsent']>
     readonly worthStraightening: UnwrapRef<typeof import('./utils/ocr/deskew')['worthStraightening']>
     readonly wrapDeg: UnwrapRef<typeof import('../shared/utils/transform')['wrapDeg']>
     readonly writeModel: UnwrapRef<typeof import('./utils/ocr/store')['writeModel']>

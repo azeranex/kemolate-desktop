@@ -9,18 +9,18 @@
  *
  * ## Desktop: a partial port
  *
- * The web build's popover, without its cloud half. Gone: the switch that moves
- * a workspace into an account and back (`toCloud`/`toLocal`), the contributors
- * it has to check first, and the "On the server" line, because every workspace
- * here is local and there is no server. With them went the trigger's "Local"
- * wording — the workspace list dropped the same badge, since it said the same
- * thing about everything — so the trigger is the gear alone. What is left is the
- * part that was always about this machine: the name, the reading direction, and
- * what is kept where, worded for an app rather than a browser.
+ * The web build's popover, without the switch that moves a workspace into an
+ * account and back (`toCloud`/`toLocal`) and the contributors it has to check
+ * first. The "account" here is the app's own database (`electron/database.ts`),
+ * and a workspace is moved into it without being asked, the first time it is
+ * opened — see `useWorkspaceName.toCloud` — so there is nothing to switch. The
+ * trigger is the gear alone, as the workspace list wears no badge. What is left:
+ * the name, the reading direction, and what is kept where, worded for an app
+ * rather than a browser.
  */
 import { FolderOpenIcon, HardDriveIcon, SettingsIcon, ShieldCheckIcon } from '@lucide/vue'
 
-const { name, renameable, rename } = useWorkspaceName()
+const { name, renameable, rename, keeping } = useWorkspaceName()
 const { kind } = useLibrary()
 const { persisted, used, quota, asking, look, ask } = useStorageStanding()
 const { direction, directions, set: setDirection } = useReadingDirection()
@@ -151,7 +151,12 @@ async function commitName () {
               <UFieldTitle>
                 <HardDriveIcon class="size-3.5 flex-none" /> Reading, paint and repairs
               </UFieldTitle>
-              <UFieldDescription>In this app’s own storage on this computer, filed under each page’s own content.</UFieldDescription>
+              <UFieldDescription v-if="keeping === 'cloud'">
+                In Kemolate’s database on this computer, backed up every hour it changes — see Settings › Your data.
+              </UFieldDescription>
+              <UFieldDescription v-else>
+                In this window’s own storage, until the chapter is moved into Kemolate’s database.
+              </UFieldDescription>
             </UField>
 
             <!--

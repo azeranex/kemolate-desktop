@@ -18,19 +18,21 @@
  * one opens immediately, the other may have to fetch its pages from whoever has
  * them.
  *
- * ## Desktop: a partial port
+ * ## Desktop
  *
- * Only the first direction exists here — nobody is signed in (`useUserSession`)
- * — so the list is this machine's workspaces and every server call on the page
- * sits on a branch that never runs: the shared list is never asked for, a new
- * workspace gets no server row, and rename and leave are offered only on a row
- * with a role, which none has. What changes is the wording, wherever it talked
- * about signing in or about "this browser" — said here as it is: no accounts,
- * and kept on this computer — and the "Local" badge, which every row would wear
- * alike. The page wears the plain layout's title bar
- * (`layouts/Default.vue`), as the web build's wore its default layout.
+ * The "shared with you" direction is the app's own database
+ * (`electron/database.ts`): the one person at this machine is always signed in
+ * (`useUserSession`) and owns every workspace in it, so the script is the web
+ * build's as written — the list from `/api/workspaces`, a new workspace made
+ * there first (`mint`), rename and delete through it. The other direction is
+ * this window's own index, which still names workspaces from before the
+ * database and every chapter's folder or files. What changes is the wording:
+ * no roles, no "Cloud" or "Local" badge (every row would wear the same one), no
+ * signing in, and a delete that says what is true here. The page wears the
+ * plain layout's title bar (`layouts/Default.vue`), as the web build's wore its
+ * default layout.
  */
-import { BookImageIcon, CloudIcon, EllipsisVerticalIcon, LogInIcon, LogOutIcon, PencilIcon, PlusIcon, Trash2Icon, UsersIcon } from '@lucide/vue'
+import { BookImageIcon, EllipsisVerticalIcon, LogOutIcon, PencilIcon, PlusIcon, Trash2Icon } from '@lucide/vue'
 
 import type { WorkspaceRole } from '#shared/utils/roles'
 
@@ -504,46 +506,14 @@ async function confirm () {
                     have to fetch them from whoever is holding them.
                   -->
                   <template v-if="row.opened">Opened {{ when.format(row.opened) }}</template>
-                  <template v-else-if="row.role">Shared with you — pages not on this computer</template>
                   <template v-else>Not opened here yet</template>
                 </span>
               </div>
 
               <!--
-                The role, where there is one. Its absence is meaningful too: a
-                workspace with no role is one the server has never heard of, which
-                is to say one nobody else can see — and that is worth saying out
-                loud rather than leaving as a gap where a badge would be. Somebody
-                reading this list cannot otherwise tell the chapter that is backed
-                up from the one that lives in this browser and nowhere else.
-              -->
-              <!--
-                Shown at every width, unlike the id beside it. Which of the two a
-                chapter is decides whether clearing this site's data loses it, and
-                a phone is where site data is most likely to be cleared — so the
-                one badge worth reading on a small screen is exactly the one that
-                used to be hidden there.
-              -->
-              <UBadge v-if="row.role" variant="secondary" class="inline-flex flex-none gap-1">
-                <UsersIcon class="size-3" /> {{ row.role }}
-              </UBadge>
-              <!--
-                A cloud workspace seen signed out: the server's list is not here to
-                say so, and this used to fall through to "Local" — which invited
-                deleting it as one. See `Workspace.cloud`.
-              -->
-              <UBadge
-                v-else-if="row.cloud"
-                variant="secondary"
-                class="inline-flex flex-none gap-1"
-                title="In your account. Sign in to open it with its reading, or to delete it."
-              >
-                <CloudIcon class="size-3" /> Cloud
-              </UBadge>
-              <!--
-                Desktop: no "Local" badge. In the web build it told a chapter only
-                in this browser apart from one in the account; here every workspace
-                is on this computer, so it said the same thing on every row.
+                Desktop: no badge. In the web build it told a workspace with a role
+                in the account apart from one only in this browser; here every
+                workspace is this computer's, and kept in the app's database.
               -->
 
               <span class="text-muted-foreground hidden font-mono text-[10px] sm:inline">
@@ -579,16 +549,7 @@ async function confirm () {
                   <UDropdownMenuSeparator />
                 </template>
 
-                <!--
-                  Signed out, a cloud workspace is not this browser's to delete:
-                  what deleting would wipe is this machine's copy of its pages, and
-                  the workspace would go on existing in the account without them.
-                  It has to be signed into — then Delete means what it says.
-                -->
-                <UDropdownMenuItem v-if="row.cloud && !row.role" @select="navigateTo('/signin')">
-                  <LogInIcon class="size-4" /> Sign in to manage it
-                </UDropdownMenuItem>
-                <UDropdownMenuItem v-else-if="offer(row) === 'leave'" @select="ask(row)">
+                <UDropdownMenuItem v-if="offer(row) === 'leave'" @select="ask(row)">
                   <LogOutIcon class="size-4" /> Leave workspace
                 </UDropdownMenuItem>
                 <UDropdownMenuItem v-else variant="destructive" @select="ask(row)">
@@ -656,10 +617,10 @@ async function confirm () {
                   you did on it.
                 </template>
                 <template v-else-if="asked?.row.role">
-                  This deletes the chapter for everybody in it — the blocks, the
-                  translations, the layers and the retouching. The scans themselves
-                  are files on people's own computers and are not touched. Nothing
-                  here can undo it.
+                  This deletes the chapter's work — the blocks, the translations,
+                  the layers and the retouching. The pages themselves are your
+                  files and are not touched. Kemolate's backups keep a copy of
+                  the work for 30 days (Settings › Your data).
                 </template>
                 <template v-else>
                   This workspace exists only on this computer. Its blocks,

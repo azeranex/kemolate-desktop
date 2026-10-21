@@ -25,13 +25,6 @@ import { forgetAgreedTranslations } from '~/composables/useTranslationSync'
  * Seam: `shortenLine`, answered here, so nothing reaches a provider; and the
  * two endpoints, standing in for a server that honours `pinned` the way
  * `translations.putOnPage` does.
- *
- * Desktop: on a local workspace, the only kind there is, so the pinning above is
- * the server's and does not arise — a local line is whatever was written last.
- * The endpoints stay, and nothing calls them, so the tests that say nothing
- * reached a server still say it; the first test, which was about the server's
- * head and revisions, checks what a local run keeps instead: the words, the run
- * offered for Undo, and the spend.
  */
 
 const { shared, target, reply, ledger } = await vi.hoisted(async () => {
@@ -131,6 +124,7 @@ describe('shortenBlock', () => {
     server.pinned = true
     server.revisions = []
     server.calls = []
+    shared.value = { role: 'editor', pages: [{ id: 7 }] }
 
     const comic = useComic()
 
@@ -157,10 +151,11 @@ describe('shortenBlock', () => {
 
   const line = () => useComic().pages.value[0]!.blocks[1]!
 
-  it('replaces the line, offered for Undo as a run of its own', async () => {
+  it('replaces a pinned line as the head, filed as the model\'s under a batch of its own', async () => {
     reply.next = async () => ({ text: 'Yamada, why say that?', usage: { input: 200, output: 8, reasoning: 0, cost: 0.0001 } })
 
     const { shortenBlock, error, lastRun } = scope.run(() => useTranslate())!
+    const chosen = useComic().translate.value.model
 
     const text = await shortenBlock(line(), 24)
 
@@ -168,9 +163,18 @@ describe('shortenBlock', () => {
     expect(line().translation).toBe('Yamada, why say that?')
     expect(error.value).toBeNull()
 
-    // One line, offered for Undo, and nothing sent anywhere.
-    expect(lastRun.value).toEqual({ batch: expect.any(String), pageIds: ['scan:1.png'], lines: 1 })
-    expect(server.calls).toEqual([])
+    // The claim given up first, then the machine's save — so the head moved.
+    expect(server.calls).toEqual(['unpin', 'put:machine'])
+    expect(server.head).toBe('Yamada, why say that?')
+
+    const filed = server.revisions.at(-1)!
+
+    expect(filed.origin?.engine).toBe('ai-text')
+    expect(filed.origin?.model).toBe(chosen)
+    expect(filed.origin?.batch).toBeTruthy()
+
+    // One line, under that batch, offered for Undo.
+    expect(lastRun.value).toEqual({ batch: filed.origin!.batch, pageIds: ['scan:1.png'], lines: 1 })
 
     // Paid for, and labelled as what it was.
     expect(ledger).toHaveLength(1)

@@ -1,4 +1,5 @@
-import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { mockNuxtImport, registerEndpoint } from '@nuxt/test-utils/runtime'
+import { readBody } from 'h3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
 
@@ -25,10 +26,6 @@ import { forgetAgreedTranslations } from '~/composables/useTranslationSync'
  * Seam: the engines. Reading and cleaning are stand-ins that take a moment and
  * say what they did (and can be held); the model is `translatePage`, answered
  * by hand. The translation run and everything it writes through are real.
- *
- * Desktop: on a local workspace, the only kind there is. The web build's ran on
- * a cloud one and also checked the order the saves reached the server; here
- * the order is what the pages say, which every test still checks.
  */
 
 interface Ask {
@@ -128,6 +125,21 @@ mockNuxtImport('translatePage', () => (_key: string, input: TranslateInput) =>
     })
   }))
 
+/** Every save, in the order the server received them. */
+const saved: number[] = []
+
+for (const row of [101, 102, 103]) {
+  registerEndpoint(`/api/workspaces/ws/pages/${row}/translations`, {
+    method: 'PUT',
+    handler: async (event) => {
+      await readBody(event)
+      saved.push(row)
+
+      return []
+    },
+  })
+}
+
 /** What each page's one balloon says, printed. */
 const SOURCES: Record<string, string> = { '1.png': '宗介が来た', '2.png': 'どうして', '3.png': 'いいえ' }
 
@@ -175,10 +187,12 @@ describe('the auto run', () => {
   beforeEach(() => {
     scope = effectScope()
     model.asks.length = 0
+    saved.length = 0
     engines.done.length = 0
     engines.held.clear()
     state.terms.value = []
     state.keyless = false
+    state.shared.value = { role: 'editor', pages: [{ id: 101 }, { id: 102 }, { id: 103 }] }
     forgetAgreedTranslations()
 
     // Reading puts the page's one balloon on it, as the page on screen — which
@@ -251,12 +265,13 @@ describe('the auto run', () => {
     ask('どうして').answer(['Why?'])
     await pause(40)
 
-    expect(lines()).toEqual(['', '', ''])
+    expect(saved).toEqual([])
 
     ask('宗介が来た').answer(['Sousuke is here.'])
     await running
 
     expect(lines()).toEqual(['Sousuke is here.', 'Why?', 'No.'])
+    expect(saved).toEqual([101, 102, 103])
     expect(outcome.value).toMatchObject({ pages: 3, error: null, stopped: false })
   })
 
@@ -292,6 +307,7 @@ describe('the auto run', () => {
 
     expect(running.value).toBe(false)
     expect(lines()).toEqual(['', '', ''])
+    expect(saved).toEqual([])
     expect(state.terms.value).toEqual([])
     expect(model.asks).toHaveLength(1)
     expect(outcome.value).toMatchObject({ pages: 0, stopped: true, error: null })
