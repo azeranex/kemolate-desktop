@@ -81,6 +81,12 @@ const { resolved } = useColorScheme()
   </template>
 
   <!--
+    Here for the same reason as the toaster, as in the web build: the question
+    belongs to a file being read, not to whatever page it was dropped on.
+  -->
+  <PdfPassword />
+
+  <!--
     Mounted once, at the root, because a toast outlives whatever raised it.
     Wider than the default: these say what went wrong and what to do about it.
   -->

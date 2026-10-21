@@ -369,6 +369,11 @@ const held = computed(() => {
 function scale (by: number) {
   zoomAt(by, undefined, true)
 }
+
+/** Blocks on the page still wanting a translation — for the status bar's tally. */
+const untranslated = computed(() =>
+  page.value?.blocks.filter((block) => block.type !== 'garbage' && !block.translation).length ?? 0,
+)
 </script>
 
 <template>
@@ -505,9 +510,10 @@ function scale (by: number) {
       <div class="bg-border h-6 w-px flex-none" />
     </template>
 
-    <!-- the tool that is out — its settings join it with the paint engine -->
+    <!-- the tool that is out, its settings, and what it is pointed at -->
     <template #context>
       <span class="text-foreground font-medium">{{ label }}</span>
+      <ToolOptions />
     </template>
 
     <!-- and the state of it, along the bottom -->
@@ -525,6 +531,25 @@ function scale (by: number) {
         <UButton variant="ghost" size="icon-xs" aria-label="Fit page" @click="resetView">
           <MaximizeIcon class="size-3.5" />
         </UButton>
+
+        <!--
+          The page's tally, as in the web build: how many blocks, and whether any
+          still want a translation — only once there are blocks, or an unread page
+          would read as finished. Guarded on the bar's own width, so it is the
+          first thing to go when the docks squeeze it.
+        -->
+        <div class="bg-border mx-1 hidden h-4 w-px @xl:block" />
+        <span class="hidden whitespace-nowrap @xl:inline">{{ page?.blocks.length ?? 0 }} blocks</span>
+        <template v-if="page?.blocks.length">
+          <span v-if="untranslated" class="hidden whitespace-nowrap text-amber-500 @xl:inline">{{ untranslated }} untranslated</span>
+          <span v-else class="hidden whitespace-nowrap text-emerald-500 @xl:inline">all translated</span>
+        </template>
+
+        <!--
+          Still opening, or opened and never cleaned — the two things a page with
+          no cleaning on it could mean. See `WorkspaceOpening`.
+        -->
+        <WorkspaceOpening />
       </template>
 
       <div class="flex-1" />
