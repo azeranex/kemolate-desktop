@@ -725,6 +725,7 @@ declare global {
   const useOcr: typeof import('./composables/useOcr').useOcr
   const useOffsetPagination: typeof import('@vueuse/core').useOffsetPagination
   const useOnline: typeof import('@vueuse/core').useOnline
+  const useOpenedFiles: typeof import('./composables/useOpenedFiles').useOpenedFiles
   const useOpening: typeof import('./composables/useOpening').useOpening
   const usePageExport: typeof import('./composables/usePageExport').usePageExport
   const usePageLeave: typeof import('@vueuse/core').usePageLeave
@@ -1820,6 +1821,7 @@ declare module 'vue' {
     readonly useOcr: UnwrapRef<typeof import('./composables/useOcr')['useOcr']>
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
+    readonly useOpenedFiles: UnwrapRef<typeof import('./composables/useOpenedFiles')['useOpenedFiles']>
     readonly useOpening: UnwrapRef<typeof import('./composables/useOpening')['useOpening']>
     readonly usePageExport: UnwrapRef<typeof import('./composables/usePageExport')['usePageExport']>
     readonly usePageLeave: UnwrapRef<typeof import('@vueuse/core')['usePageLeave']>

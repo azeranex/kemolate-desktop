@@ -51,6 +51,21 @@ const api = {
     get: (provider: Provider): Promise<string | null> => ipcRenderer.invoke('keys:get', provider),
     save: (patch: Partial<Record<Provider, string>>): Promise<KeyStatus> => ipcRenderer.invoke('keys:save', patch),
   },
+  /**
+   * Project files the operating system handed the app — see `opening.ts`.
+   * `pending` takes what is waiting (each fetched from the app's origin at
+   * `/opened/<token>`); `onOpened` says when more arrives. Returns the unsubscribe.
+   */
+  files: {
+    pending: (): Promise<{ token: string, name: string }[]> => ipcRenderer.invoke('files:pending'),
+    onOpened: (listener: () => void) => {
+      const forward = () => listener()
+      ipcRenderer.on('files:opened', forward)
+      return () => {
+        ipcRenderer.off('files:opened', forward)
+      }
+    },
+  },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
     toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),

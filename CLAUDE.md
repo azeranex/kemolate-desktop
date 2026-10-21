@@ -138,6 +138,21 @@ rather than the account menu. The header has no account menu.
   what it can ask for. Add a named method there per need — no raw `ipcRenderer`. A handler
   that hands back anything secret checks the asking frame is the app's origin (`trusted` in
   `main.ts`).
+- Files in and out, natively:
+  - **Open folder** is the File System Access picker (its native dialog says "Select a folder
+    this site can view" — Chromium's words, not ours). A permission *check* handler in
+    `main.ts` (`keepFolderAccess`) answers read checks from the app's origin with yes, so a
+    folder chapter is read again on the next launch instead of waiting behind "Reopen folder".
+  - **Saving** a project or an export goes through the web build's link-to-a-Blob download;
+    `electron/downloads.ts` titles the native Save dialog for what is saved, filters it to
+    the kind, and opens it in Documents, then the last folder used.
+  - **A `.kemolate` from the OS** — on the command line, from a second launch (single-instance
+    lock, built app only), or macOS's `open-file` — is queued by `electron/opening.ts`, served
+    once at `/opened/<token>` on the app's origin, and opened by `useOpenedFiles` in a new
+    workspace, as a project dropped on the workspace list is. Registering the file type with
+    the OS is the installer's job and not done yet.
+  - Testing these: a picker needs a real user gesture (CDP's `Runtime.evaluate` with
+    `userGesture: true`), and Chromium hosts the native dialog in a separate process.
 - Provider keys: `keys.json` in the profile, each key encrypted by `safeStorage` (DPAPI,
   Keychain, the Linux keyring). There is no write in the clear — where the OS has no real
   encryption (Linux's `basic_text`), saving refuses and Settings says why.

@@ -34,6 +34,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { answerModel, MODEL_HEADERS } from '../server/models'
+import { openedFile } from './opening'
 
 const APP_HOST = 'app.kemolate.invalid'
 
@@ -72,6 +73,20 @@ export function serveApp (dist: string, models: string) {
     const { host, pathname } = new URL(request.url)
 
     if (host !== APP_HOST) return net.fetch(request, { bypassCustomProtocolHandlers: true })
+
+    // A project file the operating system handed the app — see `opening.ts`.
+    // Readable from any origin because the dev server's page is another one;
+    // what makes that safe is the token, which is unguessable and spent once.
+    if (pathname.startsWith('/opened/')) {
+      const answer = await openedFile(decodeURIComponent(pathname.slice('/opened/'.length)))
+
+      if (!answer?.ok) return new Response('Not found', { status: 404 })
+
+      return new Response(answer.body, {
+        status: 200,
+        headers: { 'Content-Type': 'application/zip', 'Access-Control-Allow-Origin': '*', ...ISOLATION },
+      })
+    }
 
     if (pathname.startsWith('/api/models/')) {
       const answer = await answerModel(models, pathname.slice('/api/models/'.length))

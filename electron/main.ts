@@ -16,12 +16,14 @@
  */
 import type { WindowState } from './preload'
 
-import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, session, shell } from 'electron'
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
+import { opened, projectsIn, serveOpening } from './opening'
 import { APP_ORIGIN, serveApp } from './protocol'
 import { keepWindowPlace, windowPlace } from './windowState'
 
@@ -135,10 +137,77 @@ ipcMain.on('theme:set', (_event, source: unknown) => {
   if (source === 'system' || source === 'light' || source === 'dark') nativeTheme.themeSource = source
 })
 
+/**
+ * Whether the page may keep reading a folder it was given, across launches.
+ *
+ * A chapter opened from a folder is kept as a File System Access handle, and a
+ * browser forgets what a handle may do when the tab closes: the next visit
+ * finds the handle and is told "prompt", and the chapter waits behind a Reopen
+ * button until somebody clicks it. In a browser that is the right caution —
+ * any site could be holding a handle onto your folders. Here there is one
+ * page, the app's own, and the reader chose the folder in a native dialog; a
+ * desktop program that asked for it again on every launch would be asking a
+ * question with only one answer.
+ *
+ * So a *check* for read access, from the app's own origin, is answered yes —
+ * which is all it takes for the remembered handle to read the folder again.
+ * Writing is still asked for (nothing here writes into the reader's folders),
+ * and nothing else changes: every other permission is answered as Electron
+ * would without a handler, which is yes, for the app's own page and no other.
+ */
+function keepFolderAccess () {
+  session.defaultSession.setPermissionCheckHandler((_contents, permission, origin, details) => {
+    const from = URL.canParse(origin) ? new URL(origin).origin : origin
+
+    if (from !== appOrigin) return false
+
+    if (permission === 'fileSystem') return (details as { fileAccessType?: string }).fileAccessType !== 'writable'
+
+    return true
+  })
+}
+
+/*
+ * Project files from the operating system — see `opening.ts`.
+ *
+ * One app at a time, built: a second launch (a `.kemolate` double-clicked while
+ * the app is open) hands its command line to this one and quits, rather than
+ * opening a second window onto the same storage. Not in development, where the
+ * dev plugin restarts Electron on every edit to the main process and a new
+ * process can start before the old one has let go of the lock.
+ */
+if (!devUrl && !app.requestSingleInstanceLock()) app.quit()
+
+app.on('second-instance', (_event, argv) => {
+  for (const file of projectsIn(argv)) opened(file)
+
+  const win = mainWindow()
+
+  if (win?.isMinimized()) win.restore()
+  win?.focus()
+})
+
+// macOS hands files over by event, and may do so before the app is ready.
+app.on('open-file', (event, file) => {
+  event.preventDefault()
+  opened(file)
+})
+
+for (const file of projectsIn(process.argv)) opened(file)
+
+const mainWindow = () => BrowserWindow.getAllWindows()[0] ?? null
+
+serveOpening(trusted, mainWindow)
+
 void app.whenReady().then(() => {
+  keepFolderAccess()
+  askWhereToSave()
+
   // Models live with the app's profile — per user, outside the install, so an
-  // update does not cost the downloads.
-  if (!devUrl) serveApp(path.join(here, '../dist'), path.join(app.getPath('userData'), 'models'))
+  // update does not cost the downloads. Registered in development too, though
+  // the page is Vite's there: the app's own host also serves the project files
+  // the OS hands over (`/opened/…`), which the dev page fetches cross-origin.
+  serveApp(path.join(here, '../dist'), path.join(app.getPath('userData'), 'models'))
   createWindow()
   // macOS keeps the app alive with no windows; clicking the dock icon opens one.
   app.on('activate', () => {

@@ -51,8 +51,19 @@ watch(() => [route.path, route.params.workspaceId] as const, ([path, id]) => {
 /** Whether the app has decided where a launch lands — see the header. */
 const arrived = ref(false)
 
+/*
+ * A project file the operating system handed over — double-clicked, or named
+ * on the command line — opens in a workspace of its own, ahead of the last
+ * workspace a launch would otherwise land in. See `useOpenedFiles`.
+ */
+const { openWaiting, listen } = useOpenedFiles()
+
+onBeforeUnmount(listen())
+
 onMounted(async () => {
-  if (route.path === '/') {
+  const handed = await openWaiting().catch(() => false)
+
+  if (!handed && route.path === '/') {
     const last = await latest().catch(() => null)
 
     if (last) await navigateTo(`/w/${last}`)
