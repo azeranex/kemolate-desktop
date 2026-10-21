@@ -30,11 +30,11 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -57,7 +57,33 @@ jobs:
       # process and preload into dist-electron/ (emptied first, see vite.config.ts).
       - run: pnpm build
 
+      # The Release made here, before electron-builder runs, and not by it.
+      # electron-builder uploads its files in parallel, and each upload that
+      # finds no release creates one: v0.1.0 came out as two releases on one
+      # tag — the blockmap in one, the installer and latest.yml in the other —
+      # and the updater reads whichever GitHub calls latest. Given one that
+      # exists, every upload goes into it.
+      - name: Create the release
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" --title "${GITHUB_REF_NAME#v}" --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and publish the installer
         run: pnpm exec electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # And checked, so a release missing what the updater reads fails here
+      # rather than in every installed copy.
+      - name: The release has what the updater reads
+        shell: bash
+        run: |
+          assets=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')
+          for want in latest.yml "Kemolate-Setup-${GITHUB_REF_NAME#v}.exe" "Kemolate-Setup-${GITHUB_REF_NAME#v}.exe.blockmap"; do
+            echo "$assets" | grep -qxF "$want" || { echo "::error::$want is missing from the release."; exit 1; }
+          done
+          count=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq "[.[] | select(.tag_name == \"$GITHUB_REF_NAME\")] | length")
+          [ "$count" = 1 ] || { echo "::error::$count releases on $GITHUB_REF_NAME — expected one."; exit 1; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
