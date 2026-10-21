@@ -193,6 +193,11 @@ rather than the account menu. The header has no account menu.
   opened from the shell imports into a new workspace both cold and into a running app (which
   the second launch hands it to, then quits), and installing over an earlier build replaces
   its association rather than leaving the old ProgID behind.
+- **Anime Ace 3 is read from the OS first** (`local()` in `app/assets/css/fonts.css`). Its files
+  are not in the repo (Blambot's terms), and a file dropped into `app/assets/fonts/` would be
+  bundled into the installer — redistributing it. Installed on the machine, it is the reader's
+  own copy, used on screen and inside export's SVG alike (tested 2026-10-21). Without it the
+  dialogue falls back to Shantell Sans.
 - The profile folder is pinned to `%APPDATA%\kemolate-desktop` (`app.setPath('userData')`
   in `main.ts`). Electron would name it after the product, and the installed app is
   "Kemolate" where a development run is "kemolate-desktop" — two folders, two sets of

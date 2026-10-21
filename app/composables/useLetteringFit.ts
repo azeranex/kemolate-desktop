@@ -95,8 +95,11 @@ const STORE = 'lettering-fits'
  * and its squeeze (2026-09-30).
  * 6: no emergency word breaks (`LETTERING_WRAP`), so a fit that only held by
  * splitting a word with no hyphen no longer does (2026-09-30).
+ * 7 (desktop): Anime Ace 3 is the installed face now (`local()` in
+ * `fonts.css`); every fit before was measured in the Shantell Sans the stack fell
+ * back to while the files were missing, under Anime Ace's name (2026-10-21).
  */
-const FITS_VERSION = 6
+const FITS_VERSION = 7
 const KEEP = 4000
 
 const remembered = new Map<string, LetterFit>()

@@ -59,10 +59,22 @@
  * fits have to go with it — see `FITS_VERSION` in `useLetteringFit`.
  * Paths are relative rather than aliased: Vite resolves both, and a relative
  * one cannot be broken by a change to the alias table.
+ *
+ * Desktop: the face as installed on this computer first (`local()`, by its
+ * PostScript name and then its full name), and the file beside this stylesheet
+ * only after. The files are not in the repository — Blambot's terms forbid
+ * passing them on — so a build had none, every Anime Ace balloon was set in
+ * Shantell Sans, and nothing said so but a 404 in the console. Installed in the
+ * operating system, the face is the reader's own copy, read where it is: the
+ * installer never carries it, which a file dropped into `app/assets/fonts/`
+ * would be bundled into, and handing that installer to anybody would be
+ * redistributing the font. Export draws in an SVG that can fetch nothing, and
+ * the `local()` entries travel into it as they are (`faceRules` inlines only
+ * `url()`s) — an installed face is one an SVG image may still use.
  */
 @font-face {
   font-family: 'Anime Ace 3';
-  src: url('../fonts/animeace3_reg.otf') format('opentype');
+  src: local('AnimeAce3BB-Regular'), local('Anime Ace 3 BB Regular'), url('../fonts/animeace3_reg.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
   size-adjust: 120%;
@@ -71,7 +83,7 @@
 
 @font-face {
   font-family: 'Anime Ace 3';
-  src: url('../fonts/animeace3_bld.otf') format('opentype');
+  src: local('AnimeAce3BB-Bold'), local('Anime Ace 3 BB Bold'), url('../fonts/animeace3_bld.otf') format('opentype');
   font-weight: 700;
   font-style: normal;
   size-adjust: 120%;
@@ -80,7 +92,7 @@
 
 @font-face {
   font-family: 'Anime Ace 3';
-  src: url('../fonts/animeace3_ital.otf') format('opentype');
+  src: local('AnimeAce3BB-Italic'), local('Anime Ace 3 BB Italic'), url('../fonts/animeace3_ital.otf') format('opentype');
   font-weight: 400;
   font-style: italic;
   size-adjust: 120%;
@@ -89,7 +101,7 @@
 
 @font-face {
   font-family: 'Anime Ace 3';
-  src: url('../fonts/animeace3_bldital.otf') format('opentype');
+  src: local('AnimeAce3BB-BoldItalic'), local('Anime Ace 3 BB Bold Italic'), url('../fonts/animeace3_bldital.otf') format('opentype');
   font-weight: 700;
   font-style: italic;
   size-adjust: 120%;
