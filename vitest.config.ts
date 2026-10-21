@@ -52,7 +52,9 @@ export default defineConfig({
           include: ['test/unit/**/*.test.ts'],
           // The server's database opens at import (`server/database/client.ts`); in memory here, so no test
           // can reach a reader's — see `test/unit/server/harness.ts`.
-          env: { DATABASE_URL: ':memory:' },
+          // `KEMOLATE_MODELS_URL` at a port nothing answers: the model route's tests
+          // must never reach the Hub — see `test/unit/server/models.test.ts`.
+          env: { DATABASE_URL: ':memory:', KEMOLATE_MODELS_URL: 'http://127.0.0.1:9' },
         },
       },
       {

@@ -8,10 +8,10 @@ import { answerModel, modelFile, ownSource } from '~~/server/models'
 
 /*
  * The model route's answers that need no network: a path refused, a file kept
- * on disk served, `onnx/` flattened, and this project's own models — with no
- * address to download them from — refused in words rather than fetched from a
- * Hub namespace that is not ours. `KEMOLATE_MODELS_URL` is unset in the test
- * environment, which is the "not decided yet" state the app ships in.
+ * on disk served, `onnx/` flattened, and this project's own models asked of our
+ * own address, never of a Hub namespace that is not ours. `KEMOLATE_MODELS_URL`
+ * points at a port nothing answers in the test environment (`vitest.config.ts`),
+ * so a fetch fails at once and no test reaches the network.
  */
 let root = ''
 
@@ -46,11 +46,11 @@ describe('answerModel', () => {
     expect(new TextDecoder().decode(answer.body)).toBe('graph')
   })
 
-  it('says why one of our own models is missing, rather than asking the Hub for it', async () => {
+  it('says so when one of our own models cannot be fetched from our address', async () => {
     const answer = await answerModel(root, 'kemolate/kemolate-ocr-out26/resolve/main/tokenizer_config.json')
 
-    expect(answer.status).toBe(404)
-    expect(answer.message).toMatch(/no address to download them from/)
+    expect(answer.status).toBe(502)
+    expect(answer.message).toMatch(/could not be fetched/)
   })
 })
 

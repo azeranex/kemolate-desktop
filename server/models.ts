@@ -24,7 +24,6 @@
  *   from **our own address** (`OWN_MODELS`) when one is set — Kemolate OCR from
  *   one `kemolate-ocr` repository at the build's tag, anything else from the
  *   repository of its own name (`ownSource`) — and kept like any other model.
- *   Unset, a miss is the 404 it was, saying why.
  *
  * Whole files, not ranges, as in the web build: transformers.js and the model
  * store read a file at once, and the store needs its length (see `store.ts`).
@@ -36,11 +35,12 @@ const UPSTREAM = 'https://huggingface.co'
 
 /**
  * Where this project's own models are downloaded from — the base a model's
- * name and file are put after, e.g. `https://huggingface.co/<account>`. Not
- * decided yet, so empty; `KEMOLATE_MODELS_URL` in the environment overrides it,
- * for trying an address before it is written in here.
+ * name and file are put after: the project's Hugging Face account, where
+ * Kemolate OCR is `kemolate-ocr` (see `ownSource`; published 2026-10-21).
+ * `KEMOLATE_MODELS_URL` in the environment overrides it, for trying another
+ * address — a stand-in in a test, or a build not published yet.
  */
-const OWN_MODELS = (process.env.KEMOLATE_MODELS_URL ?? '').replace(/\/+$/, '')
+const OWN_MODELS = (process.env.KEMOLATE_MODELS_URL || 'https://huggingface.co/azeranex').replace(/\/+$/, '')
 
 const OURS = /^kemolate\//
 
@@ -106,10 +106,6 @@ export async function answerModel (root: string, requested: string): Promise<Mod
   }
 
   const ours = OURS.test(asked)
-
-  if (ours && !OWN_MODELS) {
-    return { status: 404, message: 'Kemolate’s own models are not on this computer, and no address to download them from is set.' }
-  }
 
   let upstream: Response | null = null
 

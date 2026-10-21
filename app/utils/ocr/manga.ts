@@ -521,15 +521,16 @@ async function loadBeta (onProgress?: MangaProgress, asked?: Precision, cuda = f
 
   /*
    * Desktop: the first file asked for, so the one that finds out whether the
-   * reader is here at all. The model route answers a missing one with a 404
-   * when it has no address to download it from (`server/models.ts`), which
-   * transformers.js reports as "Could not locate file" and a URL — said here
+   * reader is here at all. The model route downloads a missing one from the
+   * project's Hugging Face account (`server/models.ts`), and answers one it
+   * cannot fetch with an error transformers.js reports as "Could not locate
+   * file" and a URL — said here
    * in words a reader can act on instead, since this is the default reader and
    * the first thing a fresh install tries.
    */
   const tokenizer = await AutoTokenizer.from_pretrained(KEMOLATE_OCR_BETA_MODEL).catch((error: unknown) => {
     if (error instanceof Error && /could not locate file/i.test(error.message)) {
-      throw new Error('Kemolate OCR isn’t on this computer yet, and there’s no address set to download it from. Pick another reader in Detect for now.')
+      throw new Error('Kemolate OCR could not be downloaded — check the connection and try again, or pick another reader in Detect for now.')
     }
 
     throw error
