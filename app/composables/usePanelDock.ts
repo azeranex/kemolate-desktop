@@ -20,10 +20,9 @@
  *
  * The arrangement logic is the web build's, unchanged. Two things around it are
  * not: the state is held at module level rather than in Nuxt's `useState`, and
- * it is kept in local storage rather than a cookie — see `readStored`. And until
- * each panel is migrated its section is listed with a stand-in body
- * (`PanelPending`), so the docks hold the real set of sections, in their real
- * order, from the start.
+ * it is kept in local storage rather than a cookie — see `readStored`. (Every
+ * panel has now come across; the stand-in body sections wore until then is
+ * gone.)
  */
 import {
   AlignCenterHorizontalIcon,
@@ -44,29 +43,18 @@ import {
 import type { Component, Ref } from 'vue'
 
 import PanelAlign from '~/components/panel/Align.vue'
+import PanelBlockImages from '~/components/panel/BlockImages.vue'
 import PanelBlocks from '~/components/panel/Blocks.vue'
 import PanelCast from '~/components/panel/Cast.vue'
 import PanelDetect from '~/components/panel/Detect.vue'
+import PanelDev from '~/components/panel/Dev.vue'
 import PanelGlossary from '~/components/panel/Glossary.vue'
 import PanelLayers from '~/components/panel/Layers.vue'
 import PanelLettering from '~/components/panel/Lettering.vue'
 import PanelPages from '~/components/panel/Pages.vue'
-import PanelPending from '~/components/panel/Pending.vue'
 import PanelText from '~/components/panel/Text.vue'
 import PanelTransform from '~/components/panel/Transform.vue'
 import PanelTranslate from '~/components/panel/Translate.vue'
-
-/**
- * A section's body until its panel has been migrated. Each one is replaced by
- * an import of the real panel as it arrives — the line in `PANEL_SECTIONS` stays
- * as it is.
- */
-function pending (label: string): Component {
-  return defineComponent({ name: `Pending${label.replace(/\W/g, '')}`, render: () => h(PanelPending, { label }) })
-}
-
-const PanelBlockImages = pending('Block images')
-const PanelDev = pending('Dev')
 
 export type DockSide = 'left' | 'right'
 
