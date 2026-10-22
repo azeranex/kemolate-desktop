@@ -73,6 +73,10 @@
 import type { ComicPage } from './useComic'
 import type { TranslateOutcome, TranslateRun } from './useTranslate'
 
+import { balloonsDrawnOn } from '~/composables/useOcr'
+import { balloonJudge } from '~/utils/ocr/together'
+import { readScanSheet } from '~/utils/paper'
+
 /**
  * The stops, in the only order they make sense in.
  *
@@ -294,7 +298,20 @@ export function useAutoRun () {
    * expense, and would have to be defended against the join it had just made.
    */
   async function joinStop (target: ComicPage, skip: (why: string) => void, done: AutoOutcome) {
-    const groups = balloonGroups(target.blocks, direction.value)
+    // Desktop: the page's own word on each pair before the geometry's — the
+    // balloons drawn when it was read, and its outlines where none were. See
+    // `balloonJudge`; without it, two touching balloons were joined into one.
+    const scan = target.scan
+    const together = scan?.width && scan.height
+      ? balloonJudge({
+          sheet: await readScanSheet(scan).catch(() => null),
+          fences: balloonsDrawnOn(target),
+          width: scan.width,
+          height: scan.height,
+        })
+      : undefined
+
+    const groups = balloonGroups(target.blocks, direction.value, together)
 
     if (!groups.length) return skip('nothing to join')
 

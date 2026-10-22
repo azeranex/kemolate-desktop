@@ -585,7 +585,20 @@ function joinable (block: Block): boolean {
  * re-read, a missed one costs a balloon read as two, which is what the page
  * looked like before it ran.
  */
-export function balloonGroups (blocks: Block[], direction: 'rtl' | 'ltr' = 'rtl'): Block[][] {
+/*
+ * Desktop: `together`, the page's own word on a pair — see `balloonJudge`. Asked
+ * before the geometry and over it: "apart" refuses a pair however close its
+ * boxes, which is what stops two touching balloons being welded into one
+ * sentence; "same" joins a pair the geometry would have left, columns of one
+ * wide balloon included; null, where the page cannot say, leaves it to the
+ * geometry exactly as before. Without a judge — the tests of the rule itself —
+ * it is the geometry alone.
+ */
+export function balloonGroups (
+  blocks: Block[],
+  direction: 'rtl' | 'ltr' = 'rtl',
+  together?: (a: Block, b: Block) => 'same' | 'apart' | null,
+): Block[][] {
   const parts = blocks
     .map((block, index) => ({ block, index, box: squared(block) }))
     .filter((part) => joinable(part.block))
@@ -619,7 +632,11 @@ export function balloonGroups (blocks: Block[], direction: 'rtl' | 'ltr' = 'rtl'
       const b = parts[j]!
 
       if (a.block.type !== b.block.type) continue
-      if (!beside(a.box, b.box, direction)) continue
+
+      const said = together?.(a.block, b.block) ?? null
+
+      if (said === 'apart') continue
+      if (said !== 'same' && !beside(a.box, b.box, direction)) continue
 
       // Onto the lower index, so the root of a group is its first member and
       // the answer cannot depend on which pair was tested first.
@@ -639,6 +656,11 @@ export function balloonGroups (blocks: Block[], direction: 'rtl' | 'ltr' = 'rtl'
 
   return [...groups.values()].filter((members) => {
     if (members.length < 2) return false
+
+    // A chain can join two blocks the page said were apart — A with B by their
+    // balloon, B with C by geometry, A and C in different balloons. Dropped
+    // whole, for the reason `SPREAD` drops a runaway group: it is shown wrong.
+    if (together && members.some((a, i) => members.slice(i + 1).some((b) => together(a, b) === 'apart'))) return false
 
     const x = Math.min(...members.map((m) => m.x))
     const y = Math.min(...members.map((m) => m.y))

@@ -222,11 +222,21 @@ const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(ma
  * `inkOn` exists — a balloon may be black with white lettering — and the better
  * result wins.
  */
-export function balloonIn (sheet: Sheet, seed: Room, bounds?: Room | null, reach = REACH): Balloon | null {
+/*
+ * Desktop: `field`, a window given outright with no balloon behind it — for
+ * `balloonJudge`, which asks whether a neighbour is inside this block's balloon
+ * and so needs a window reaching the neighbour: `reach` is a share of each side,
+ * and a column's window is then a column, which every fill touches both sides of.
+ * It is *not* `bounds`, on purpose: a window the detector drew is a balloon, and
+ * a fill inside one is judged by the laxer bounded leak test. A field is only a
+ * guess, so a fill in one is held to the strict test, as a fill by `reach` is —
+ * a leak through a hairline, called held, would join two balloons into one.
+ */
+export function balloonIn (sheet: Sheet, seed: Room, bounds?: Room | null, reach = REACH, field?: Room): Balloon | null {
   let best: Balloon | null = null
 
   for (const paper of papersIn(sheet, seed)) {
-    const found = grow(sheet, seed, paper, bounds, reach)
+    const found = grow(sheet, seed, paper, bounds, reach, field)
 
     if (found && better(found, best)) best = found
   }
@@ -350,7 +360,7 @@ function split (histogram: Uint32Array, total: number): number {
 }
 
 /** One fill, from one candidate colour. */
-function grow (sheet: Sheet, seed: Room, paper: Paper, bounds: Room | null | undefined, reach: number): Balloon | null {
+function grow (sheet: Sheet, seed: Room, paper: Paper, bounds: Room | null | undefined, reach: number, field?: Room): Balloon | null {
   const { data, w: sw, h: sh } = sheet
 
   if (seed.w <= 0 || seed.h <= 0) return null
@@ -366,12 +376,13 @@ function grow (sheet: Sheet, seed: Room, paper: Paper, bounds: Room | null | und
   // its width) had its window cut to 1.6 columns either side, and the fill
   // stopped on a straight line in the middle of the balloon. The block is
   // folded in so a detector box drawn a little tight cannot cut the lettering.
-  const edge = bounds
+  const given = bounds ?? field
+  const edge = given
     ? {
-        left: Math.min(bounds.x, seed.x),
-        top: Math.min(bounds.y, seed.y),
-        right: Math.max(bounds.x + bounds.w, seed.x + seed.w),
-        bottom: Math.max(bounds.y + bounds.h, seed.y + seed.h),
+        left: Math.min(given.x, seed.x),
+        top: Math.min(given.y, seed.y),
+        right: Math.max(given.x + given.w, seed.x + seed.w),
+        bottom: Math.max(given.y + given.h, seed.y + seed.h),
       }
     : {
         left: seed.x - seed.w * reach,

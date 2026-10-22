@@ -100,6 +100,23 @@ export function fencesOf (regions: DetectedText[]): Region[] {
   return [...seen.values()]
 }
 
+/**
+ * Which balloon holds a point — the index of the smallest fence it is inside, or
+ * -1. The smallest, because balloons touch and their boxes overlap, and the one
+ * that holds the lettering is the tighter. Shared by the rooms and by the join
+ * (`balloonJudge`), so the two cannot disagree about which balloon a block is in.
+ */
+export function fenceAround (x: number, y: number, fences: Region[]): number {
+  let best = -1
+
+  for (const [index, fence] of fences.entries()) {
+    if (x < fence.x || x > fence.x + fence.w || y < fence.y || y > fence.y + fence.h) continue
+    if (best < 0 || fence.w * fence.h < fences[best]!.w * fences[best]!.h) best = index
+  }
+
+  return best
+}
+
 /** Why a block has the room it has, or has none — each of the header's rules by name. */
 export type RoomReason =
   | 'room'
@@ -234,19 +251,7 @@ export function roomVerdicts (sheet: Sheet, blocks: Measured[], fences: Region[]
     if (block.kind !== 'bubble' || skipped(block) || !pageWidth) return -1
     if (block.angle || block.skewX || block.skewY || block.quad?.some((v) => v !== 0)) return -1
 
-    const x = block.cx * pageWidth
-    const y = block.cy * pageWidth
-
-    // The smallest balloon the block's middle is inside: balloons touch and
-    // their boxes overlap, and the one that holds the lettering is the tighter.
-    let best = -1
-
-    for (const [index, fence] of fences.entries()) {
-      if (x < fence.x || x > fence.x + fence.w || y < fence.y || y > fence.y + fence.h) continue
-      if (best < 0 || fence.w * fence.h < fences[best]!.w * fences[best]!.h) best = index
-    }
-
-    return best
+    return fenceAround(block.cx * pageWidth, block.cy * pageWidth, fences)
   })
 
   const shared = new Set(fenceOf.filter((fence, at) => fence >= 0 && fenceOf.indexOf(fence) !== at))

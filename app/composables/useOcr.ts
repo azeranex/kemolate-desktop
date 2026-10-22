@@ -100,6 +100,26 @@ const measurable = (block: { kind: string, hidden?: boolean }) =>
   !block.hidden && (block.kind === 'bubble' || block.kind === 'sfx')
 
 /** A page's blocks in `useBlockSync`'s order — parent, then its columns — which is the `position` a patch carries. */
+/**
+ * Desktop: the balloons the detector drew on each page this session read, in the
+ * page's pixels, keyed by page and kept against the scan they were drawn on.
+ *
+ * For the auto run's join (`balloonJudge`), which comes straight after the
+ * reading and is the one place outside it that needs them: two blocks in one
+ * drawn balloon are one balloon, two in different ones are two. Kept in memory
+ * rather than in the workspace — a page read in an earlier session has none
+ * here, and the join then asks the pixels instead, which is slower to be sure
+ * and needs nothing stored.
+ */
+const drawnBalloons = new Map<string, { hash: string, fences: Region[] }>()
+
+/** The balloons drawn on this page when it was read this session, or null. */
+export function balloonsDrawnOn (target: ComicPage): Region[] | null {
+  const kept = drawnBalloons.get(target.id)
+
+  return kept && kept.hash === target.scan?.hash ? kept.fences : null
+}
+
 const flattened = (list: Block[]): Block[] =>
   list.flatMap((block) => (block.children?.length ? [block, ...block.children] : [block]))
 
@@ -238,13 +258,21 @@ export function useOcr () {
       direction.value,
     )
 
-    await measureRooms(target, drafts, fencesOf(regions), say)
+    const fences = fencesOf(regions)
+
+    await measureRooms(target, drafts, fences, say)
 
     // The chapter was replaced while the page was being read — opened again, or
     // left for another workspace, whose chapter may well hold a page by the same
     // name and the same scan. A reading written now would land on that page and
     // be saved over its rows: this one belongs to an open that has gone.
     if (epoch.value !== started) return 0
+
+    // Desktop: for the join that follows an auto run's reading — see `drawnBalloons`.
+    // Only what the detector drew: a reader that finds its own lettering draws
+    // none, and "none drawn" must not read as "in no balloon".
+    if (target.scan?.hash && regions.length) drawnBalloons.set(target.id, { hash: target.scan.hash, fences })
+    else drawnBalloons.delete(target.id)
 
     // `persist` puts the reading on the page as well as writing it: at once
     // where nothing is written, and as the server's answer where something is.
