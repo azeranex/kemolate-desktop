@@ -27,6 +27,7 @@ import { crc32 } from './crc32'
 import { PdfPasswordError } from './pdf/decrypt'
 import { pdfPages } from './pdf/pages'
 import { askForPassword } from './pdf/password'
+import { zipIndex } from './zip'
 
 import type { FolderTally } from '~/composables/useFolderCheck'
 
@@ -141,10 +142,163 @@ export interface Opened extends Found {
  * off it: read again, a file must come back as the same page. A file's `path`
  * is that page's (or, for a PDF, the folder its pages are filed under); a
  * folder's `prefix` is put before every path found in it.
+ *
+ * An `archive` is a `.kemolate` project file, and its pages are read straight
+ * out of it — see `ArchiveSource`.
  */
 export type Source =
   | { kind: 'file', handle: FileSystemFileHandle, path: string }
   | { kind: 'folder', handle: FileSystemDirectoryHandle, prefix: string }
+  | ArchiveSource
+
+/**
+ * Desktop: a project file whose scans are read in place, a byte range each.
+ *
+ * Opening a project used to copy every scan out of it into the private
+ * filesystem, which put a chapter on the disk twice — once in the `.kemolate`
+ * file the reader keeps, once in OPFS — for the one way of opening a chapter
+ * that had a file to point at all along. A project's entries are *stored*,
+ * never deflated (`utils/zip.ts`), so each scan is a contiguous run of the
+ * archive's bytes, exactly as it went in, and `File.slice` hands it back
+ * without reading anything.
+ *
+ * `size` and `lastModified` are the archive's when the ranges were taken. A
+ * file that has changed since — saved over from another workspace, say — has
+ * its directory read again and each page found there by `entry` name, since
+ * a range into a different archive is a page of somebody else's bytes. A
+ * deflated scan (an archive from some other tool) has no range to keep, which
+ * is why `archiveSource` refuses one and the import copies instead.
+ */
+export interface ArchiveSource {
+  kind: 'archive'
+  handle: FileSystemFileHandle
+  size: number
+  lastModified: number
+  pages: ArchiveEntry[]
+}
+
+/** One scan inside a project file: the page it is and where its bytes are. */
+export interface ArchiveEntry {
+  /** The page's path in the chapter — what its id is made of. */
+  path: string
+  /** What the page is called. */
+  name: string
+  /** Its name inside the archive (`pages/<path>`). */
+  entry: string
+  start: number
+  length: number
+  type: string
+}
+
+/**
+ * The page one archive entry is, cut out of the archive file.
+ *
+ * Named for its whole path, not the page's name, for `readBack`'s reason: the
+ * hash memo is keyed on name, size and modified time, every page here shares
+ * the archive's modified time, and two pages called `001.jpg` in two folders of
+ * one chapter are not unusual. Shared by the import and every reopen, so the
+ * same page is the same `File` both times and the memo answers for it.
+ */
+export function archivePage (archive: File, page: ArchiveEntry, at: { start: number, length: number } = page): PickedImage {
+  const bytes = archive.slice(at.start, at.start + at.length, page.type)
+
+  return {
+    file: new File([bytes], page.path, { type: page.type, lastModified: archive.lastModified }),
+    path: page.path,
+    name: page.name,
+  }
+}
+
+/**
+ * The `Source` for a project file's scans, or nothing where any of them cannot
+ * be read in place — see `ArchiveSource`.
+ *
+ * `wanted` is each page to keep, by path, with the archive entry holding it
+ * and the name and type it goes by.
+ */
+export async function archiveSource (
+  handle: FileSystemFileHandle,
+  archive: File,
+  wanted: Omit<ArchiveEntry, 'start' | 'length'>[],
+): Promise<ArchiveSource | null> {
+  const index = new Map((await zipIndex(archive)).map((entry) => [entry.name, entry]))
+  const pages: ArchiveEntry[] = []
+
+  for (const page of wanted) {
+    const at = index.get(page.entry)
+
+    if (!at?.stored) return null
+
+    pages.push({ ...page, start: at.start, length: at.length })
+  }
+
+  return { kind: 'archive', handle, size: archive.size, lastModified: archive.lastModified, pages }
+}
+
+/**
+ * A chapter's sources without the one holding this page, or with that page
+ * taken out of it — and whether any source held it by name.
+ *
+ * A file is taken out whole, and an archive loses one entry (and goes when it
+ * has none left). A folder is never changed: it holds the page by being where
+ * the page is, which is why the caller remembers the page as removed instead.
+ */
+export function withoutPage (sources: Source[], path: string): { sources: Source[], held: boolean } {
+  let held = false
+
+  const kept = sources.flatMap((source): Source[] => {
+    if (source.kind === 'file' && source.path === path) {
+      held = true
+
+      return []
+    }
+
+    if (source.kind === 'archive' && source.pages.some((page) => page.path === path)) {
+      held = true
+
+      const pages = source.pages.filter((page) => page.path !== path)
+
+      return pages.length ? [{ ...source, pages }] : []
+    }
+
+    return [source]
+  })
+
+  return { sources: kept, held }
+}
+
+/**
+ * The pages of one project file, read back — or how many are missing.
+ *
+ * Straight from the kept ranges while the archive is the one they were taken
+ * from; otherwise found again by name in its directory, and a page that is no
+ * longer in it is missing. A file that has gone entirely is every page missing.
+ */
+async function archivePages (source: ArchiveSource): Promise<{ images: PickedImage[], missing: number }> {
+  let archive: File
+
+  try {
+    archive = await source.handle.getFile()
+  } catch {
+    return { images: [], missing: source.pages.length }
+  }
+
+  if (archive.size === source.size && archive.lastModified === source.lastModified) {
+    return { images: source.pages.map((page) => archivePage(archive, page)), missing: 0 }
+  }
+
+  const index = await zipIndex(archive).catch(() => [])
+  const byName = new Map(index.map((entry) => [entry.name, entry]))
+  const images: PickedImage[] = []
+
+  for (const page of source.pages) {
+    const at = byName.get(page.entry)
+
+    if (at?.stored) images.push(archivePage(archive, page, at))
+  }
+
+  return { images, missing: source.pages.length - images.length }
+}
 
 /**
  * Desktop: the pages of a chapter kept as its sources, read out of them again —
@@ -162,6 +316,13 @@ export async function imagesOf (sources: Source[], { reopening = false }: { reop
         const file = await source.handle.getFile()
 
         if (isOpenable(file)) found.push({ file, path: source.path })
+      } else if (source.kind === 'archive') {
+        // Counted by page rather than as one source: a project file gone is
+        // every page of it gone, and the toast says how many pages.
+        const read = await archivePages(source)
+
+        found.push(...read.images)
+        missing += read.missing
       } else {
         const before = found.length
 

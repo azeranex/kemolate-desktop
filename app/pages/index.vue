@@ -228,15 +228,18 @@ async function start () {
  * up — see `useProjectFile.handOver`, which says why the parking is keyed by
  * workspace and why it is only in memory.
  */
-async function onProject (file: File) {
+async function onProject (file: File, handle: Promise<FileSystemHandle | null> | null) {
   if (importing.value) return
 
   importing.value = true
 
   try {
+    // Desktop: the handle, so the project's scans are read out of the file in
+    // place rather than copied — see `ArchiveSource`. Nothing where none came.
+    const held = await handle?.catch(() => null)
     const id = await mint()
 
-    handOver(id, file)
+    handOver(id, file, held?.kind === 'file' ? held as FileSystemFileHandle : undefined)
 
     await navigateTo(`/w/${id}`)
   } finally {

@@ -143,6 +143,8 @@ declare global {
   const announceLocal: typeof import('./composables/useLocalChanges').announceLocal
   const appendStroke: typeof import('./utils/strokes').appendStroke
   const applyLut: typeof import('../shared/utils/adjust').applyLut
+  const archivePage: typeof import('./utils/images').archivePage
+  const archiveSource: typeof import('./utils/images').archiveSource
   const arrangeStack: typeof import('../shared/utils/presets').arrangeStack
   const arrived: typeof import('./composables/useBlockSync').arrived
   const askAgain: typeof import('../shared/utils/glossary').askAgain
@@ -905,12 +907,14 @@ declare global {
   const whenever: typeof import('@vueuse/core').whenever
   const withAbsent: typeof import('./composables/useShared').withAbsent
   const withHyphens: typeof import('./utils/hyphens').withHyphens
+  const withoutPage: typeof import('./utils/images').withoutPage
   const worthStraightening: typeof import('./utils/ocr/deskew').worthStraightening
   const wrapDeg: typeof import('../shared/utils/transform').wrapDeg
   const writeModel: typeof import('./utils/ocr/store').writeModel
   const writePatch: typeof import('./utils/ocr/patches').writePatch
   const writePlaced: typeof import('./utils/placed').writePlaced
   const zip: typeof import('./utils/zip').zip
+  const zipIndex: typeof import('./utils/zip').zipIndex
 }
 // for type re-export
 declare global {
@@ -1023,7 +1027,7 @@ declare global {
   export type { GoogleLine } from './utils/google'
   import('./utils/google')
   // @ts-ignore
-  export type { PickedImage, Rest, Found, Opened, Source, CropShape } from './utils/images'
+  export type { PickedImage, Rest, Found, Opened, Source, ArchiveSource, ArchiveEntry, CropShape } from './utils/images'
   import('./utils/images')
   // @ts-ignore
   export type { LetterSpace, LetterSetting, ShapeParts } from './utils/letterCss'
@@ -1053,7 +1057,7 @@ declare global {
   export type { BoardView } from './utils/view'
   import('./utils/view')
   // @ts-ignore
-  export type { ZipEntry } from './utils/zip'
+  export type { ZipEntry, ZipIndexEntry } from './utils/zip'
   import('./utils/zip')
   // @ts-ignore
   export type { Room, Balloon } from './utils/ocr/balloon'
@@ -1302,6 +1306,8 @@ declare module 'vue' {
     readonly announceLocal: UnwrapRef<typeof import('./composables/useLocalChanges')['announceLocal']>
     readonly appendStroke: UnwrapRef<typeof import('./utils/strokes')['appendStroke']>
     readonly applyLut: UnwrapRef<typeof import('../shared/utils/adjust')['applyLut']>
+    readonly archivePage: UnwrapRef<typeof import('./utils/images')['archivePage']>
+    readonly archiveSource: UnwrapRef<typeof import('./utils/images')['archiveSource']>
     readonly arrangeStack: UnwrapRef<typeof import('../shared/utils/presets')['arrangeStack']>
     readonly arrived: UnwrapRef<typeof import('./composables/useBlockSync')['arrived']>
     readonly askAgain: UnwrapRef<typeof import('../shared/utils/glossary')['askAgain']>
@@ -2061,11 +2067,13 @@ declare module 'vue' {
     readonly whenever: UnwrapRef<typeof import('@vueuse/core')['whenever']>
     readonly withAbsent: UnwrapRef<typeof import('./composables/useShared')['withAbsent']>
     readonly withHyphens: UnwrapRef<typeof import('./utils/hyphens')['withHyphens']>
+    readonly withoutPage: UnwrapRef<typeof import('./utils/images')['withoutPage']>
     readonly worthStraightening: UnwrapRef<typeof import('./utils/ocr/deskew')['worthStraightening']>
     readonly wrapDeg: UnwrapRef<typeof import('../shared/utils/transform')['wrapDeg']>
     readonly writeModel: UnwrapRef<typeof import('./utils/ocr/store')['writeModel']>
     readonly writePatch: UnwrapRef<typeof import('./utils/ocr/patches')['writePatch']>
     readonly writePlaced: UnwrapRef<typeof import('./utils/placed')['writePlaced']>
     readonly zip: UnwrapRef<typeof import('./utils/zip')['zip']>
+    readonly zipIndex: UnwrapRef<typeof import('./utils/zip')['zipIndex']>
   }
 }

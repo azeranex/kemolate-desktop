@@ -40,6 +40,8 @@ type Chapter =
   /*
    * Desktop: kept as what it was opened from — every file and folder dropped or
    * picked, by handle (see `Source` in `utils/images.ts`) — rather than copied.
+   * A project file opened is one of these too, its scans read out of the
+   * `.kemolate` file in place (`ArchiveSource`).
    * `removed` is the paths of pages taken out of the chapter that a folder among
    * the sources still holds, so they stay out when it is read again. Pages the
    * app made itself (a blank, a file linked to a page) have no source, and live
@@ -1074,8 +1076,8 @@ export function useLibrary () {
       const chapter = await idb.get<Chapter>(key.value).catch(() => null)
 
       if (chapter?.kind === 'sources') {
-        const sources = chapter.sources.filter((source) => !(source.kind === 'file' && source.path === path))
-        const removed = sources.length === chapter.sources.length ? [...new Set([...chapter.removed ?? [], path])] : chapter.removed
+        const { sources, held } = withoutPage(chapter.sources, path)
+        const removed = held ? chapter.removed : [...new Set([...chapter.removed ?? [], path])]
 
         await idb.set(key.value, { ...chapter, sources, removed }).catch(unsaved)
       }

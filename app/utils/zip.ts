@@ -306,6 +306,39 @@ async function inflate (data: Blob): Promise<Blob> {
  * them. Only the deflated ones are actually materialised.
  */
 export async function unzip (source: Blob): Promise<Map<string, Blob>> {
+  const out = new Map<string, Blob>()
+
+  for (const entry of await zipIndex(source)) {
+    const slice = source.slice(entry.start, entry.start + entry.length)
+
+    out.set(entry.name, entry.stored ? slice : await inflate(slice))
+  }
+
+  return out
+}
+
+/** Where one entry's bytes sit in an archive — see `zipIndex`. */
+export interface ZipIndexEntry {
+  name: string
+  /** Whether the bytes are the file itself, rather than a deflated stream of it. */
+  stored: boolean
+  /** The entry's first byte of data, counted from the start of the archive. */
+  start: number
+  /** How many bytes of the archive it takes up. */
+  length: number
+}
+
+/**
+ * Every file in an archive and the range of the archive it occupies — the
+ * directory `unzip` walks, before anything is cut out of it.
+ *
+ * Its own function because a stored entry *is* a range of the archive, byte
+ * for byte, and that is worth being able to say: desktop reads a project's
+ * scans straight out of the `.kemolate` file on every open (the `archive` kind
+ * of `Source` in `images.ts`) rather than copying them somewhere first, and a
+ * range is what it has to remember to do so.
+ */
+export async function zipIndex (source: Blob): Promise<ZipIndexEntry[]> {
   const end = await locate(source)
 
   if (!end) throw new Error('That file is not a zip — no end-of-archive record.')
@@ -317,7 +350,7 @@ export async function unzip (source: Blob): Promise<Map<string, Blob>> {
 
   const directory = new DataView(await source.slice(start, start + size).arrayBuffer())
   const decoder = new TextDecoder()
-  const out = new Map<string, Blob>()
+  const out: ZipIndexEntry[] = []
 
   let at = 0
 
@@ -343,14 +376,13 @@ export async function unzip (source: Blob): Promise<Map<string, Blob>> {
     if (local.getUint32(0, true) !== LOCAL) throw new Error(`“${name}” is not where the archive says it is.`)
 
     const from = offset + 30 + local.getUint16(26, true) + local.getUint16(28, true)
-    const slice = source.slice(from, from + compressed)
 
     // A directory entry — a name ending in `/`, with nothing in it. Nothing
     // here makes them, and an archive from elsewhere may.
     if (!name.endsWith('/')) {
-      if (method === STORED) out.set(name, slice)
-      else if (method === DEFLATED) out.set(name, await inflate(slice))
-      else throw new Error(`“${name}” uses a compression this can’t read.`)
+      if (method !== STORED && method !== DEFLATED) throw new Error(`“${name}” uses a compression this can’t read.`)
+
+      out.push({ name, stored: method === STORED, start: from, length: compressed })
     }
 
     at += 46 + nameLength + extraLength + commentLength

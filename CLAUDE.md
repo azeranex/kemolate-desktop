@@ -618,6 +618,13 @@ standard size the automatic wrap packs lines mid-phrase: "FIRST, LET / ME SHOW /
     moved or deleted since is a page missing, said; every file gone keeps the workspace and its
     work, as a lost copy does (`resume`). Older chapters kept as `copy` still read back; a drop
     that brings no handles still falls back to one.
+  - **A project file's scans are read in place too** (2026-10-22). File › Open project… (the
+    file picker) and a project dropped on the workspace list hand over a handle, and the
+    chapter is kept as `sources` with one `archive` source — the `.kemolate` handle plus each
+    scan's byte range (`ArchiveSource`, `zipIndex`); entries are stored, so a range *is* the
+    scan. An archive saved over is re-indexed by entry name; one moved is every page absent.
+    A project with no handle (a `.kemolate` from the OS via `/opened/<token>`, an `<input>`)
+    or with a deflated scan is still copied into OPFS.
   - **Saving** a project or an export goes through the web build's link-to-a-Blob download;
     `electron/downloads.ts` titles the native Save dialog for what is saved, filters it to
     the kind, and opens it in Documents, then the last folder used.
