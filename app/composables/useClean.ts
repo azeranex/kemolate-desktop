@@ -29,6 +29,7 @@ import { idbKey } from '~/utils/idbKeys'
 import { repairsAreQuick } from '~/utils/ocr/clean'
 import { blockOutline, partsWithin } from '~/utils/ocr/mask'
 import { MASK_RECIPE, patchMade } from '~/utils/ocr/patches'
+import { drawsRepair } from '~/utils/raster/engine/overs'
 import { REPAIR_DOWNLOADS } from '~/utils/resources'
 
 /** A cleaned block, as the canvas wants it: an image and a box in percentages. */
@@ -1809,6 +1810,9 @@ export function useClean () {
    * the file so it can be tested without a page around it.
    */
   function patchFor (target: ComicPage, block: Block): PagePatch | null {
+    // Desktop: none for a block called garbage or hidden — see `drawsRepair`.
+    if (!drawsRepair(block)) return null
+
     const patch = patches.value[target.id]?.[block.id]
 
     return patchStands(patch, target.scan) ? patch : null

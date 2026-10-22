@@ -18,8 +18,23 @@ import type { PagePatch } from '~/composables/useClean'
 export interface Over { url: string, sx: number, sy: number, sw: number, sh: number, block?: string, key?: string }
 
 /**
+ * Whether a block's repair is drawn: not for a block called garbage, nor one
+ * hidden — desktop.
+ *
+ * Cleaning already passes those blocks by (`lettering` in `useClean`), but a
+ * repair made *before* a block was marked stayed on the page, painting over
+ * artwork that was never lettering: a shop window cleaned to a white smear
+ * because the detector took it for a balloon, still white after the block was
+ * called garbage. The repair is kept, not withdrawn, so taking the mark off
+ * brings it back. The web build draws every repair, so it very likely has the
+ * same fault.
+ */
+export const drawsRepair = (block: Pick<ComicPage['blocks'][number], 'type' | 'hidden'>) =>
+  block.type !== 'garbage' && !block.hidden
+
+/**
  * A page's repairs, as the clean plate would draw them — block by block, each
- * the repair `stands` says is still this scan's.
+ * the repair `stands` says is still this scan's, of a block `drawsRepair` passes.
  */
 export function repairOvers (
   page: ComicPage,
@@ -31,6 +46,8 @@ export function repairOvers (
   if (!own || !held) return []
 
   return page.blocks.flatMap((block) => {
+    if (!drawsRepair(block)) return []
+
     const patch = held[block.id]
 
     if (!patch || !stands(patch, own)) return []
