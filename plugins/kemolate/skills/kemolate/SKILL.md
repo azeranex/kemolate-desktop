@@ -1,6 +1,6 @@
 ---
 name: kemolate
-description: How to work on comic and manga chapters through the Kemolate MCP server — reading pages with Kemolate's own OCR, checking and correcting the reading, translating with the chapter's glossary and cast, and fixing the lettering (size, face, frame) of balloons. Use this whenever Kemolate's tools are available (get_active_workspace, list_pages, request_page_read, prepare_page_translation, save_page_translations, set_lettering_style …) or the user talks about their Kemolate chapter, "this page", scanlation, typesetting or a balloon whose text is too small — even if they do not name Kemolate.
+description: How to work on comic and manga chapters through the Kemolate MCP server — reading pages with Kemolate's own OCR, checking and correcting the reading, translating with the chapter's glossary and cast, and reviewing and fixing the lettering of balloons (frame, size, copyfitting a line that will not fit without losing its meaning). Use this whenever Kemolate's tools are available (get_active_workspace, list_pages, request_page_read, prepare_page_translation, save_page_translations, set_lettering_style …) or the user talks about their Kemolate chapter, "this page", scanlation, typesetting or a balloon whose text is too small — even if they do not name Kemolate.
 ---
 
 # Working in Kemolate through MCP
@@ -126,28 +126,59 @@ and the line is wrapped into it.
 - `frame` — where the lines are set, upright, in the width-normalised units
   above; one block per call. `frame: null` hands the line back to its room.
 
-### "The balloon is big but the text is tiny"
+## Reviewing lettering
 
-The usual causes, and what to do:
+After translating or restyling a page — and whenever the user says text looks
+wrong — call `review_lettering` (no ids: the page on screen). For every line it
+gives the size it is set at, what decided it (`auto` fitted to its frame,
+`standard` held to the chapter's size, `chosen` by someone), its `capacity`
+(the size its frame would allow with nothing holding it), and flags:
 
-1. **The line is set in a frame narrower than its balloon.** Compare the
-   block's `box`, `room` and the line's `frame` in `read_page`. Look at the
-   balloon with `get_page_image` and a `region` a little wider than the block,
-   estimate the balloon's inside (a few percent in from its outline), and send
-   that as `frame` with `style: { shape: "oval", size: null }`. The words are
-   then wrapped into the balloon and sized to fill it.
-2. **One long word sets the size.** Lines wrap between words, so the longest
-   word ("NEIGHBORHOOD...") must fit across the balloon on its own, and the
-   whole balloon is set at whatever size allows that. Kemolate cannot hyphenate
-   on Windows. The fix is wording: offer the user a version without the long
-   word, and save it with `save_page_translations` (`entries` naming the block).
-3. **The user has a standard size, and the line is too long for it** — the app
-   squeezes a line a little, then flags it. Again the fix is fewer words.
+- **does-not-fit** — will not go even at the smallest size; clipped. Always fix.
+- **squeezed** — set tighter or a word broken to go. Usually fine; look at it.
+- **small-for-its-balloon** — a chosen size well under what the frame holds.
+- **smaller-than-the-page** — an automatic line well under the page's ordinary
+  size: a frame too small for its balloon, or one long word.
 
-You **cannot see the lettered result**: `get_page_image` returns the scan, not
-the page as lettered, and the size a line was actually fitted at is measured in
-the window, not stored. So after changing lettering, ask the user to look, and
-describe what you changed so they can judge it.
+It returns a close crop of each flagged balloon **as lettered**, not the scan
+(`images: "all"` for every line). `get_page_image` with `lettered: true` shows a
+whole page as lettered. A line held to a `standard` with room round it is not a
+fault: one size for every ordinary line is what a standard is for.
+
+### Fixing a line — layout first, words last
+
+Work in the order a letterer works; each step changes less than the next.
+
+1. **Give the line its balloon.** If its frame is narrower than the balloon
+   (compare `frame` and `room` in `read_page`, and look at the crop), send
+   `set_lettering_style` with a `frame` round the balloon's inside — a few
+   percent in from its outline, width-normalised units — and
+   `style: { shape: "oval", size: null }`. Kemolate then wraps the words into the
+   balloon, breaks a long word once if that sets them much larger, and sizes
+   them to fill it.
+2. **Then the words**, only if the line still does not fit or is held small by
+   its length. This is copyfitting, and it belongs to whoever owns the script:
+   - A line the user typed (`pinned`) is theirs. **Propose** a shorter wording
+     and ask; do not save it.
+   - A machine line you may shorten and save with `save_page_translations`
+     (`entries` naming the block) — it is filed as a revision and can be undone.
+     Say what you changed.
+   - Keep: the meaning and the facts; who is speaking and their voice and
+     register (the chapter's honorifics setting included); names and terms from
+     the glossary; anything set up for later. Let the art carry what it already
+     shows.
+   - In this order: contractions; cut filler and hedging; a shorter word of the
+     same register; reshape the sentence. Splitting a line across two balloons
+     is the user's call.
+   - Never change what happens, soften or sharpen the tone (a threat does not
+     become polite), smooth away a character's deliberate way of speaking, or
+     reword a sound effect that should be redrawn as art.
+3. **Size last.** A chosen `size` is for matching lines on purpose, or when the
+   user asks. Raising the chapter's standard is the user's decision, in the
+   Lettering panel.
+
+Then `review_lettering` again, and tell the user what you changed and what is
+left for their eye — fitting is measured, but tone and placement are theirs.
 
 ## Spending images well
 
@@ -157,6 +188,8 @@ Images cost the user tokens; text is cheap.
   sends you a whole page.
 - To look at one balloon, `get_page_image` with `blockId` (or a `region`) gives a
   sharp crop; a whole page is downscaled and small lettering becomes unreadable.
+- To check lettering, `review_lettering` shows only the flagged balloons; a
+  whole lettered page (`lettered: true`) is for a final look, not for review.
 - Do not fetch a page image and then also prepare it in `image` mode — that pays
   twice. If you have already seen the page, prepare in `text` mode.
 - Batch: one `request_page_read` for the chapter, up to 20 pages per
@@ -174,7 +207,7 @@ Images cost the user tokens; text is cheap.
 ## Not available through MCP
 
 Cleaning the original lettering off the art, painting, layers and export are
-done in the Kemolate window. If the user asks for them, tell them where:
+done in the Kemolate window (you can look at the result with `lettered: true`). If the user asks for them, tell them where:
 cleaning is the Detect panel's **Clean page**; re-measuring balloons (for oval
 rooms on chapters read before) is Detect › **Measure balloons**.
 
@@ -185,8 +218,8 @@ rooms on chapters read before) is Detect › **Measure balloons**.
 `review_page_reading` + `correct_blocks` per page →
 `prepare_page_translation` (batched, text mode) → answer →
 `save_page_translations` (one call, with `glossary` and `cast`) →
-fix lettering where the user points at a problem → tell the user what was done,
-what was held by their pins, and anything you were unsure of.
+`review_lettering` per page, fixing layout first and words last → tell the user
+what was done, what was held by their pins, and anything you were unsure of.
 
 The server also offers a `translate_chapter` prompt with the same order, for a
 user who wants to start a run from their client's menu.

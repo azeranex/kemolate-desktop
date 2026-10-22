@@ -111,6 +111,8 @@ useLayerSync()
 // build's, which explains why reading beats an agent looking — does the reading.
 useHolding()
 useReadErrands()
+// Desktop: an agent's questions about the lettering — how each line is fitted, and the page as lettered.
+useLetteringErrands()
 
 /*
  * Whether the record has been asked for on the way in — so that "no record"

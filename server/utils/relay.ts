@@ -140,6 +140,8 @@ export async function requestRender (
   hash: string,
   chapter: string,
   region?: Region | null,
+  // Desktop: the page as the window letters it, not the scan — `review_lettering`.
+  lettered = false,
 ): Promise<Rendition> {
   const asked = holders(publicId, hash).slice(0, FANOUT)
 
@@ -157,6 +159,7 @@ export async function requestRender (
     maxEdge: MAX_EDGE,
     quality: QUALITY,
     region: region ?? null,
+    ...(lettered ? { lettered } : {}),
   } satisfies SwarmServerMessage))
 
   return waiting
@@ -184,6 +187,8 @@ export async function requestRenders (
   hash: string,
   chapter: string,
   regions: Region[],
+  // Desktop: see `requestRender`.
+  lettered = false,
 ): Promise<Rendition[]> {
   const [peer] = holders(publicId, hash)
 
@@ -202,6 +207,7 @@ export async function requestRenders (
       maxEdge: MAX_EDGE,
       quality: QUALITY,
       region,
+      ...(lettered ? { lettered } : {}),
     } satisfies SwarmServerMessage))
 
     return waiting

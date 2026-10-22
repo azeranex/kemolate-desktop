@@ -50,8 +50,11 @@ export type SwarmServerMessage =
     maxEdge: number
     quality: number
     region: { x: number, y: number, w: number, h: number } | null
+    /** The page as lettered, rather than the scan — see `useLetteringErrands`. */
+    lettered?: boolean
   }
   | { type: 'read', request: string, hashes: string[], pageIds: number[] }
+  | { type: 'fits', request: string, hash: string }
   | { type: 'changed', change: SwarmChange }
 
 const changeListeners = new Set<(room: string, change: SwarmChange) => void>()
@@ -143,6 +146,38 @@ export function onSwarmErrand (listener: ErrandListener): () => void {
   return off
 }
 
+/** A lettering job the server asks of this window — a picture of the page as lettered, or its fits. */
+export type LetterErrand = Extract<SwarmServerMessage, { type: 'fits' }> | Extract<SwarmServerMessage, { type: 'render' }>
+
+/**
+ * Who answers an agent's questions about the lettering — `useLetteringErrands`,
+ * for the reason `hands` above exists: the page as lettered and how each line
+ * is fitted need the open chapter and its composables, which this module does
+ * not have.
+ */
+const letterers = new Set<(workspace: string, errand: LetterErrand) => void>()
+
+export function onLetterErrand (listener: (workspace: string, errand: LetterErrand) => void): () => void {
+  letterers.add(listener)
+
+  const off = () => letterers.delete(listener)
+
+  if (getCurrentScope()) onScopeDispose(off)
+
+  return off
+}
+
+/** Hand a lettering job on, best effort, as a read is handed on. */
+function toLetterers (workspace: string, errand: LetterErrand) {
+  for (const letterer of letterers) {
+    try {
+      letterer(workspace, errand)
+    } catch (error) {
+      console.warn('[kemolate] a lettering errand failed:', error)
+    }
+  }
+}
+
 /** The workspace the window holds pages of, and those pages by hash — see `holdScans`. */
 let holding: { workspace: string, files: Map<string, File> } | null = null
 
@@ -184,9 +219,21 @@ async function render (workspace: string, ask: Extract<SwarmServerMessage, { typ
 }
 
 function handle (workspace: string, payload: SwarmServerMessage) {
-  if (payload.type === 'render') {
+  if (payload.type === 'render' && payload.lettered) {
+    toLetterers(workspace, payload)
+  } else if (payload.type === 'render') {
     // Not awaited, as in the web build: `render` swallows its own failures.
     render(workspace, payload)
+  } else if (payload.type === 'fits') {
+    // With nobody to measure, said so at once rather than left to time out.
+    if (!letterers.size) {
+      $fetch(`/api/workspaces/${workspace}/fits/${payload.request}`, {
+        method: 'POST',
+        body: { ok: false, error: 'Kemolate has no chapter open to measure.' },
+      }).catch(() => {})
+    }
+
+    toLetterers(workspace, payload)
   } else if (payload.type === 'read') {
     // With nobody to hand it to, said so at once — see the web build's `handle`.
     if (!hands.size) {

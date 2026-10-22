@@ -102,6 +102,10 @@
       "description": "How lines are lettered: face, size, weight, placement, ink, shape."
     },
     {
+      "name": "review_lettering",
+      "description": "How each line on a page is lettered, with flags and lettered close-ups."
+    },
+    {
       "name": "get_glossary",
       "description": "The terms a chapter has settled on in one language."
     },

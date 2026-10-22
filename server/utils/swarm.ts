@@ -50,8 +50,12 @@ export type SwarmServerMessage =
     maxEdge: number
     quality: number
     region: { x: number, y: number, w: number, h: number } | null
+    /** Desktop: the page as lettered — the window's export of it — rather than the scan. */
+    lettered?: boolean
   }
   | { type: 'read', request: string, hashes: string[], pageIds: number[] }
+  /** Desktop: how each line on a page is fitted — see `server/utils/fits.ts`. */
+  | { type: 'fits', request: string, hash: string }
   /** Go and re-read this much; an agent edited it. See `announce`. */
   | { type: 'changed', change: SwarmChange }
 

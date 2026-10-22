@@ -24,6 +24,7 @@ import type { FramePoint, LetterFit, TextAnchor } from '#shared/utils/lettering'
 
 // By hand, so a dev server already running picks up exports it has not seen.
 import { AUTO_LINE, LETTERING_WRAP, SQUEEZE_FLOOR, squeezed } from '#shared/utils/lettering'
+import { withHyphens } from '~/utils/hyphens'
 import { HYPHENATE, shapeParts } from '~/utils/letterCss'
 
 /** The probe, made once: a node appended and dropped per press would thrash. */
@@ -233,10 +234,34 @@ function inkOf (text: Text | null, origin: DOMRect): { left: number, top: number
  * where type is not an exact scale of the probe's — hinting, rounded advances,
  * a polygon rounded to pixels — and a line that only just went at the narrow
  * end of an oval wraps instead, and its last word is pushed past the frame and
- * cut ("HM? OH, YEAH, IT" with the "IS." gone, 2026-10-22). Measured a few
- * percent narrow, every line drawn has that much to spare.
+ * cut ("HM? OH, YEAH, IT" with the "IS." gone, 2026-10-22). Measured a hair
+ * narrow, every line drawn has that much to spare.
+ *
+ * A hair, and no more: the slack is also a difference between the probe and the
+ * page. At 4% the probe wrapped lines the page did not, so its block of words
+ * was taller than the one drawn, and the pad that centres them (`tryFit`) was
+ * worked out for the taller block — the drawn words sat at the top of the oval
+ * with a third of it empty below, and a bottom anchor pushed them out of the
+ * frame altogether (2026-10-22). Rounding is under a pixel in a line; one
+ * percent covers it without changing where the probe wraps.
  */
-const SHAPE_SLACK = 0.04
+const SHAPE_SLACK = 0.01
+
+/**
+ * Desktop: how much larger breaking a long word has to make the type before a
+ * fit with no standard size does it. One long word — "NEIGHBORHOOD..." in a
+ * balloon set in Anime Ace — otherwise holds the whole balloon to the size that
+ * word fits across at; a letterer breaks the word before shrinking the balloon,
+ * but never for a pixel or two.
+ */
+const HYPHEN_GAIN = 1.25
+
+/**
+ * Desktop: how far from even a shaped line anchored in the middle may sit and
+ * still count as fitting, as a share of the frame — and how far above the
+ * middle one anchored at the bottom may. See `tryFit`.
+ */
+const ANCHOR_SLACK = 0.06
 
 /** How a fit is being tried: hyphenated or not, tightened or not. */
 type Squeeze = Pick<LetterFit, 'hyphens' | 'tight'>
@@ -300,6 +325,12 @@ function probeFor (input: FitInput) {
       ...(squeeze.hyphens ? HYPHENATE : { hyphens: 'manual', hyphenateLimitChars: 'auto', WebkitHyphens: 'manual' }),
     })
 
+    // Desktop: the words with their breaks put in by hand when hyphenating —
+    // `hyphens: auto` alone does nothing here. See `utils/hyphens`.
+    const words = squeeze.hyphens ? withHyphens(input.text, input.lang) : input.text
+
+    if (text && text.data !== words) text.data = words
+
     if (outline) shaped.spacer.style.blockSize = `${Math.max(0, pad)}%`
 
     return inkOf(text, box.getBoundingClientRect())
@@ -338,29 +369,80 @@ function tryFit (setup: ReturnType<typeof probeFor>, input: FitInput, size: numb
     ? { from: w - ink.right, to: w - ink.left }
     : { from: ink.top, to: ink.bottom })
 
-  let pad = 0
-  let ink = setup.layout(size, squeeze, 0)
+  /*
+   * Desktop: where the spacer puts the words, found by search rather than by
+   * nudging. The nudging was the web build's: move by however far the words
+   * were from where the anchor wants them, up to four times. In a shape every
+   * move re-wraps the lines — down into an oval's wide middle a line merges
+   * away, further into its narrow foot one comes back — so the block's height
+   * jumps as it moves, the nudges overshoot, and four of them stopped wherever
+   * they were: "This photo's going to be a family heirloom...!" was set with 10
+   * px above it and 110 below in a 280 px oval, its anchor "middle" (2026-10-22),
+   * and a bottom anchor could be pushed out of the frame altogether.
+   *
+   * What does hold is that the words sit lower the larger the pad, jumps and
+   * all. So the pad is halved towards the answer: for the middle, where the
+   * room above stops being less than the room below — keeping whichever pad
+   * measured nearest even, among those that fit; for the bottom, the largest
+   * pad at which the words still fit. Seven halvings settle it to under a
+   * percent of the frame.
+   */
+  const place = (pad: number) => {
+    const ink = setup.layout(size, squeeze, pad)
 
-  if (!ink) return { fits: true, pad: 0 }
+    if (!ink) return null
 
-  for (let pass = 0; pass < 4; pass++) {
     const { from, to } = extent(ink)
-    const target = input.anchor === 'top' ? 0 : input.anchor === 'bottom' ? total - (to - from) : (total - (to - from)) / 2
-    const move = target - from
 
-    if (Math.abs(move) < 0.5) break
-
-    const next = Math.max(0, pad + (move / total) * 100)
-
-    if (Math.abs(next - pad) < 0.01) break
-
-    pad = next
-    ink = setup.layout(size, squeeze, pad)
-
-    if (!ink) break
+    return { pad, ink, above: from, below: total - to, fits: fits(ink) }
   }
 
-  return { fits: fits(ink), pad: Math.round(pad * 100) / 100 }
+  const first = place(0)
+
+  if (!first) return { fits: true, pad: 0 }
+  if (input.anchor === 'top') return { fits: first.fits, pad: 0 }
+
+  let low = 0
+  let high = 100
+  let best = first
+
+  /** Nearer even, and fitting before not fitting — or, for the bottom, lower and fitting. */
+  const better = (one: NonNullable<ReturnType<typeof place>>) => (input.anchor === 'bottom'
+    ? one.fits && (!best.fits || one.pad > best.pad)
+    : (one.fits && !best.fits) || (one.fits === best.fits && Math.abs(one.above - one.below) < Math.abs(best.above - best.below)))
+
+  for (let step = 0; step < 7; step++) {
+    const mid = (low + high) / 2
+    const at = place(mid)
+
+    if (!at) break
+
+    if (better(at)) best = at
+
+    // Lower still to go: for the bottom while the words fit, for the middle while there is more room below than above.
+    const lower = input.anchor === 'bottom' ? at.fits : at.above < at.below
+
+    if (lower) low = mid
+    else high = mid
+  }
+
+  /*
+   * And a size only goes if its words sit where the anchor says. The largest
+   * size that fits *somewhere* in an oval can fit in one place only — its
+   * longest word across the oval's widest line, wherever that drags the rest —
+   * and taking it set "This photo's going to be a family heirloom...!" at the
+   * top of its balloon, anchored "middle". A letterer goes a size smaller and
+   * keeps it centred; so does this, by calling such a placement not a fit.
+   */
+  // A bottom anchor only has to sit at the middle or lower: it sets the words as
+  // low as they go, and an oval narrows to its foot — held to the foot itself,
+  // "Wait, is this one of those 'car' things?" went from 32 to 17 to get there.
+  const slack = total * ANCHOR_SLACK
+  const placed = input.anchor === 'bottom'
+    ? best.below - best.above <= slack
+    : Math.abs(best.above - best.below) <= slack
+
+  return { fits: best.fits && placed, pad: Math.round(best.pad * 100) / 100 }
 }
 
 /**
@@ -399,27 +481,41 @@ export function fitSize (input: FitInput, range: { min: number, max: number }): 
   if (input.box.w <= 0 || input.box.h <= 0) return { size: range.min }
 
   const setup = probeFor(input)
-  const at = (size: number) => tryFit(setup, input, size, {})
 
-  const floor = at(range.min)
+  /** The largest size that fits with this squeeze, or the floor flagged `over`. */
+  const largest = (squeeze: Squeeze): LetterFit => {
+    const at = (size: number) => tryFit(setup, input, size, squeeze)
 
-  if (!floor.fits) return { size: range.min, pad: floor.pad, over: true }
+    const floor = at(range.min)
 
-  let low = range.min
-  let high = range.max
+    if (!floor.fits) return { size: range.min, pad: floor.pad, over: true }
 
-  while (high - low > 1) {
-    const mid = Math.floor((low + high) / 2)
+    let low = range.min
+    let high = range.max
 
-    if (at(mid).fits) low = mid
-    else high = mid
+    while (high - low > 1) {
+      const mid = Math.floor((low + high) / 2)
+
+      if (at(mid).fits) low = mid
+      else high = mid
+    }
+
+    if (at(high).fits) low = high
+
+    for (let more = 0; setup.outline && more < 3 && low < range.max && at(low + 1).fits; more++) low++
+
+    return { size: low, pad: at(low).pad }
   }
 
-  if (at(high).fits) low = high
+  const plain = largest({})
 
-  for (let more = 0; setup.outline && more < 3 && low < range.max && at(low + 1).fits; more++) low++
+  // Desktop: a long word broken, where that lets the whole balloon be set much
+  // larger — see `HYPHEN_GAIN` and `utils/hyphens`.
+  if (!input.lang || withHyphens(input.text, input.lang) === input.text) return plain
 
-  return { size: low, pad: at(low).pad }
+  const broken = largest({ hyphens: true })
+
+  return !broken.over && (plain.over || broken.size >= plain.size * HYPHEN_GAIN) ? { ...broken, hyphens: true } : plain
 }
 
 /**

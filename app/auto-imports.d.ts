@@ -49,6 +49,7 @@ declare global {
   const FetchError: typeof import('./composables/nuxt').FetchError
   const HANDLES: typeof import('../shared/utils/transform').HANDLES
   const HYPHENATE: typeof import('./utils/letterCss').HYPHENATE
+  const HYPHENATION: typeof import('./utils/hyphens').HYPHENATION
   const IMAGES_DIR: typeof import('./utils/project').IMAGES_DIR
   const IMAGE_KINDS: typeof import('./utils/images').IMAGE_KINDS
   const IMAGE_MAX_EDGE: typeof import('./utils/openrouter').IMAGE_MAX_EDGE
@@ -152,6 +153,8 @@ declare global {
   const balloonDetector: typeof import('./utils/ocr/detectors').balloonDetector
   const balloonGroups: typeof import('./utils/ocr/blocks').balloonGroups
   const balloonIn: typeof import('./utils/ocr/balloon').balloonIn
+  const balloonJudge: typeof import('./utils/ocr/together').balloonJudge
+  const balloonsDrawnOn: typeof import('./composables/useOcr').balloonsDrawnOn
   const batchPagePrompt: typeof import('../shared/utils/prompt').batchPagePrompt
   const batchSize: typeof import('./utils/resources').batchSize
   const bentIn: typeof import('./utils/letterCss').bentIn
@@ -252,6 +255,7 @@ declare global {
   const faceOf: typeof import('../shared/utils/fonts').faceOf
   const familyOf: typeof import('./utils/ocr/detectors').familyOf
   const featherOf: typeof import('./utils/ocr/clean').featherOf
+  const fenceAround: typeof import('./utils/ocr/rooms').fenceAround
   const fencesOf: typeof import('./utils/ocr/rooms').fencesOf
   const fetchModel: typeof import('./utils/ocr/onnx').fetchModel
   const findLayer: typeof import('../shared/utils/layers').findLayer
@@ -291,6 +295,7 @@ declare global {
   const heldOcrSettings: typeof import('./composables/useOcr').heldOcrSettings
   const hexOf: typeof import('../shared/utils/raster').hexOf
   const holdScans: typeof import('./composables/useSwarm').holdScans
+  const hyphenationReady: typeof import('./utils/hyphens').hyphenationReady
   const idb: typeof import('./utils/idb').idb
   const idbKey: typeof import('./utils/idbKeys').idbKey
   const idbPrefix: typeof import('./utils/idbKeys').idbPrefix
@@ -389,6 +394,7 @@ declare global {
   const onElementRemoval: typeof import('@vueuse/core').onElementRemoval
   const onErrorCaptured: typeof import('vue').onErrorCaptured
   const onKeyStroke: typeof import('@vueuse/core').onKeyStroke
+  const onLetterErrand: typeof import('./composables/useSwarm').onLetterErrand
   const onLocalChange: typeof import('./composables/useLocalChanges').onLocalChange
   const onLongPress: typeof import('@vueuse/core').onLongPress
   const onMounted: typeof import('vue').onMounted
@@ -722,6 +728,7 @@ declare global {
   const useLayerPresets: typeof import('./composables/useLayerPresets').useLayerPresets
   const useLayerRows: typeof import('./composables/useLayerSync').useLayerRows
   const useLayerSync: typeof import('./composables/useLayerSync').useLayerSync
+  const useLetteringErrands: typeof import('./composables/useLetteringErrands').useLetteringErrands
   const useLetteringFit: typeof import('./composables/useLetteringFit').useLetteringFit
   const useLetteringStandard: typeof import('./composables/useLetteringStandard').useLetteringStandard
   const useLibrary: typeof import('./composables/useLibrary').useLibrary
@@ -888,6 +895,7 @@ declare global {
   const webGpuOffered: typeof import('./utils/resources').webGpuOffered
   const whenever: typeof import('@vueuse/core').whenever
   const withAbsent: typeof import('./composables/useShared').withAbsent
+  const withHyphens: typeof import('./utils/hyphens').withHyphens
   const worthStraightening: typeof import('./utils/ocr/deskew').worthStraightening
   const wrapDeg: typeof import('../shared/utils/transform').wrapDeg
   const writeModel: typeof import('./utils/ocr/store').writeModel
@@ -973,7 +981,7 @@ declare global {
   export type { RemotePage, SharedState } from './composables/useShared'
   import('./composables/useShared')
   // @ts-ignore
-  export type { SwarmChange, SwarmServerMessage, SwarmLive, SwarmPeer, ErrandListener } from './composables/useSwarm'
+  export type { SwarmChange, SwarmServerMessage, SwarmLive, SwarmPeer, ErrandListener, LetterErrand } from './composables/useSwarm'
   import('./composables/useSwarm')
   // @ts-ignore
   export type { ToolId, ToolOption, Tool } from './composables/useTools'
@@ -1087,6 +1095,9 @@ declare global {
   export type { Segmented, DetLine } from './utils/ocr/segment'
   import('./utils/ocr/segment')
   // @ts-ignore
+  export type { Together, BalloonJudgeInput } from './utils/ocr/together'
+  import('./utils/ocr/together')
+  // @ts-ignore
   export type { Readable } from './utils/ocr/vision'
   import('./utils/ocr/vision')
   // @ts-ignore
@@ -1185,6 +1196,7 @@ declare module 'vue' {
     readonly FetchError: UnwrapRef<typeof import('./composables/nuxt')['FetchError']>
     readonly HANDLES: UnwrapRef<typeof import('../shared/utils/transform')['HANDLES']>
     readonly HYPHENATE: UnwrapRef<typeof import('./utils/letterCss')['HYPHENATE']>
+    readonly HYPHENATION: UnwrapRef<typeof import('./utils/hyphens')['HYPHENATION']>
     readonly IMAGES_DIR: UnwrapRef<typeof import('./utils/project')['IMAGES_DIR']>
     readonly IMAGE_KINDS: UnwrapRef<typeof import('./utils/images')['IMAGE_KINDS']>
     readonly IMAGE_MAX_EDGE: UnwrapRef<typeof import('./utils/openrouter')['IMAGE_MAX_EDGE']>
@@ -1288,6 +1300,8 @@ declare module 'vue' {
     readonly balloonDetector: UnwrapRef<typeof import('./utils/ocr/detectors')['balloonDetector']>
     readonly balloonGroups: UnwrapRef<typeof import('./utils/ocr/blocks')['balloonGroups']>
     readonly balloonIn: UnwrapRef<typeof import('./utils/ocr/balloon')['balloonIn']>
+    readonly balloonJudge: UnwrapRef<typeof import('./utils/ocr/together')['balloonJudge']>
+    readonly balloonsDrawnOn: UnwrapRef<typeof import('./composables/useOcr')['balloonsDrawnOn']>
     readonly batchPagePrompt: UnwrapRef<typeof import('../shared/utils/prompt')['batchPagePrompt']>
     readonly batchSize: UnwrapRef<typeof import('./utils/resources')['batchSize']>
     readonly bentIn: UnwrapRef<typeof import('./utils/letterCss')['bentIn']>
@@ -1388,6 +1402,7 @@ declare module 'vue' {
     readonly faceOf: UnwrapRef<typeof import('../shared/utils/fonts')['faceOf']>
     readonly familyOf: UnwrapRef<typeof import('./utils/ocr/detectors')['familyOf']>
     readonly featherOf: UnwrapRef<typeof import('./utils/ocr/clean')['featherOf']>
+    readonly fenceAround: UnwrapRef<typeof import('./utils/ocr/rooms')['fenceAround']>
     readonly fencesOf: UnwrapRef<typeof import('./utils/ocr/rooms')['fencesOf']>
     readonly fetchModel: UnwrapRef<typeof import('./utils/ocr/onnx')['fetchModel']>
     readonly findLayer: UnwrapRef<typeof import('../shared/utils/layers')['findLayer']>
@@ -1427,6 +1442,7 @@ declare module 'vue' {
     readonly heldOcrSettings: UnwrapRef<typeof import('./composables/useOcr')['heldOcrSettings']>
     readonly hexOf: UnwrapRef<typeof import('../shared/utils/raster')['hexOf']>
     readonly holdScans: UnwrapRef<typeof import('./composables/useSwarm')['holdScans']>
+    readonly hyphenationReady: UnwrapRef<typeof import('./utils/hyphens')['hyphenationReady']>
     readonly idb: UnwrapRef<typeof import('./utils/idb')['idb']>
     readonly idbKey: UnwrapRef<typeof import('./utils/idbKeys')['idbKey']>
     readonly idbPrefix: UnwrapRef<typeof import('./utils/idbKeys')['idbPrefix']>
@@ -1525,6 +1541,7 @@ declare module 'vue' {
     readonly onElementRemoval: UnwrapRef<typeof import('@vueuse/core')['onElementRemoval']>
     readonly onErrorCaptured: UnwrapRef<typeof import('vue')['onErrorCaptured']>
     readonly onKeyStroke: UnwrapRef<typeof import('@vueuse/core')['onKeyStroke']>
+    readonly onLetterErrand: UnwrapRef<typeof import('./composables/useSwarm')['onLetterErrand']>
     readonly onLocalChange: UnwrapRef<typeof import('./composables/useLocalChanges')['onLocalChange']>
     readonly onLongPress: UnwrapRef<typeof import('@vueuse/core')['onLongPress']>
     readonly onMounted: UnwrapRef<typeof import('vue')['onMounted']>
@@ -1858,6 +1875,7 @@ declare module 'vue' {
     readonly useLayerPresets: UnwrapRef<typeof import('./composables/useLayerPresets')['useLayerPresets']>
     readonly useLayerRows: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerRows']>
     readonly useLayerSync: UnwrapRef<typeof import('./composables/useLayerSync')['useLayerSync']>
+    readonly useLetteringErrands: UnwrapRef<typeof import('./composables/useLetteringErrands')['useLetteringErrands']>
     readonly useLetteringFit: UnwrapRef<typeof import('./composables/useLetteringFit')['useLetteringFit']>
     readonly useLetteringStandard: UnwrapRef<typeof import('./composables/useLetteringStandard')['useLetteringStandard']>
     readonly useLibrary: UnwrapRef<typeof import('./composables/useLibrary')['useLibrary']>
@@ -2021,6 +2039,7 @@ declare module 'vue' {
     readonly webGpuOffered: UnwrapRef<typeof import('./utils/resources')['webGpuOffered']>
     readonly whenever: UnwrapRef<typeof import('@vueuse/core')['whenever']>
     readonly withAbsent: UnwrapRef<typeof import('./composables/useShared')['withAbsent']>
+    readonly withHyphens: UnwrapRef<typeof import('./utils/hyphens')['withHyphens']>
     readonly worthStraightening: UnwrapRef<typeof import('./utils/ocr/deskew')['worthStraightening']>
     readonly wrapDeg: UnwrapRef<typeof import('../shared/utils/transform')['wrapDeg']>
     readonly writeModel: UnwrapRef<typeof import('./utils/ocr/store')['writeModel']>

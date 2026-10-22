@@ -68,6 +68,7 @@ import { pipeline } from '~/utils/export/pipeline'
 import { renderPage } from '~/utils/export/render'
 import { openSpill, sweepExports } from '~/utils/export/spill'
 import { hashFile } from '~/utils/hash'
+import { withHyphens } from '~/utils/hyphens'
 import { idb } from '~/utils/idb'
 import { letterPlaced, letterSet, LINE_BOX, shapeParts, superIn } from '~/utils/letterCss'
 import { localPaint, mergePaint, remotePaint } from '~/utils/paint/gather'
@@ -274,7 +275,8 @@ export function usePageExport () {
           line: LINE_BOX,
           parts: outline ? shapeParts(outline, down, fit?.pad ?? 0) : null,
           lang: target.value,
-          text: block.translation,
+          // Desktop: broken where the fit broke it, as on the board — see `wordsOf` there.
+          text: fit?.hyphens ? withHyphens(block.translation, target.value) : block.translation,
         }]
       })
 

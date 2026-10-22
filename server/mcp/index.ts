@@ -10,8 +10,8 @@
  * (`electron/mcp.ts`, which says why). The tool and prompt files are the web
  * build's, verbatim but for `list_workspaces` and `read_page` (which shows a
  * line's style) — a tool added there is a file copied to the same path here
- * and a line added below — beside three of the desktop's own:
- * `get_active_workspace` (see `defaulted`), `set_lettering_style` and `get_guide`.
+ * and a line added below — beside the desktop's own:
+ * `get_active_workspace` (see `defaulted`), `set_lettering_style`, `review_lettering` and `get_guide`.
  *
  * `serverFor` builds one per request, which is the toolkit's stateless mode
  * and the web build's choice (`sessions` off): every tool is a question
@@ -39,6 +39,7 @@ import listWorkspaces from './tools/list-workspaces'
 import preparePageTranslation from './tools/prepare-page-translation'
 import readPage from './tools/read-page'
 import requestPageRead from './tools/request-page-read'
+import reviewLettering from './tools/review-lettering'
 import reviewPageReading from './tools/review-page-reading'
 import savePageBlocks from './tools/save-page-blocks'
 import savePageTranslations from './tools/save-page-translations'
@@ -69,6 +70,7 @@ const TOOLS = [
   preparePageTranslation,
   savePageTranslations,
   setLetteringStyle,
+  reviewLettering,
   getGlossary,
   getCast,
 ] as unknown as McpToolDefinition[]

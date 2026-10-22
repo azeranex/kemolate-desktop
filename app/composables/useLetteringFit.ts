@@ -26,6 +26,7 @@ import type { ComicPage } from '~/composables/useComic'
 // By hand, so a dev server already running picks up exports it has not seen.
 import { shapeFor, shapeOutline, standardApplies } from '#shared/utils/lettering'
 import { useLetteringStandard } from '~/composables/useLetteringStandard'
+import { HYPHENATION, hyphenationReady } from '~/utils/hyphens'
 import { fitAt, fitSize, fitStandard } from '~/utils/lettering'
 
 /**
@@ -45,7 +46,7 @@ function keyOf (
   family: string,
   vertical: boolean,
   scan: { w: number, h: number },
-  plan: { shape: string, standard: number | null, lang: string },
+  plan: { shape: string, standard: number | null, lang: string, breaks: boolean },
 ): string {
   return [
     block.translation || block.source,
@@ -56,6 +57,9 @@ function keyOf (
     // wrap into (and where in it they sit), the standard size it is held to,
     // and the language its hyphenation looks words up in.
     plan.shape, style.anchor, plan.standard ?? '', plan.lang,
+    // Desktop: whether the language's breaks were in hand — a fit measured
+    // before they arrived could not hyphenate, and is measured again once they do.
+    plan.breaks ? HYPHENATION : '',
   ].join('|')
 }
 
@@ -101,8 +105,14 @@ const STORE = 'lettering-fits'
  * 8 (desktop): a shape is measured a little narrower than it is drawn
  * (`SHAPE_SLACK`), so a shaped fit kept from before may be one whose last word
  * the board wraps out of the frame (2026-10-22).
+ * 9 (desktop): long words are broken with soft hyphens (`utils/hyphens`), so
+ * a fit that shrank a balloon for one unbroken word may now be larger (2026-10-22).
+ * 10 (desktop): `SHAPE_SLACK` 4% → 1%; a shaped fit's pad was worked out for the
+ * probe's taller wrap and set the words high in the oval (2026-10-22).
+ * 11 (desktop): a shaped line's words are placed by search, and a size only goes
+ * if they sit where the anchor says (`tryFit`, `ANCHOR_SLACK`) (2026-10-22).
  */
-const FITS_VERSION = 8
+const FITS_VERSION = 11
 const KEEP = 4000
 
 const remembered = new Map<string, LetterFit>()
@@ -165,6 +175,32 @@ function pruneFits (fits: Ref<Record<string, LetterFit>>, keys: Ref<Record<strin
       if (Object.keys(keys.value).some((id) => !live.has(id))) keys.value = kept(keys.value)
     },
   )
+}
+
+/** What a block is fitted from — one place, so a fit and a capacity (`capacityOf`) measure the same thing. */
+function inputOf (
+  block: Block,
+  box: LetterBox,
+  style: Lettering,
+  size: { w: number, h: number },
+  vertical: boolean,
+  family: string,
+  shape: ReturnType<typeof shapeFor>,
+  lang: string,
+) {
+  return {
+    text: block.translation || block.source,
+    box: { w: (box.w / 100) * size.w, h: (box.h / 100) * size.h },
+    line: style.line ?? AUTO_LINE,
+    spacing: style.spacing,
+    bold: style.bold,
+    italic: style.italic,
+    vertical,
+    family,
+    shape: shapeOutline(shape, style.points),
+    anchor: style.anchor,
+    lang,
+  }
 }
 
 export function useLetteringFit () {
@@ -259,7 +295,9 @@ export function useLetteringFit () {
       // Only a translation is held to the standard: a line still showing what
       // was read is a placeholder, set to fill its box as it always was.
       const aim = style.size ?? (block.translation.trim() && standardApplies(block.type) ? held : null)
-      const plan = { shape: shape === 'custom' ? `custom:${style.points?.join(',')}` : shape, standard: aim, lang }
+      // Asking starts the patterns loading; their arrival brings this back, as a face's does.
+      const breaks = hyphenationReady(lang, () => { faces.value += 1 })
+      const plan = { shape: shape === 'custom' ? `custom:${style.points?.join(',')}` : shape, standard: aim, lang, breaks }
       const key = keyOf(block, box, style, family, vertical, size, plan)
 
       if (measured[block.id] === key && fitted[block.id] !== undefined) continue
@@ -267,19 +305,7 @@ export function useLetteringFit () {
       let fit = remembered.get(key)
 
       if (fit === undefined) {
-        const input = {
-          text: block.translation || block.source,
-          box: { w: (box.w / 100) * size.w, h: (box.h / 100) * size.h },
-          line: style.line ?? AUTO_LINE,
-          spacing: style.spacing,
-          bold: style.bold,
-          italic: style.italic,
-          vertical,
-          family,
-          shape: shapeOutline(shape, style.points),
-          anchor: style.anchor,
-          lang,
-        }
+        const input = inputOf(block, box, style, size, vertical, family, shape, lang)
         const range = letteringRange(size.w).size
 
         fit = style.size !== null
@@ -360,5 +386,27 @@ export function useLetteringFit () {
     )
   }
 
-  return { fits, faces, ready, refit, fitOf, faceReady, autoSize }
+  /**
+   * Desktop: the size a line would take filling its frame with nothing holding
+   * it — no standard, no size chosen. What a review measures a line's actual
+   * size against (`review_lettering`): a line set well under its capacity is
+   * small in a balloon that has room for more. Null where its face has not
+   * arrived, or there is no scan to size by.
+   */
+  function capacityOf (page: ComicPage, block: Block, style: Lettering, vertical: boolean): number | null {
+    const scan = page.scan
+
+    if (!scan?.width || !scan.height) return null
+
+    const family = fontStack(faceOf(style.font, block.type))
+
+    if (!loadFace(family, style.bold, style.italic, () => { faces.value += 1 })) return null
+
+    const size = { w: scan.width, h: scan.height }
+    const input = inputOf(block, letterBoxOf(block), style, size, vertical, family, shapeFor(style, block), target.value)
+
+    return fitSize(input, letteringRange(size.w).size).size
+  }
+
+  return { fits, faces, ready, refit, fitOf, faceReady, autoSize, capacityOf }
 }

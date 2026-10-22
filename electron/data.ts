@@ -5,6 +5,7 @@ import { backup, backupsFolder, databaseFile, listBackups, openingNotice, restor
 
 import type { DataAnswer, DataRequest } from './preload'
 import type { Context } from '~~/server/services'
+import type { FitReport } from '~~/server/utils/fits'
 import type { ReadReport } from '~~/server/utils/reading'
 
 import { strokeBatchSchema, strokeDraftSchema } from '#shared/schemas/paint'
@@ -139,6 +140,22 @@ const surfaceSchema = z.object({
   layerId: z.number().int().positive(),
   key: z.string().regex(/^[a-z0-9:-]{1,64}$/i),
   blockId: z.number().int().positive().nullish(),
+})
+
+/** A window's measurement of a page's lettering — bounded, as every report from the window is. See `FitReport`. */
+const fitReportSchema = z.object({
+  ok: z.boolean(),
+  standard: z.number().min(0).max(5000).nullable().optional(),
+  lines: z.array(z.object({
+    blockId: z.number().int().positive(),
+    size: z.number().min(0).max(5000),
+    set: z.enum(['auto', 'standard', 'chosen']),
+    capacity: z.number().min(0).max(5000).nullable(),
+    over: z.boolean(),
+    tight: z.boolean(),
+    hyphens: z.boolean(),
+  })).max(1000).optional(),
+  error: z.string().transform((text) => text.slice(0, 400)).optional(),
 })
 
 const W = '/api/workspaces/:workspaceId'
@@ -340,6 +357,12 @@ const ROUTES: [string, string, Handler][] = [
   // The window's report on a reading an agent asked for — the blocks came by `pages/:pageId/blocks`.
   ['POST', `${W}/reading/:requestId`, workspace(async (context, call) => {
     finish<ReadReport>(call.params.requestId ?? '', context.workspace.publicId, valid(readReportSchema, call.body))
+
+    return null
+  })],
+  // The window's measurement of a page's lettering, for an agent's review — see `server/utils/fits.ts`.
+  ['POST', `${W}/fits/:requestId`, workspace(async (context, call) => {
+    finish<FitReport>(call.params.requestId ?? '', context.workspace.publicId, valid(fitReportSchema, call.body))
 
     return null
   })],

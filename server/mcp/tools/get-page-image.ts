@@ -56,8 +56,11 @@ export default defineMcpTool({
       })
       .optional()
       .describe('A rectangle to zoom into. From a block: x = cx - w/2 - margin, y = cy - h/2 - margin. Omit for the whole page.'),
+    // Desktop: the page as lettered — the window's export of it — instead of the scan.
+    lettered: z.boolean().default(false)
+      .describe('Show the page as Kemolate letters it — cleaning, layers and lettering — instead of the original scan. To check a page’s lettering line by line, use `review_lettering`.'),
   },
-  handler: async ({ workspaceId, pageId, blockId, region }) => {
+  handler: async ({ workspaceId, pageId, blockId, region, lettered }) => {
     const context = await mcpContext(workspaceId)
     const page = await mcpPage(context, pageId)
 
@@ -93,7 +96,7 @@ export default defineMcpTool({
       })
     }
 
-    const { bytes, type } = await requestRender(context.workspace.publicId, page.hash, context.workspace.name, region)
+    const { bytes, type } = await requestRender(context.workspace.publicId, page.hash, context.workspace.name, region, lettered)
 
     return imageResult(bytes.toString('base64'), type)
   },

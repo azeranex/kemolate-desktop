@@ -10,8 +10,10 @@ import { aWorkspace, reset } from '../harness'
 import { replace } from '~~/server/services/blocks'
 import { sync as syncPages } from '~~/server/services/pages'
 import { putOnPage } from '~~/server/services/translations'
+import { finish } from '~~/server/utils/errand'
 import { MCP_ACTOR } from '~~/server/utils/mcp'
 import { installMcpGlobals } from '~~/server/utils/mcpToolkit'
+import { deliver } from '~~/server/utils/relay'
 import { hold, swarmState } from '~~/server/utils/swarm'
 
 /**
@@ -93,6 +95,7 @@ describe('the MCP server', () => {
       'prepare_page_translation',
       'read_page',
       'request_page_read',
+      'review_lettering',
       'review_page_reading',
       'save_page_blocks',
       'save_page_translations',
@@ -437,5 +440,103 @@ describe('set_lettering_style with a frame', () => {
 
     expect(result.isError).toBe(true)
     expect(textOf(result)).toMatch(/^\[400\] A frame is one balloon/)
+  })
+})
+
+describe('review_lettering', () => {
+  /** A page of four translated balloons, open in a stand-in window that answers as the real one would. */
+  async function lettered (lines: { size: number, set: 'auto' | 'standard' | 'chosen', capacity: number | null, over?: boolean, tight?: boolean, hyphens?: boolean }[], standard: number | null = null) {
+    const context = await aWorkspace()
+    const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
+    const rows = await replace(context, page!.id, lines.map((_, at) =>
+      ({ kind: 'bubble' as const, source: 'あ', cx: 0.2 + at * 0.2, cy: 0.5, w: 0.1, h: 0.2 })))
+
+    await putOnPage(context, page!.id, 'en', rows.map((row, at) => ({ blockId: row.id, text: `Line ${at + 1}` })))
+
+    const asked: { type: string, lettered?: boolean }[] = []
+
+    // The window: measures when asked, and hands back a "picture" for each lettered crop.
+    hold(context.workspace.publicId, ['sha-01'], (publicId, frame) => {
+      const ask = JSON.parse(frame) as { type: string, request: string, lettered?: boolean }
+
+      asked.push(ask)
+
+      queueMicrotask(() => {
+        if (ask.type === 'fits') {
+          finish(ask.request, publicId, {
+            ok: true,
+            standard,
+            lines: lines.map((line, at) => ({ blockId: rows[at]!.id, over: false, tight: false, hyphens: false, ...line })),
+          })
+        } else if (ask.type === 'render') {
+          deliver(ask.request, publicId, Buffer.from([0xFF, 0xD8, 0xFF]), 'image/jpeg')
+        }
+      })
+    }, page!.id)
+
+    return { context, page: page!, ids: rows.map((row) => row.id), asked }
+  }
+
+  const review = async (args: Record<string, unknown> = {}) => (await connect(true)).callTool({ name: 'review_lettering', arguments: args })
+  const report = (result: Awaited<ReturnType<typeof review>>) => JSON.parse(textOf(result))
+
+  it('flags a line that does not fit, one squeezed, and one small for the page — and shows those, as lettered', async () => {
+    const { ids, asked } = await lettered([
+      { size: 40, set: 'auto', capacity: 40 },
+      { size: 42, set: 'auto', capacity: 42 },
+      { size: 20, set: 'auto', capacity: 20, over: true },
+      { size: 24, set: 'auto', capacity: 24 },
+    ])
+    const result = await review()
+    const out = report(result)
+    const flags = Object.fromEntries(out.lines.map((line: { blockId: number, flags: string[] }) => [line.blockId, line.flags]))
+
+    expect(flags[ids[0]!]).toEqual([])
+    expect(flags[ids[2]!]).toEqual(['does-not-fit'])
+    expect(flags[ids[3]!]).toEqual(['smaller-than-the-page'])
+    expect(out.images).toEqual([ids[2], ids[3]])
+    expect(out.lines[0].text).toBe('Line 1')
+
+    // The crops were asked for lettered, one per flagged line, after the measuring.
+    expect(asked.map((ask) => ask.type)).toEqual(['fits', 'render', 'render'])
+    expect(asked.filter((ask) => ask.type === 'render').every((ask) => ask.lettered)).toBe(true)
+    expect((result.content as { type: string }[]).filter((part) => part.type === 'image')).toHaveLength(2)
+  })
+
+  it('never calls a line held to the standard small, however much room it has', async () => {
+    const { asked } = await lettered([
+      { size: 30, set: 'standard', capacity: 60 },
+      { size: 30, set: 'standard', capacity: 45, tight: true },
+    ], 30)
+    const out = report(await review())
+
+    expect(out.standard).toBe(30)
+    expect(out.lines.map((line: { flags: string[] }) => line.flags)).toEqual([[], ['squeezed']])
+    expect(asked.filter((ask) => ask.type === 'render')).toHaveLength(1)
+  })
+
+  it('calls a chosen size small when its frame would hold far more', async () => {
+    await lettered([{ size: 20, set: 'chosen', capacity: 50 }, { size: 40, set: 'auto', capacity: 40 }])
+
+    const out = report(await review({ images: 'none' }))
+
+    expect(out.lines[0].flags).toEqual(['small-for-its-balloon'])
+    expect(out.images).toEqual([])
+  })
+
+  it('says why when the window cannot measure', async () => {
+    const context = await aWorkspace()
+    const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
+
+    hold(context.workspace.publicId, ['sha-01'], (publicId, frame) => {
+      const ask = JSON.parse(frame) as { request: string }
+
+      queueMicrotask(() => finish(ask.request, publicId, { ok: false, error: 'Kemolate has another chapter open.' }))
+    }, page!.id)
+
+    const result = await review()
+
+    expect(result.isError).toBe(true)
+    expect(textOf(result)).toBe('[409] Kemolate has another chapter open.')
   })
 })

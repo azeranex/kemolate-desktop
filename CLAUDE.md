@@ -336,6 +336,21 @@ by the main process on the loopback, for an MCP client on this machine. Read the
   `frame` — the lettering's own box (`translations.restyle` writes it beside the style; null
   hands the line back to its room) — and `read_page` reports each block's `room` and each
   line's `frame`. The tool's description tells an agent how to fix tiny type in a big balloon.
+- **An agent can see the lettering** (2026-10-22). A line's size is measured in the window and
+  never stored, and `get_page_image` was the scan, so an agent fixing lettering was working
+  blind. Two more errands to the window, on the same registry as the relay (`errand.ts`):
+  `fits` (`server/utils/fits.ts`, answered by `useLetteringErrands` through `/fits/:request`
+  in `data.ts`) fits a page as an export does and reports each line's size, what decided it
+  (`auto`, `standard`, `chosen`), its squeeze, and its `capacity` (`useLetteringFit.capacityOf`:
+  the size its frame allows with nothing holding it); and `render` with `lettered`, the page
+  as `usePageExport.preview` draws it, cropped by `renditionOf` like a scan, the drawn page kept
+  15 s for the next crop. `review_lettering` joins them in one call — flags (does-not-fit,
+  squeezed, small-for-its-balloon, smaller-than-the-page; a line held to the standard is never
+  "small") and a lettered crop of each flagged balloon; `get_page_image` takes `lettered`.
+  Tested against the packaged app on a test profile: four lines measured and four lettered
+  crops in 359 ms. The skill's "Reviewing lettering" section is the order to fix in — layout
+  first, words last, a pinned line's rewording proposed rather than saved — and the rules of
+  copyfitting (meaning, voice, glossary and set-ups kept).
 - **The skill for agents using it** is `plugins/kemolate/skills/kemolate/SKILL.md` (added 2026-10-22): the
   order that saves images, which tool for which job, the coordinate and pinning rules, and the
   lettering fixes. Change it when a tool's behaviour changes — `index.test.ts` fails if it names a
@@ -436,15 +451,39 @@ Found 2026-10-22 on a real page: "the bubble is big but the text is really small
   says "oval" on such a room. Existing chapters get it from Detect › Measure balloons.
   Measured on that page (Anime Ace): the line went from 13 px in its box to 17 in its oval;
   the other three balloons fill theirs.
-- **A shape is measured 4% narrow** (`SHAPE_SLACK`, `utils/lettering.ts`): a shaped fit sits
+- **A shape is measured 1% narrow** (`SHAPE_SLACK`, `utils/lettering.ts`): a shaped fit sits
   at the very edge, and the board, drawing at screen size, wrapped a line that had only just
-  fitted — "HM? OH, YEAH, IT" with "IS." cut off. `FITS_VERSION` 8 drops fits kept from before.
-- **Hyphenation does nothing here.** `hyphens: auto` needs a dictionary, and Chromium on
-  Windows downloads its dictionaries through a component updater Electron does not have:
-  three overflowing words in a 60 px box stayed three unbroken lines. So the standard fit's
-  "hyphenated" rung (`fitStandard`) is a no-op on Windows, and a balloon whose one long word
-  limits it ("NEIGHBORHOOD...") stays at that word's size. Soft hyphens from a hyphenation
-  library (`hyphens: manual` breaks at U+00AD) would work; not done.
+  fitted — "HM? OH, YEAH, IT" with "IS." cut off. It was 4% at first, and that was a bug of
+  its own: the probe then wrapped lines the page did not, its block of words was taller, and
+  the pad worked out for it set the drawn words high in the oval. At 1% the drawn wrap matched
+  the probe's at screen scale and full width alike (measured on the report's four balloons).
+- **Where a shaped line's words sit is searched for** (`tryFit`, 2026-10-22). The web build
+  nudged the spacer towards the anchor up to four times; in an oval each move re-wraps the
+  lines, the block's height jumps, and the nudges stopped wherever they were — "This photo's
+  going to be a family heirloom...!", anchored middle, had 7 px above it and 60 below, and a
+  bottom anchor could be pushed out of the frame. Now the pad is halved towards the answer
+  (middle: room above meets room below; bottom: the lowest pad that fits), and a size only
+  counts as fitting if its words sit where the anchor says (`ANCHOR_SLACK`, 6%: the middle
+  within that of even, the bottom no further above the middle) — the largest size that fits
+  *somewhere* in an oval can fit only with its longest word across the widest line, dragging
+  the rest to the top. A size or so smaller, centred, is the trade a letterer makes. In the
+  window: 36 / 37 px above and below where it was 7 / 60. A bottom anchor sits at the middle
+  when the words fill the oval — lower would mean smaller. A top anchor is unchanged: it
+  starts in the oval's narrow crown, so a long line there is set small, as before.
+  `FITS_VERSION` 11.
+- **Hyphenation is ours, not the browser's** (`utils/hyphens.ts`, 2026-10-22). `hyphens:
+  auto` needs a dictionary, and Chromium on Windows downloads its dictionaries through a
+  component updater Electron does not have — three overflowing words in a 60 px box stayed
+  three unbroken lines — so every fit's "hyphenated" rung was a no-op and a balloon whose one
+  long word limited it ("NEIGHBORHOOD...") was set at that word's size. Now soft hyphens
+  (U+00AD, which Chromium breaks at with no dictionary) are put in from TeX's patterns (the
+  `hyphen` package, pinned; one chunk per target language, loaded on first use): measured with
+  in the probe, drawn with on the board (`wordsOf` in `Sheet.vue`) and in export, never put in
+  the stored or typed line. One break to a word, nearest its middle (a fragment like "BOR-" on
+  a line of its own read badly), words of 7 letters and up. `fitSize` breaks a word when that
+  sets the balloon at least 25% larger (`HYPHEN_GAIN`); `fitStandard`'s rung now works. Fits
+  key on `HYPHENATION`, so changing where words break re-measures them — a stale fit drew the
+  new breaks at the old size and cut the last line. The page from the report: 17 px → 25.
 
 ## Electron
 

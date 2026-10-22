@@ -40,6 +40,7 @@ import type { RunRow } from '~/utils/raster/engine/run'
 import type { ScanView } from '~/utils/raster/plan'
 
 import { shapeFor, shapeOutline } from '#shared/utils/lettering'
+import { withHyphens } from '~/utils/hyphens'
 import { boxPlaced, letterPlaced, letterSet, LINE_BOX, shapeParts, superIn } from '~/utils/letterCss'
 import { engineGpu } from '~/utils/raster/engine/mode'
 import { engineRun } from '~/utils/raster/engine/run'
@@ -454,6 +455,19 @@ function partsOf (block: Block): ShapeParts | null {
   return outline ? shapeParts(outline, setDown(block), fit?.pad ?? 0) : null
 }
 
+/**
+ * The words a block's plate draws: what was read until there is a translation,
+ * and the translation with its breaks put in where its fit hyphenated — the
+ * same soft hyphens the fit measured with (`utils/hyphens`). Desktop: `hyphens:
+ * auto` alone breaks nothing here. Never the text being typed, which is the
+ * editor's own element and holds the line as stored.
+ */
+function wordsOf (block: Block): string {
+  if (!block.translation) return block.source
+
+  return fitOf(block)?.hyphens ? withHyphens(block.translation, target.value) : block.translation
+}
+
 /** The language being lettered, which hyphenation looks words up in — see `HYPHENATE`. */
 const target = useState('workspace-target', () => 'en')
 
@@ -692,7 +706,7 @@ defineExpose({ editor })
     >
       <CanvasLetterWords
         :class="block.translation ? undefined : [STANDING_IN_TONE, 'italic']"
-        :text="block.translation || block.source"
+        :text="wordsOf(block)"
         :parts="partsOf(block)"
       />
     </div>
@@ -712,7 +726,7 @@ defineExpose({ editor })
     >
       <CanvasLetterWords
         :class="block.translation ? undefined : [STANDING_IN_TONE, 'italic']"
-        :text="block.translation || block.source"
+        :text="wordsOf(block)"
         :parts="partsOf(block)"
       />
     </div>
