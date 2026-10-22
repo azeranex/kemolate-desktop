@@ -94,6 +94,10 @@
       "description": "File translations, and what the pages taught the glossary and cast."
     },
     {
+      "name": "set_lettering_style",
+      "description": "How lines are lettered: face, size, weight, placement, ink, shape."
+    },
+    {
       "name": "get_glossary",
       "description": "The terms a chapter has settled on in one language."
     },

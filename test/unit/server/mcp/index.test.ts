@@ -9,6 +9,7 @@ import { aWorkspace, reset } from '../harness'
 
 import { replace } from '~~/server/services/blocks'
 import { sync as syncPages } from '~~/server/services/pages'
+import { putOnPage } from '~~/server/services/translations'
 import { MCP_ACTOR } from '~~/server/utils/mcp'
 import { installMcpGlobals } from '~~/server/utils/mcpToolkit'
 import { hold, swarmState } from '~~/server/utils/swarm'
@@ -94,6 +95,7 @@ describe('the MCP server', () => {
       'review_page_reading',
       'save_page_blocks',
       'save_page_translations',
+      'set_lettering_style',
       'sort_page_blocks',
       'update_workspace',
     ])
@@ -257,5 +259,164 @@ describe('the open chapter', () => {
 
     expect(result.isError).toBe(true)
     expect(textOf(result)).toMatch(/^\[409\] No chapter is open in Kemolate/)
+  })
+})
+
+describe('set_lettering_style', () => {
+  /** A page of three balloons: two translated by a person (so pinned), one not yet. */
+  async function lettered () {
+    const context = await aWorkspace()
+    const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
+    const rows = await replace(context, page!.id, ['あ', 'い', 'う'].map((source, at) =>
+      ({ kind: 'bubble' as const, source, cx: 0.2 + at * 0.3, cy: 0.5, w: 0.1, h: 0.1 })))
+
+    await putOnPage(context, page!.id, 'en', [
+      { blockId: rows[0]!.id, text: 'Hello', style: { italic: true } },
+      { blockId: rows[1]!.id, text: 'There' },
+    ])
+
+    return { context, page: page!, ids: rows.map((row) => row.id) }
+  }
+
+  const call = async (args: Record<string, unknown>) => (await connect(true)).callTool({ name: 'set_lettering_style', arguments: args })
+
+  /** Each line, as `read_page` reports it. */
+  async function linesOf (workspaceId: string, pageId: number) {
+    const read = JSON.parse(textOf(await (await connect(true)).callTool({ name: 'read_page', arguments: { workspaceId, pageIds: [pageId] } })))
+
+    return read.pages[0].blocks.map((block: { translations: Record<string, unknown> }) => block.translations.en ?? null)
+  }
+
+  it('sets the style alone — the wording and the pin stand', async () => {
+    const { context, page, ids } = await lettered()
+    const result = JSON.parse(textOf(await call({
+      workspaceId: context.workspace.publicId,
+      pageId: page.id,
+      blockIds: [ids[0], ids[1]],
+      style: { size: 40, bold: true, font: 'retro' },
+    })))
+
+    expect(result.restyled.map((row: { blockId: number }) => row.blockId)).toEqual([ids[0], ids[1]])
+
+    const [first, second] = await linesOf(context.workspace.publicId, page.id)
+
+    // Merged into what was there: the italic kept.
+    expect(first).toMatchObject({ text: 'Hello', pinned: true, engine: 'human', style: { italic: true, size: 40, bold: true, font: 'retro' } })
+    expect(second).toMatchObject({ text: 'There', pinned: true, style: { size: 40, bold: true, font: 'retro' } })
+  })
+
+  it('puts a field sent as null back to automatic, and `reset` puts them all back', async () => {
+    const { context, page, ids } = await lettered()
+    const at = { workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[0]] }
+
+    await call({ ...at, style: { size: 40, italic: null } })
+    expect((await linesOf(context.workspace.publicId, page.id))[0].style).toEqual({ size: 40 })
+
+    await call({ ...at, reset: true })
+    expect((await linesOf(context.workspace.publicId, page.id))[0]).not.toHaveProperty('style')
+  })
+
+  it('restyles every translated line on the page when no block is named', async () => {
+    const { context, page } = await lettered()
+    const result = JSON.parse(textOf(await call({ workspaceId: context.workspace.publicId, pageId: page.id, style: { align: 'left' } })))
+
+    expect(result.restyled).toHaveLength(2)
+    expect(result).not.toHaveProperty('untranslated')
+  })
+
+  it('reports a named block with no line, and changes nothing about it', async () => {
+    const { context, page, ids } = await lettered()
+    const result = JSON.parse(textOf(await call({ workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[2]], style: { size: 30 } })))
+
+    expect(result).toMatchObject({ restyled: [], untranslated: [ids[2]] })
+  })
+
+  it('refuses what the Lettering panel could not store', async () => {
+    const { context, page, ids } = await lettered()
+    const result = await call({ workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[0]], style: { color: 'red' } })
+
+    expect(result.isError).toBe(true)
+    expect((await linesOf(context.workspace.publicId, page.id))[0].style).toEqual({ italic: true })
+  })
+
+  it('tells the open window, so it re-letters', async () => {
+    const { context, page, ids } = await lettered()
+    const sent: string[] = []
+
+    hold(context.workspace.publicId, [], (_publicId, frame) => sent.push(frame))
+
+    await call({ workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[0]], style: { size: 50 } })
+
+    expect(sent.map((frame) => JSON.parse(frame))).toEqual([{ type: 'changed', change: { scope: 'translations', pageId: page.id, locale: 'en' } }])
+  })
+})
+
+describe('set_lettering_style with a frame', () => {
+  async function lettered () {
+    const context = await aWorkspace()
+    const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
+    const rows = await replace(context, page!.id, [
+      // A tall Japanese column in a balloon the reading measured a round room for.
+      { kind: 'bubble' as const, source: 'あ', cx: 0.2, cy: 0.5, w: 0.05, h: 0.2, room: { cx: 0.2, cy: 0.5, w: 0.14, h: 0.24, round: true } },
+      { kind: 'bubble' as const, source: 'い', cx: 0.7, cy: 0.5, w: 0.05, h: 0.2 },
+    ])
+
+    await putOnPage(context, page!.id, 'en', [
+      { blockId: rows[0]!.id, text: 'For now', style: { italic: true } },
+      { blockId: rows[1]!.id, text: 'There' },
+    ])
+
+    return { context, page: page!, ids: rows.map((row) => row.id) }
+  }
+
+  const call = async (args: Record<string, unknown>) => (await connect(true)).callTool({ name: 'set_lettering_style', arguments: args })
+
+  async function blocksOf (workspaceId: string, pageId: number) {
+    return JSON.parse(textOf(await (await connect(true)).callTool({ name: 'read_page', arguments: { workspaceId, pageIds: [pageId] } }))).pages[0].blocks
+  }
+
+  it('shows the room a reading measured, round or not', async () => {
+    const { context, page } = await lettered()
+    const [first, second] = await blocksOf(context.workspace.publicId, page.id)
+
+    expect(first.room).toEqual({ cx: 0.2, cy: 0.5, w: 0.14, h: 0.24, round: true })
+    expect(second).not.toHaveProperty('room')
+  })
+
+  it('sets a frame without touching the style, and hands it back', async () => {
+    const { context, page, ids } = await lettered()
+    const at = { workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[0]] }
+
+    const set = JSON.parse(textOf(await call({ ...at, frame: { cx: 0.21, cy: 0.5, w: 0.18, h: 0.26 } })))
+
+    expect(set.restyled[0].frame).toEqual({ cx: 0.21, cy: 0.5, w: 0.18, h: 0.26 })
+
+    let [first] = await blocksOf(context.workspace.publicId, page.id)
+
+    expect(first.translations.en).toMatchObject({ text: 'For now', pinned: true, style: { italic: true }, frame: { cx: 0.21, cy: 0.5, w: 0.18, h: 0.26 } })
+
+    await call({ ...at, frame: null })
+    ;[first] = await blocksOf(context.workspace.publicId, page.id)
+
+    expect(first.translations.en).not.toHaveProperty('frame')
+    expect(first.translations.en.style).toEqual({ italic: true })
+  })
+
+  it('sets a frame and a shape together', async () => {
+    const { context, page, ids } = await lettered()
+
+    await call({ workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[1]], frame: { cx: 0.7, cy: 0.5, w: 0.2, h: 0.3 }, style: { shape: 'oval', size: null } })
+
+    const [, second] = await blocksOf(context.workspace.publicId, page.id)
+
+    expect(second.translations.en).toMatchObject({ style: { shape: 'oval' }, frame: { cx: 0.7, cy: 0.5, w: 0.2, h: 0.3 } })
+  })
+
+  it('refuses one frame for two balloons', async () => {
+    const { context, page, ids } = await lettered()
+    const result = await call({ workspaceId: context.workspace.publicId, pageId: page.id, blockIds: ids, frame: { cx: 0.5, cy: 0.5, w: 0.2, h: 0.2 } })
+
+    expect(result.isError).toBe(true)
+    expect(textOf(result)).toMatch(/^\[400\] A frame is one balloon/)
   })
 })

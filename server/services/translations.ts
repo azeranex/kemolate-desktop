@@ -926,6 +926,97 @@ export async function setStatus (
 }
 
 /**
+ * Set how some lines are lettered — their style, their frame, or both — and
+ * nothing else about them. Desktop (`set_lettering_style`, the MCP server's).
+ *
+ * Its own call, like `setStatus`, rather than a `putOnPage` with the old text:
+ * that write is one browser's account of the whole row, and a person's (no
+ * origin) re-signs the line and pins it — "typing is choosing" — when an agent
+ * changing the face of a balloon, or where in it the words go, has chosen
+ * nothing about its words. So this sets the `style` column and the frame's
+ * (`boxOf`) alone: the wording, who wrote it, its pin, its engine and its
+ * revisions stand, as `putOnPage`'s move branch leaves them for a box. Neither
+ * is in the revisions (see `translationRevisions`), so there is nothing to file.
+ *
+ * Each entry's `style` is the whole of it, as stored — the caller merges; null
+ * or empty is "as the app would letter it", absent is "leave it". Its `frame`
+ * is where the lettering sits, upright, normalised by the page's width like a
+ * block's box; null puts it back in the block's room (or on the block), absent
+ * leaves it. A block with no line in this language has nothing to letter yet,
+ * and is answered in `untranslated` rather than given an empty line to carry
+ * them. Every block is proved to be on the page before anything is written.
+ */
+export async function restyle (
+  context: Context,
+  pageId: number,
+  locale: string,
+  entries: { blockId: number, style?: TextStyle | null, frame?: { cx: number, cy: number, w: number, h: number } | null }[],
+): Promise<{ restyled: Translation[], untranslated: number[] }> {
+  await must(context, translateWorkspace, context)
+
+  const ids = [...new Set(entries.map((entry) => entry.blockId))]
+
+  if (ids.length !== entries.length) {
+    throw createError({ statusCode: 400, statusMessage: 'A block can only be restyled once per request.' })
+  }
+
+  await blocksIn(context, ids, pageId)
+
+  if (!ids.length) return { restyled: [], untranslated: [] }
+
+  const rows = await db.query.translations.findMany({ where: { blockId: { in: ids }, locale } })
+  const lines = new Map(rows.map((row) => [row.blockId, row]))
+
+  const untranslated = ids.filter((id) => !lines.get(id)?.text)
+
+  /** What this entry changes about its row, or null where it changes nothing. */
+  const changeOf = (entry: (typeof entries)[number]) => {
+    const row = lines.get(entry.blockId)
+
+    if (!row?.text) return null
+
+    const set: Partial<Translation> = {}
+
+    if (entry.style !== undefined && !sameStyle(row.style, entry.style)) {
+      set.style = entry.style && Object.keys(entry.style).length ? entry.style : null
+    }
+
+    if (entry.frame !== undefined) {
+      // Upright and plain: an agent places a frame; leaning one is the canvas's.
+      const frame = boxOf(entry.frame ? { blockId: entry.blockId, text: '', ...entry.frame, angle: 0, skewX: 0, skewY: 0 } : { blockId: entry.blockId, text: '' })
+
+      if (!sameBox(row, { blockId: entry.blockId, text: '', ...frame })) Object.assign(set, frame)
+    }
+
+    return Object.keys(set).length ? { id: row.id, set } : null
+  }
+
+  const changes = entries.map(changeOf).filter((change) => change !== null)
+
+  const restyled = db.transaction((tx) => changes.map(({ id, set }) => tx
+    .update(translations)
+    .set(set)
+    .where(eq(translations.id, id))
+    .returning()
+    .all()[0]!))
+
+  if (restyled.length) {
+    await record({
+      workspaceId: context.workspaceId,
+      userId: context.actor?.id ?? null,
+      action: 'translation.restyle',
+      subject: 'pages',
+      subjectId: pageId,
+      detail: { locale, count: restyled.length },
+    })
+
+    notify(context, { scope: 'translations', pageId, locale })
+  }
+
+  return { restyled, untranslated }
+}
+
+/**
  * Every wording every line in the chapter has ever had, in one answer.
  *
  * The bulk read a project file is written from, and `paint.everything`'s

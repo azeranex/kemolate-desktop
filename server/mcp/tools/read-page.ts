@@ -29,6 +29,11 @@ function saidIn (rows: Translation[]) {
     // Nullable in the column because it was added to a table that already had
     // rows; null and false are the same answer — nobody has claimed this line.
     pinned: row.pinned === true,
+    // Desktop: how the line is lettered and where, for `set_lettering_style` to
+    // change — only where something is set, so an automatic line costs nothing.
+    // `frame` is the lettering's own box, where a letterer moved it off the block.
+    ...(row.style && Object.keys(row.style).length ? { style: row.style } : {}),
+    ...(row.cx !== null ? { frame: { cx: row.cx, cy: row.cy, w: row.w, h: row.h } } : {}),
   }]))
 }
 
@@ -97,6 +102,10 @@ function onePage (
         skewY: block.skewY,
         quad: block.quad,
       },
+      // Desktop: the room measured inside the block's balloon, which a line is set
+      // in unless it has a `frame` of its own; absent, it is set in `box`.
+      // `round` is a room that is the balloon's own oval, lettered as one.
+      ...(block.room ? { room: block.room } : {}),
       source: block.source,
       confidence: block.confidence,
       /** Hidden and rubbish blocks are never translated — see `planPage`. */
