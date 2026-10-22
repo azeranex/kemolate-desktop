@@ -157,6 +157,9 @@ const { resolved } = useColorScheme()
   -->
   <PdfPassword />
 
+  <!-- Desktop: and the question a big folder is asked before it is read — see `useFolderCheck`. -->
+  <FolderCheck />
+
   <!--
     Mounted once, at the root, because a toast outlives whatever raised it.
     Wider than the default: these say what went wrong and what to do about it.

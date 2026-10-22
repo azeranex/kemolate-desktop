@@ -28,6 +28,8 @@ import { PdfPasswordError } from './pdf/decrypt'
 import { pdfPages } from './pdf/pages'
 import { askForPassword } from './pdf/password'
 
+import type { FolderTally } from '~/composables/useFolderCheck'
+
 /** What the canvas can draw. Anything else in a dropped folder is not a page. */
 const IMAGE = /\.(?:avif|bmp|gif|jfif|jpe|jpe?g|png|webp)$/i
 
@@ -578,7 +580,7 @@ export async function imagesFrom (transfer: DataTransfer): Promise<Opened> {
  * shape of this feature in one function: the same gesture gets a folder we can
  * keep on Chromium and a pile of files everywhere else.
  */
-export async function pickFolder (): Promise<Opened> {
+export async function pickFolder ({ check }: { check?: FolderAsk } = {}): Promise<Opened> {
   const picker = window.showDirectoryPicker
 
   if (picker) {
@@ -608,10 +610,25 @@ export async function pickFolder (): Promise<Opened> {
     // Nothing chosen. Not a failure, and not a reason to close what is open.
     if (!handle) return { handle: null, images: [], rest: null, title: null }
 
-    return { ...await imagesIn(handle), handle, title: handle.name }
+    let declined = false
+
+    const found = await imagesIn(handle, {
+      check: check && (async (counted) => {
+        const yes = await check({ ...counted, name: handle.name })
+
+        declined = !yes
+
+        return yes
+      }),
+    })
+
+    // Desktop: declined at `check`, which is nothing chosen.
+    if (declined) return { handle: null, images: [], rest: null, title: null }
+
+    return { ...found, handle, title: handle.name }
   }
 
-  const found = await pickImages({ folder: true })
+  const found = await pickImages({ folder: true, check })
 
   return { ...found, handle: null, title: rootOf(found.images) }
 }
@@ -647,7 +664,7 @@ export function pickImage (): Promise<File | null> {
  * one that is has to be found somewhere to live and cleared before it will fire
  * twice for the same folder.
  */
-export async function pickImages ({ folder = false } = {}): Promise<Found & { sources?: Source[] }> {
+export async function pickImages ({ folder = false, check }: { folder?: boolean, check?: FolderAsk } = {}): Promise<Found & { sources?: Source[] }> {
   // Desktop: files through the file picker where there is one, because it hands
   // over a handle on each — which is what lets the chapter be read from them
   // again rather than copied (see `Source`). A dismissed dialog is nothing chosen.
@@ -686,9 +703,14 @@ export async function pickImages ({ folder = false } = {}): Promise<Found & { so
         // an empty string when there was not.
         .map((file) => ({ file, path: file.webkitRelativePath || file.name }))
 
+      // Desktop: a folder past `useFolderCheck`'s marks is asked about first.
+      const go = folder && check && files.length
+        ? check({ ...tally(files), name: rootOf(files) })
+        : Promise.resolve(true)
+
       // Rejection travels: a PDF that turns out to be locked is a reason the
       // caller has a toast for, not a silent empty pick.
-      unpacked(files).then(
+      go.then((yes): Promise<Found> | Found => yes ? unpacked(files) : { images: [], rest: null }).then(
         (found) => resolve({ ...found, images: inReadingOrder(found.images) }),
         reject,
       )
@@ -712,14 +734,26 @@ export async function pickImages ({ folder = false } = {}): Promise<Found & { so
  * just chosen: any PDF in it was opened here before, and its pages must come
  * out as the same files they came out as then — see `pdf/identity.ts`.
  */
-export async function imagesIn (handle: FileSystemDirectoryHandle, { reopening = false }: { reopening?: boolean } = {}): Promise<Found> {
+export async function imagesIn (handle: FileSystemDirectoryHandle, { reopening = false, check }: { reopening?: boolean, check?: (counted: Omit<FolderTally, 'name'>) => Promise<boolean> } = {}): Promise<Found> {
   const found: PickedImage[] = []
 
   await descend(handle, '', found)
 
+  // Desktop: counted, then asked about, before any PDF in it is opened — the
+  // listing is cheap and the books are not. See `useFolderCheck`.
+  if (check && found.length && !await check(tally(found))) return { images: [], rest: null }
+
   const opened = await unpacked(found, reopening)
 
   return { ...opened, images: inReadingOrder(opened.images) }
+}
+
+/** Desktop: a folder's say before it is read — see `useFolderCheck`. */
+type FolderAsk = (tally: FolderTally) => Promise<boolean>
+
+/** Desktop: what `useFolderCheck` counts. */
+function tally (images: PickedImage[]) {
+  return { files: images.length, pdfs: images.filter((image) => isPdf(image.file)).length }
 }
 
 async function descend (handle: FileSystemDirectoryHandle, prefix: string, into: PickedImage[]) {

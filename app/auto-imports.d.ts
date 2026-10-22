@@ -715,6 +715,7 @@ declare global {
   const useFileSystemAccess: typeof import('@vueuse/core').useFileSystemAccess
   const useFocus: typeof import('@vueuse/core').useFocus
   const useFocusWithin: typeof import('@vueuse/core').useFocusWithin
+  const useFolderCheck: typeof import('./composables/useFolderCheck').useFolderCheck
   const useFps: typeof import('@vueuse/core').useFps
   const useFullscreen: typeof import('@vueuse/core').useFullscreen
   const useGamepad: typeof import('@vueuse/core').useGamepad
@@ -943,6 +944,9 @@ declare global {
   // @ts-ignore
   export type { BlockType, PageBox, Block, LetterBox, Framing, PageScan, ComicPage, Effort, TranslateEngine, TranslateSettings } from './composables/useComic'
   import('./composables/useComic')
+  // @ts-ignore
+  export type { FolderTally } from './composables/useFolderCheck'
+  import('./composables/useFolderCheck')
   // @ts-ignore
   export type { GlossaryRow } from './composables/useGlossary'
   import('./composables/useGlossary')
@@ -1870,6 +1874,7 @@ declare module 'vue' {
     readonly useFileSystemAccess: UnwrapRef<typeof import('@vueuse/core')['useFileSystemAccess']>
     readonly useFocus: UnwrapRef<typeof import('@vueuse/core')['useFocus']>
     readonly useFocusWithin: UnwrapRef<typeof import('@vueuse/core')['useFocusWithin']>
+    readonly useFolderCheck: UnwrapRef<typeof import('./composables/useFolderCheck')['useFolderCheck']>
     readonly useFps: UnwrapRef<typeof import('@vueuse/core')['useFps']>
     readonly useFullscreen: UnwrapRef<typeof import('@vueuse/core')['useFullscreen']>
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>

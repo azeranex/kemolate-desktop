@@ -163,6 +163,7 @@ export function useLibrary () {
     epoch,
   } = useComic()
   const { note, purge } = useWorkspaces()
+  const { ask } = useFolderCheck()
   const { shared, asking, push, pageRowOf, forgetPage } = useShared()
 
   /**
@@ -565,7 +566,17 @@ export function useLibrary () {
     }, 20_000)
 
     try {
-      const found = await pickFolder()
+      const found = await pickFolder({
+        // Desktop: a folder that looks like more than a chapter is asked about
+        // between being listed and being read. The dialog has answered by then,
+        // so the hint above stands down while the question is up.
+        check: (tally) => {
+          settled = true
+          clearTimeout(hint)
+
+          return ask(tally)
+        },
+      })
 
       // A dismissed dialog gives nothing back and means nothing by it.
       if (!found.images.length && !found.handle) return
