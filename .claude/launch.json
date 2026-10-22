@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 5173
+    },
+    {
+      "name": "desktop-dev-test",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "process.env.KEMOLATE_PROFILE = require('node:path').join(process.env.LOCALAPPDATA, 'kemolate-desktop-dev'); import(require('node:url').pathToFileURL(process.cwd() + '/node_modules/vite/bin/vite.js').href)"],
+      "port": 5173
     }
   ]
 }

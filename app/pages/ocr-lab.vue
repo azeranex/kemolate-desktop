@@ -590,7 +590,8 @@ async function measureHere (status: (message: string) => void): Promise<Measurem
         h: region.h / width,
       }),
       angle: 0,
-      text: `${REASON[verdict.reason]}${numbers}`,
+      // Desktop: a round room says so, with its own size — the numbers above are the rectangle's.
+      text: `${REASON[verdict.reason]}${verdict.room?.round ? ` · oval ${Math.round(verdict.room.w * width)}×${Math.round(verdict.room.h * width)}` : ''}${numbers}`,
       confidence: region.score,
     })
   }

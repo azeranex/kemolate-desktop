@@ -224,6 +224,20 @@ function inkOf (text: Text | null, origin: DOMRect): { left: number, top: number
     : { left: left - origin.left, top: top - origin.top, right: right - origin.left, bottom: bottom - origin.top }
 }
 
+/**
+ * Desktop: how much narrower a shape is measured than it is drawn, along the
+ * lines.
+ *
+ * A shaped fit is chosen at the very edge: the largest size whose lines all
+ * land inside the shape. The board then draws the same words at screen size,
+ * where type is not an exact scale of the probe's — hinting, rounded advances,
+ * a polygon rounded to pixels — and a line that only just went at the narrow
+ * end of an oval wraps instead, and its last word is pushed past the frame and
+ * cut ("HM? OH, YEAH, IT" with the "IS." gone, 2026-10-22). Measured a few
+ * percent narrow, every line drawn has that much to spare.
+ */
+const SHAPE_SLACK = 0.04
+
 /** How a fit is being tried: hyphenated or not, tightened or not. */
 type Squeeze = Pick<LetterFit, 'hyphens' | 'tight'>
 
@@ -237,9 +251,12 @@ function probeFor (input: FitInput) {
   const outline = input.shape ?? null
   const down = Boolean(input.vertical)
 
+  // Desktop: a shape is measured a little narrower than it is drawn — see `SHAPE_SLACK`.
+  const slack = outline ? 1 - SHAPE_SLACK : 1
+
   Object.assign(box.style, {
-    width: `${input.box.w}px`,
-    height: `${input.box.h}px`,
+    width: `${input.box.w * (down ? 1 : slack)}px`,
+    height: `${input.box.h * (down ? slack : 1)}px`,
     fontWeight: input.bold ? '700' : '400',
     fontStyle: input.italic ? 'italic' : 'normal',
     fontFamily: input.family ?? 'inherit',

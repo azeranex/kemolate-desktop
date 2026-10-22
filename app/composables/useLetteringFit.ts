@@ -98,8 +98,11 @@ const STORE = 'lettering-fits'
  * 7 (desktop): Anime Ace 3 is the installed face now (`local()` in
  * `fonts.css`); every fit before was measured in the Shantell Sans the stack fell
  * back to while the files were missing, under Anime Ace's name (2026-10-21).
+ * 8 (desktop): a shape is measured a little narrower than it is drawn
+ * (`SHAPE_SLACK`), so a shaped fit kept from before may be one whose last word
+ * the board wraps out of the frame (2026-10-22).
  */
-const FITS_VERSION = 7
+const FITS_VERSION = 8
 const KEEP = 4000
 
 const remembered = new Map<string, LetterFit>()

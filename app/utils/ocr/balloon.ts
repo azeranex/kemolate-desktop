@@ -194,6 +194,12 @@ export interface Balloon {
   solidity: number
   /** The fill ran past what a balloon can be — see the header. */
   escaped: boolean
+  /**
+   * Desktop: the balloon's own oval — the frame of the largest ellipse, held
+   * off the outline, that lies inside the interior — in the sheet's pixels; null
+   * where none does. See `ovalIn`.
+   */
+  oval: Room | null
 }
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
@@ -443,6 +449,7 @@ function grow (sheet: Sheet, seed: Room, paper: Paper, bounds: Room | null | und
   const share = inside / (ww * wh)
   const solidity = solidityOf(mask, ww, wh)
   const room = inset(roomIn(mask, ww, wh, inner), left, top)
+  const oval = ovalIn(mask, ww, wh)
 
   return {
     room,
@@ -457,6 +464,7 @@ function grow (sheet: Sheet, seed: Room, paper: Paper, bounds: Room | null | und
     grown: reached / (ww * wh),
     solidity,
     escaped: leaked(sides, share, solidity, Boolean(bounds)),
+    oval: oval && { x: left + oval.x, y: top + oval.y, w: oval.w, h: oval.h },
   }
 }
 
@@ -848,6 +856,95 @@ function inset (
     w: w - room * 2,
     h: h - room * 2,
   }
+}
+
+/**
+ * How far inside the outline the oval stops, as a share of each radius — more
+ * than the rectangle's `MARGIN`, because an oval's lines run out to the outline
+ * at the middle, where a letterer leaves the most air.
+ */
+const OVAL_INSET = 0.1
+
+/** How many points round the oval are checked against the interior. */
+const OVAL_POINTS = 72
+
+/** Of those, how many may fall outside it — antialiasing, a stray speck — before it is shrunk. */
+const OVAL_SLACK = 2
+
+/** How small the oval may be shrunk, against its first size, before there is none. */
+const OVAL_LEAST = 0.6
+
+/**
+ * Desktop: the balloon's own oval — what a letterer sets a speech balloon's
+ * lines into, short at the top and bottom, long through the middle.
+ *
+ * `roomIn` finds the largest *rectangle*, and in an oval balloon that has the
+ * oval's own proportions and covers under two thirds of it: a tall balloon
+ * gives a tall, narrow room, barely wider than the Japanese column it was read
+ * from, and a horizontal translation set in it is held to the width of its
+ * longest word — tiny type in a big balloon. The oval is the room the balloon
+ * actually has, and `shapeFor` wraps a line into it.
+ *
+ * Centred on the interior's centroid, not its bounding box, and given the
+ * nearer edge on each axis as its radius: a tail is a small area off one side,
+ * which barely moves the centroid and is never the nearer edge, so it can
+ * neither pull the oval off the balloon nor stretch it. Held `OVAL_INSET` off
+ * the outline, then shrunk until its rim lies inside the interior — a shield,
+ * a cloud or a spiky shout is not an ellipse, and an oval that crossed the
+ * outline would set words over it. Null where none survives `OVAL_LEAST`.
+ */
+export function ovalIn (mask: Uint8Array, w: number, h: number): Room | null {
+  let n = 0
+  let sx = 0
+  let sy = 0
+  let x0 = w
+  let y0 = h
+  let x1 = -1
+  let y1 = -1
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!mask[y * w + x]) continue
+
+      n++
+      sx += x
+      sy += y
+      if (x < x0) x0 = x
+      if (x > x1) x1 = x
+      if (y < y0) y0 = y
+      if (y > y1) y1 = y
+    }
+  }
+
+  if (!n) return null
+
+  const cx = sx / n
+  const cy = sy / n
+  const rx = Math.min(cx - x0, x1 + 1 - cx) * (1 - OVAL_INSET)
+  const ry = Math.min(cy - y0, y1 + 1 - cy) * (1 - OVAL_INSET)
+
+  if (rx < 2 || ry < 2) return null
+
+  const inside = (scale: number) => {
+    let out = 0
+
+    for (let i = 0; i < OVAL_POINTS; i++) {
+      const t = (i / OVAL_POINTS) * Math.PI * 2
+      const x = Math.round(cx + Math.cos(t) * rx * scale)
+      const y = Math.round(cy + Math.sin(t) * ry * scale)
+
+      if (x < 0 || y < 0 || x >= w || y >= h || !mask[y * w + x]) out++
+      if (out > OVAL_SLACK) return false
+    }
+
+    return true
+  }
+
+  for (let scale = 1; scale >= OVAL_LEAST; scale -= 0.05) {
+    if (inside(scale)) return { x: cx - rx * scale, y: cy - ry * scale, w: rx * scale * 2, h: ry * scale * 2 }
+  }
+
+  return null
 }
 
 /** How much more room the balloon is than the block, by area. One is no gain. */

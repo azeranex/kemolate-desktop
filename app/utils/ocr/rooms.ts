@@ -187,6 +187,17 @@ const CLEAR_BANDS = [1, 0.85, 0.7, 0.6] as const
 /** Of another block's box, how much a room may cover before it is crowding it. */
 const CROWDING = 0.25
 
+/**
+ * Desktop: below this `solidity` a balloon is round enough to be lettered as
+ * an oval (`ovalIn`). An ellipse fills 0.79 of its bounding box; a caption
+ * box, a rectangle with the corners barely rounded, 0.95 and over — and its
+ * largest rectangle is already the whole of it.
+ */
+const ROUNDISH = 0.93
+
+/** How much of an oval's frame its lines can actually use — the ellipse's own share of it. */
+const OVAL_SHARE = Math.PI / 4
+
 /** One block's measurement, in full — what the OCR lab draws, and `roomsFor` keeps the room of. */
 export interface RoomVerdict {
   room: RoomBox | null
@@ -197,6 +208,11 @@ export interface RoomVerdict {
   balloon?: Balloon
   /** The room against the block, by area — see `roomGain`. Where a fill ran. */
   gain?: number
+  /**
+   * Desktop: the largest rectangle, where `room` is the balloon's oval — what a
+   * round room falls back to when the oval would crowd a neighbour.
+   */
+  square?: RoomBox
 }
 
 /**
@@ -244,12 +260,35 @@ export function roomVerdicts (sheet: Sheet, blocks: Measured[], fences: Region[]
 
   // Back to the block's own space: normalised by the page's width, which is
   // the sheet's width, on both axes.
-  const roomOf = (balloon: Balloon): RoomBox => ({
-    cx: (balloon.room.x + balloon.room.w / 2) / sheet.w,
-    cy: (balloon.room.y + balloon.room.h / 2) / sheet.w,
-    w: balloon.room.w / sheet.w,
-    h: balloon.room.h / sheet.w,
+  const boxOf = (room: Room): RoomBox => ({
+    cx: (room.x + room.w / 2) / sheet.w,
+    cy: (room.y + room.h / 2) / sheet.w,
+    w: room.w / sheet.w,
+    h: room.h / sheet.w,
   })
+
+  const roomOf = (balloon: Balloon): RoomBox => boxOf(balloon.room)
+
+  /*
+   * Desktop: the room a balloon gives, and what it gains on the block — the
+   * oval where the balloon is round and its oval holds at least what the
+   * largest rectangle does (by the area the lines can use), the rectangle
+   * otherwise. See `ovalIn`.
+   */
+  const bestOf = (balloon: Balloon, seed: Room): { room: RoomBox, gain: number, square?: RoomBox } => {
+    const oval = balloon.oval
+    const usable = oval ? oval.w * oval.h * OVAL_SHARE : 0
+
+    if (oval && balloon.solidity < ROUNDISH && usable >= balloon.room.w * balloon.room.h) {
+      return {
+        room: { ...boxOf(oval), round: true },
+        gain: roomGain({ ...oval, w: oval.w, h: oval.h * OVAL_SHARE }, seed),
+        square: roomOf(balloon),
+      }
+    }
+
+    return { room: roomOf(balloon), gain: roomGain(balloon.room, seed) }
+  }
 
   // The last resort for a block with no balloon — see `clearAround`. Tried on
   // bands of the lettering at several heights, at its top, middle and bottom,
@@ -299,9 +338,9 @@ export function roomVerdicts (sheet: Sheet, blocks: Measured[], fences: Region[]
 
     if (!balloon || balloon.escaped || !dark(sheet, balloon)) return null
 
-    const gain = roomGain(balloon.room, seed)
+    const { room, gain, square } = bestOf(balloon, seed)
 
-    return gain < 1 ? null : { room: roomOf(balloon), reason: 'found', balloon, gain }
+    return gain < 1 ? null : { room, reason: 'found', balloon, gain, ...(square ? { square } : {}) }
   }
 
   const verdicts = blocks.map((block, at): RoomVerdict => {
@@ -342,21 +381,17 @@ export function roomVerdicts (sheet: Sheet, blocks: Measured[], fences: Region[]
 
     if (!balloon) return { room: null, reason: 'no-paper', fence }
 
-    const gain = roomGain(balloon.room, seed)
+    const { room, gain, square } = bestOf(balloon, seed)
 
     if (balloon.escaped) return { room: null, reason: 'escaped', fence, balloon, gain }
     if (gain < 1) return { room: null, reason: 'smaller', fence, balloon, gain }
 
-    return { room: roomOf(balloon), reason: 'room', fence, balloon, gain }
+    return { room, reason: 'room', fence, balloon, gain, ...(square ? { square } : {}) }
   })
 
   // Last, over every room at once: none may cover another block's lettering.
   return verdicts.map((verdict, at) => {
-    const room = verdict.room
-
-    if (!room) return verdict
-
-    const crowds = blocks.some((other, index) => {
+    const crowds = (room: RoomBox) => blocks.some((other, index) => {
       if (index === at || skipped(other)) return false
 
       const across = Math.min(room.cx + room.w / 2, other.cx + other.w / 2) - Math.max(room.cx - room.w / 2, other.cx - other.w / 2)
@@ -365,7 +400,19 @@ export function roomVerdicts (sheet: Sheet, blocks: Measured[], fences: Region[]
       return across > 0 && down > 0 && across * down > CROWDING * other.w * other.h
     })
 
-    return crowds ? { ...verdict, room: null, reason: 'crowded' as const } : verdict
+    const room = verdict.room
+
+    if (!room || !crowds(room)) return verdict
+
+    // Desktop: an oval that crowds a neighbour gives way to the rectangle, which
+    // is smaller, before the balloon gives up its room altogether.
+    if (verdict.square && !crowds(verdict.square)) {
+      const { square: _rectangle, ...rest } = verdict
+
+      return { ...rest, room: verdict.square }
+    }
+
+    return { ...verdict, room: null, reason: 'crowded' as const }
   })
 }
 

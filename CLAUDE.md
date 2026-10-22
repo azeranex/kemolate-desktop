@@ -324,6 +324,17 @@ by the main process on the loopback, for an MCP client on this machine. Read the
   optional at registration — an id given is used as given; a missing one is the open chapter, and
   the page on screen only within it. The tool files stay the web build's. Nothing open is a 409
   that says to name one, never a guess.
+- **An agent can letter, not only translate** (added 2026-10-22, the desktop's own):
+  `set_lettering_style` sets lines' `style` — face, size, line, spacing, stroke, weight,
+  alignment, anchor, vertical, ink, outline, shape — merged field by field (null is automatic,
+  `reset` starts over), checked by `letteringStyleSchema`. Its write is `translations.restyle`,
+  which sets the style column alone: `putOnPage` as a person re-signs and pins a line, which
+  restyling it is not. Sizes are scan pixels, the Lettering panel's numbers. `read_page` reports
+  a line's style where it has one — the one change to that web build file.
+- **A balloon's frame for an agent to set** (2026-10-22): `set_lettering_style` also takes a
+  `frame` — the lettering's own box (`translations.restyle` writes it beside the style; null
+  hands the line back to its room) — and `read_page` reports each block's `room` and each
+  line's `frame`. The tool's description tells an agent how to fix tiny type in a big balloon.
 - **An agent's writes reach the window.** `mcpContext` gives its context `origin: 'agent'`, and
   `notify` (`access.ts`) sends those — and only those — to the window as `changed` frames, so
   `useLiveSync` and the rest re-read as for a collaborator. The window's own writes are not
@@ -387,6 +398,33 @@ releases are GitHub Releases the installed app updates itself from.
   hashed, dev builds write there too, and the installer packs the whole folder.
 - Packaging into `release/` failed on 2026-10-21 with `EPERM` renaming `win-unpacked.tmp`,
   something holding the folder; `--config.directories.output=out/release` sidesteps it.
+
+## Lettering in round balloons
+
+Found 2026-10-22 on a real page: "the bubble is big but the text is really small".
+
+- **A round balloon's room is its oval** (`ovalIn` in `utils/ocr/balloon.ts`, chosen in
+  `rooms.ts`). The largest upright rectangle in an oval has the oval's proportions and under
+  two thirds of its area, so a tall balloon's room was a strip barely wider than the Japanese
+  column — and a horizontal translation was held to the width of its longest word. Now a
+  balloon below `ROUNDISH` solidity whose oval holds at least the rectangle's area (its usable
+  share, π/4) gets the oval, stored as `room.round` (a JSON field — no migration), and
+  `shapeFor` wraps the line into an oval unless a shape was chosen or a frame was dragged.
+  Centred on the interior's centroid with the nearer edge as each radius, so a tail moves
+  nothing; 10% off the outline; shrunk until its rim is inside. An oval that would crowd a
+  neighbour falls back to the rectangle (`RoomVerdict.square`), not to nothing. The OCR lab
+  says "oval" on such a room. Existing chapters get it from Detect › Measure balloons.
+  Measured on that page (Anime Ace): the line went from 13 px in its box to 17 in its oval;
+  the other three balloons fill theirs.
+- **A shape is measured 4% narrow** (`SHAPE_SLACK`, `utils/lettering.ts`): a shaped fit sits
+  at the very edge, and the board, drawing at screen size, wrapped a line that had only just
+  fitted — "HM? OH, YEAH, IT" with "IS." cut off. `FITS_VERSION` 8 drops fits kept from before.
+- **Hyphenation does nothing here.** `hyphens: auto` needs a dictionary, and Chromium on
+  Windows downloads its dictionaries through a component updater Electron does not have:
+  three overflowing words in a 60 px box stayed three unbroken lines. So the standard fit's
+  "hyphenated" rung (`fitStandard`) is a no-op on Windows, and a balloon whose one long word
+  limits it ("NEIGHBORHOOD...") stays at that word's size. Soft hyphens from a hyphenation
+  library (`hyphens: manual` breaks at U+00AD) would work; not done.
 
 ## Electron
 

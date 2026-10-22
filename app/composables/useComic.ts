@@ -148,8 +148,10 @@ export interface Block extends PageBox {
    *
    * Upright, in page percentages like the box. Never written by a drag — a drag
    * writes `letter` — and, like `letter`, never read by the cleaning path.
+   *
+   * Desktop: `round` is a room that is the balloon's own oval — see `RoomBox`.
    */
-  room?: PageBox
+  room?: PageBox & { round?: boolean }
 }
 
 /**

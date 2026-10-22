@@ -1005,7 +1005,7 @@ export function useBlockSync () {
       block.angle, block.skewX, block.skewY, block.quad?.join(','),
       // The balloon's room, so measuring a chapter that was read before rooms
       // existed is a change this sees and saves — see `Block.room`.
-      block.room && [block.room.x, block.room.y, block.room.w, block.room.h].join(','),
+      block.room && [block.room.x, block.room.y, block.room.w, block.room.h, block.room.round ? 'o' : ''].join(','),
       block.source, block.hidden,
     ].join('|'))
     .join('\n'))

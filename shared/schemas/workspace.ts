@@ -178,6 +178,8 @@ const roomSchema = z.object({
   cy: z.number().min(-10).max(10),
   w: z.number().min(0).max(10),
   h: z.number().min(0).max(10),
+  // Desktop: the room is the balloon's oval, not a rectangle in it — see `RoomBox`.
+  round: z.boolean().optional(),
 })
 
 /**

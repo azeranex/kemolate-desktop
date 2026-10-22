@@ -551,7 +551,7 @@ export const blocks = sqliteTable('blocks', {
    * Nothing in the cleaning path reads it, for the reason nothing there reads a
    * lettering frame: see `Block.letter` in `useComic`.
    */
-  room: text('room', { mode: 'json' }).$type<{ cx: number, cy: number, w: number, h: number }>(),
+  room: text('room', { mode: 'json' }).$type<{ cx: number, cy: number, w: number, h: number, round?: boolean }>(),
   /** What was read off the page, in the original language. */
   source: text('source').notNull().default(''),
   /** How sure the reader was, nought to a hundred. */

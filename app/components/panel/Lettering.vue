@@ -512,7 +512,7 @@ const AUTO_SHAPE = 'auto'
 const autoShape = computed(() => {
   const first = selected.value[0]
 
-  return first ? shapeFor({ shape: null, points: null }, { type: first.type, translation: 'x' }) : 'box'
+  return first ? shapeFor({ shape: null, points: null }, { type: first.type, translation: 'x', room: first.room, letter: first.letter }) : 'box'
 })
 
 function setShape (next: string) {

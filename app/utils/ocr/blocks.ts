@@ -58,6 +58,12 @@ export interface RoomBox {
   cy: number
   w: number
   h: number
+  /**
+   * Desktop: the room is the balloon's own oval — its interior, held off the
+   * outline — rather than the largest rectangle inside it, and a line set in it
+   * wraps into an oval (`shapeFor`). See `ovalIn` in `balloon.ts`.
+   */
+  round?: boolean
 }
 
 /**
@@ -72,6 +78,7 @@ export function roomBoxOf (room: RoomBox, scan: { width: number, height: number 
     y: (room.cy - room.h / 2) * aspect * 100,
     w: room.w * 100,
     h: room.h * aspect * 100,
+    ...(room.round ? { round: true } : {}),
   }
 }
 
@@ -694,6 +701,7 @@ export function toPatch (block: Block, scan: { width: number, height: number }, 
           cy: (block.room.y + block.room.h / 2) / 100 / aspect,
           w: block.room.w / 100,
           h: block.room.h / 100 / aspect,
+          ...(block.room.round ? { round: true } : {}),
         }
       : null,
     source: block.source,

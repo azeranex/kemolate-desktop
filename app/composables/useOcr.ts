@@ -92,6 +92,7 @@ function sameRoom (a: Block['room'], b: Block['room']) {
 
   return Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6
     && Math.abs(a.w - b.w) < 1e-6 && Math.abs(a.h - b.h) < 1e-6
+    && Boolean(a.round) === Boolean(b.round)
 }
 
 /** Whether a block is one rooms are measured for — see `roomVerdicts`. */

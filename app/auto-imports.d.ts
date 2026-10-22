@@ -414,6 +414,7 @@ declare global {
   const opfsWrite: typeof import('./utils/opfs').opfsWrite
   const orientedIn: typeof import('./utils/letterCss').orientedIn
   const ortOnce: typeof import('./utils/ocr/onnx').ortOnce
+  const ovalIn: typeof import('./utils/ocr/balloon').ovalIn
   const paddedBox: typeof import('./utils/ocr/clean').paddedBox
   const pagePrompt: typeof import('../shared/utils/prompt').pagePrompt
   const pageScript: typeof import('../shared/utils/lang').pageScript
@@ -1549,6 +1550,7 @@ declare module 'vue' {
     readonly opfsWrite: UnwrapRef<typeof import('./utils/opfs')['opfsWrite']>
     readonly orientedIn: UnwrapRef<typeof import('./utils/letterCss')['orientedIn']>
     readonly ortOnce: UnwrapRef<typeof import('./utils/ocr/onnx')['ortOnce']>
+    readonly ovalIn: UnwrapRef<typeof import('./utils/ocr/balloon')['ovalIn']>
     readonly paddedBox: UnwrapRef<typeof import('./utils/ocr/clean')['paddedBox']>
     readonly pagePrompt: UnwrapRef<typeof import('../shared/utils/prompt')['pagePrompt']>
     readonly pageScript: UnwrapRef<typeof import('../shared/utils/lang')['pageScript']>

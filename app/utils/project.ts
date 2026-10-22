@@ -338,8 +338,8 @@ const blockSchema: z.ZodType<Block> = z.lazy(() => z.object({
    */
   style: z.custom<Partial<Lettering>>().optional(),
   letter: z.object(boxFields).optional(),
-  /** The balloon's room — see `Block.room`. Upright, so the four numbers only. */
-  room: z.object({ x: coordinate, y: coordinate, w: coordinate, h: coordinate }).optional(),
+  /** The balloon's room — see `Block.room`. Upright, so the four numbers, and whether it is the balloon's oval. */
+  room: z.object({ x: coordinate, y: coordinate, w: coordinate, h: coordinate, round: z.boolean().optional() }).optional(),
   children: z.array(blockSchema).max(500).optional(),
 }))
 

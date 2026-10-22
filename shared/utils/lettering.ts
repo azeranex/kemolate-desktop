@@ -552,11 +552,20 @@ export const validPoints = (points: number[] | null | undefined): points is numb
  * Only a translation is shaped. Until then the plate shows what was *read*, in
  * the box it was read from, and a lozenge around the source would be a shape
  * nobody chose for words that are about to be replaced.
+ *
+ * Desktop: a line set in a round room — the balloon's own oval, not a rectangle
+ * inside it (`ovalIn` in `balloon.ts`) — wraps into that oval unless somebody
+ * chose a shape. Not where a letterer gave the line a frame of its own
+ * (`letter`): that frame is not the balloon, and its shape is theirs to choose.
  */
-export function shapeFor (style: Pick<Lettering, 'shape' | 'points'>, block: { type?: string, translation: string }): LetterShape {
+export function shapeFor (
+  style: Pick<Lettering, 'shape' | 'points'>,
+  block: { type?: string, translation: string, room?: { round?: boolean } | null, letter?: unknown },
+): LetterShape {
   if (!block.translation.trim()) return 'box'
   if (style.shape === 'custom') return validPoints(style.points) ? 'custom' : 'box'
   if (style.shape) return style.shape
+  if (block.room?.round && !block.letter) return 'oval'
 
   return block.type === 'bubble' ? 'soft' : 'box'
 }
