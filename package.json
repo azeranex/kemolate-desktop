@@ -1,7 +1,7 @@
 {
   "name": "kemolate-desktop",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Kemolate as a desktop app: Electron, one machine, local data.",
   "type": "module",
   "packageManager": "pnpm@12.10.1",
