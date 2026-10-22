@@ -225,6 +225,105 @@ function inkOf (text: Text | null, origin: DOMRect): { left: number, top: number
     : { left: left - origin.left, top: top - origin.top, right: right - origin.left, bottom: bottom - origin.top }
 }
 
+/** Desktop: the soft hyphen `withHyphens` puts in, which shows as "-" only where a line breaks at it. */
+const SHY = '­'
+
+/** Desktop: the lines as laid out, and how they came to break. See `breaksOf`. */
+export interface DrawnLines {
+  /** Each line's words as drawn, a word broken at a soft hyphen ending in "-". */
+  lines: string[]
+  /** Line breaks the wrap made — not at a newline somebody typed. */
+  wrapped: number
+  /** Words broken across two lines. */
+  broken: number
+  /** Whether the text carries breaks somebody typed. */
+  byHand: boolean
+}
+
+/**
+ * Desktop: the lines as the browser laid them out — read a word at a time, as
+ * `inkOf` measures, and a word that came back in two pieces walked a character
+ * at a time to find where it broke.
+ *
+ * A word starts a new line where it sits a line lower (a column further left,
+ * set down the page) than the word before. A new line with a newline between the
+ * two words is a break somebody typed; any other is the wrap's. That difference
+ * is what keeps a hand-broken balloon broken where its letterer said — see
+ * `keep` in `tryFit` — and what a review reports (`review_lettering`).
+ */
+function breaksOf (text: Text | null, down: boolean, size: number): DrawnLines {
+  const data = text?.data ?? ''
+  const found: DrawnLines = { lines: [], wrapped: 0, broken: 0, byHand: data.includes('\n') }
+
+  if (!text) return found
+
+  const range = document.createRange()
+  const at = (rect: DOMRect) => (down ? -rect.right : rect.top)
+  const rectsOf = (start: number, end: number) => {
+    range.setStart(text, start)
+    range.setEnd(text, end)
+
+    return [...range.getClientRects()].filter((rect) => rect.width || rect.height)
+  }
+
+  let line: string[] = []
+  let where: number | null = null
+  let after = 0
+
+  const breakHere = (from: number, to: number) => {
+    if (line.length) found.lines.push(line.join(' '))
+    line = []
+    if (!data.slice(from, to).includes('\n')) found.wrapped++
+  }
+
+  for (const word of data.matchAll(/\S+/g)) {
+    const start = word.index
+    const end = start + word[0].length
+    const rects = rectsOf(start, end)
+
+    if (!rects.length) continue
+
+    const first = at(rects[0]!)
+
+    if (where !== null && Math.abs(first - where) > size * 0.5) breakHere(after, start)
+
+    if (rects.length === 1) {
+      line.push(word[0].replaceAll(SHY, ''))
+      where = first
+    } else {
+      // Broken inside: walk it to find where each piece starts.
+      let piece = ''
+      let pieceAt = first
+
+      for (let index = start; index < end; index++) {
+        const char = data[index]!
+        const own = rectsOf(index, index + 1)
+
+        // Its last rectangle: a character just after a break can also report an empty one at the end of the line before.
+        if (own.length && Math.abs(at(own.at(-1)!) - pieceAt) > size * 0.5) {
+          line.push(piece.endsWith(SHY) ? `${piece.slice(0, -1)}-` : piece)
+          found.lines.push(line.join(' '))
+          found.broken++
+          line = []
+          piece = ''
+          pieceAt = at(own.at(-1)!)
+        }
+
+        piece += char
+      }
+
+      line.push(piece.replaceAll(SHY, ''))
+      where = pieceAt
+    }
+
+    after = end
+  }
+
+  if (line.length) found.lines.push(line.join(' '))
+
+  return found
+}
+
 /**
  * Desktop: how much narrower a shape is measured than it is drawn, along the
  * lines.
@@ -336,7 +435,10 @@ function probeFor (input: FitInput) {
     return inkOf(text, box.getBoundingClientRect())
   }
 
-  return { layout, outline, down }
+  /** Desktop: the lines as the last `layout` set them — see `breaksOf`. */
+  const breaks = (size: number) => breaksOf(text, down, size)
+
+  return { layout, breaks, outline, down }
 }
 
 /**
@@ -350,16 +452,18 @@ function probeFor (input: FitInput) {
  * lay out, see how far the ink's middle is from the frame's, move by that much,
  * and again, until it stops moving. Two or three passes; four at most.
  */
-function tryFit (setup: ReturnType<typeof probeFor>, input: FitInput, size: number, squeeze: Squeeze): { fits: boolean, pad?: number } {
+function tryFit (setup: ReturnType<typeof probeFor>, input: FitInput, size: number, squeeze: Squeeze, keep = false): { fits: boolean, pad?: number } {
   const { w, h } = input.box
-  const fits = (ink: ReturnType<typeof inkOf>) => !!ink && ink.left >= -1 && ink.top >= -1 && ink.right <= w + 1 && ink.bottom <= h + 1
+  // Desktop: with `keep`, a layout that wrapped a line somebody broke by hand does not count — see `keepsBreaks`.
+  const kept = () => !keep || setup.breaks(size).wrapped === 0
+  const fits = (ink: ReturnType<typeof inkOf>) => !!ink && ink.left >= -1 && ink.top >= -1 && ink.right <= w + 1 && ink.bottom <= h + 1 && kept()
 
   if (!setup.outline) {
     const ink = setup.layout(size, squeeze)
 
     // A pixel of slack on each axis: the browser reports fractions, and a line
     // that misses by a rounding error has not overflowed the drawing.
-    return { fits: !ink || (ink.right - ink.left <= w + 1 && ink.bottom - ink.top <= h + 1) }
+    return { fits: !ink || (ink.right - ink.left <= w + 1 && ink.bottom - ink.top <= h + 1 && kept()) }
   }
 
   // Along the block axis, in pixels: where the lines start (`from`) and end.
@@ -463,6 +567,48 @@ export function inkSize (input: FitInput, size: number, squeeze: Squeeze = {}): 
 }
 
 /**
+ * Desktop: whether a fit keeps the lines where somebody broke them.
+ *
+ * A newline in a translation is a break a letterer typed (`LETTERING_WRAP` is
+ * `pre-wrap` for exactly that), and a line of it too wide for its place in the
+ * balloon used to be wrapped again by the browser — "going to be" came out
+ * "GOING TO / BE", worse than no breaks at all (2026-10-23). So a hand-broken
+ * line is fitted at the largest size whose lines all keep their breaks, set a
+ * little smaller rather than re-broken, and only wrapped again where no size in
+ * range keeps them (`rewrapped`, which a review reports). Nor is a word in it
+ * hyphenated while its breaks hold: whoever broke the lines decided where the
+ * words go. Only where they cannot be kept, and nothing else goes, is one broken.
+ */
+const keepsBreaks = (input: FitInput) => input.text.includes('\n')
+
+/**
+ * The largest size that fits with this squeeze, or the floor flagged `over` —
+ * `fitSize`'s search, lifted out (desktop) so a hand-broken line can run it with `keep`.
+ */
+function largestIn (setup: ReturnType<typeof probeFor>, input: FitInput, range: { min: number, max: number }, squeeze: Squeeze, keep = false): LetterFit {
+  const at = (size: number) => tryFit(setup, input, size, squeeze, keep)
+  const floor = at(range.min)
+
+  if (!floor.fits) return { size: range.min, pad: floor.pad, over: true }
+
+  let low = range.min
+  let high = range.max
+
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2)
+
+    if (at(mid).fits) low = mid
+    else high = mid
+  }
+
+  if (at(high).fits) low = high
+
+  for (let more = 0; setup.outline && more < 3 && low < range.max && at(low + 1).fits; more++) low++
+
+  return { size: low, pad: at(low).pad, ...squeeze }
+}
+
+/**
  * The largest whole size at which the words still fit the box — the fit for a
  * block the chapter's standard size does not govern, or a chapter with none.
  *
@@ -482,30 +628,20 @@ export function fitSize (input: FitInput, range: { min: number, max: number }): 
 
   const setup = probeFor(input)
 
-  /** The largest size that fits with this squeeze, or the floor flagged `over`. */
-  const largest = (squeeze: Squeeze): LetterFit => {
-    const at = (size: number) => tryFit(setup, input, size, squeeze)
+  // Desktop: lines broken by hand are kept as broken where any size allows — see `keepsBreaks`.
+  if (keepsBreaks(input)) {
+    const kept = largestIn(setup, input, range, {}, true)
 
-    const floor = at(range.min)
+    if (!kept.over) return kept
 
-    if (!floor.fits) return { size: range.min, pad: floor.pad, over: true }
+    // Wrapped again where no size keeps them; a word broken only if nothing else goes.
+    const wrapped = largestIn(setup, input, range, {})
 
-    let low = range.min
-    let high = range.max
-
-    while (high - low > 1) {
-      const mid = Math.floor((low + high) / 2)
-
-      if (at(mid).fits) low = mid
-      else high = mid
-    }
-
-    if (at(high).fits) low = high
-
-    for (let more = 0; setup.outline && more < 3 && low < range.max && at(low + 1).fits; more++) low++
-
-    return { size: low, pad: at(low).pad }
+    return { ...(wrapped.over ? largestIn(setup, input, range, { hyphens: true }) : wrapped), rewrapped: true }
   }
+
+  /** The largest size that fits with this squeeze, or the floor flagged `over` — see `largestIn`. */
+  const largest = (squeeze: Squeeze): LetterFit => largestIn(setup, input, range, squeeze)
 
   const plain = largest({})
 
@@ -538,6 +674,40 @@ export function fitStandard (input: FitInput, standard: number, range: { min: nu
   if (input.box.w <= 0 || input.box.h <= 0) return { size }
 
   const setup = probeFor(input)
+
+  // Desktop: lines broken by hand — tightened, then smaller, before any is wrapped again (`keepsBreaks`).
+  if (keepsBreaks(input)) {
+    const floor = Math.max(range.min, Math.round(size * SQUEEZE_FLOOR))
+
+    for (const squeeze of [{}, { tight: true }] as Squeeze[]) {
+      const tried = tryFit(setup, input, size, squeeze, true)
+
+      if (tried.fits) return { size, pad: tried.pad, ...squeeze }
+    }
+
+    for (let smaller = size - 1; smaller >= floor; smaller--) {
+      const tried = tryFit(setup, input, smaller, { tight: true }, true)
+
+      if (tried.fits) return { size: smaller, pad: tried.pad, tight: true }
+    }
+
+    // No size the standard allows keeps them: wrapped again, and said so — and
+    // a word broken only now, as the last thing before not fitting at all.
+    for (const squeeze of [{}, { tight: true }, { hyphens: true, tight: true }] as Squeeze[]) {
+      const tried = tryFit(setup, input, size, squeeze)
+
+      if (tried.fits) return { size, pad: tried.pad, ...squeeze, rewrapped: true }
+    }
+
+    for (let smaller = size - 1; smaller >= floor; smaller--) {
+      const tried = tryFit(setup, input, smaller, { hyphens: true, tight: true })
+
+      if (tried.fits) return { size: smaller, pad: tried.pad, hyphens: true, tight: true, rewrapped: true }
+    }
+
+    return { size: floor, pad: tryFit(setup, input, floor, { hyphens: true, tight: true }).pad, hyphens: true, tight: true, rewrapped: true, over: true }
+  }
+
   const ladder: Squeeze[] = [{}, { hyphens: true }, { hyphens: true, tight: true }]
 
   for (const squeeze of ladder) {
@@ -569,4 +739,18 @@ export function fitAt (input: FitInput, size: number): LetterFit {
   const tried = tryFit(probeFor(input), input, size, {})
 
   return { size, pad: tried.pad, ...(tried.fits ? {} : { over: true }) }
+}
+
+/**
+ * Desktop: the lines a fit sets, as drawn — what `review_lettering` reports, so
+ * an agent can judge a balloon's breaks from its words rather than a picture.
+ */
+export function drawnLines (input: FitInput, fit: LetterFit): DrawnLines | null {
+  if (input.box.w <= 0 || input.box.h <= 0) return null
+
+  const setup = probeFor(input)
+
+  setup.layout(fit.size, { hyphens: fit.hyphens, tight: fit.tight }, fit.pad ?? 0)
+
+  return setup.breaks(fit.size)
 }

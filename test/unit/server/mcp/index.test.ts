@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { aWorkspace, reset } from '../harness'
 
+import { contextFor } from '~~/server/services/access'
 import { replace } from '~~/server/services/blocks'
 import { sync as syncPages } from '~~/server/services/pages'
 import { putOnPage } from '~~/server/services/translations'
@@ -66,6 +67,9 @@ async function connect (withToken: boolean) {
   return client
 }
 
+/** The workspace's row, read back. */
+const getWorkspace = async (publicId: string) => (await contextFor(publicId))?.workspace
+
 const textOf = (result: unknown) => ((result as { content: { text: string }[] }).content[0]!.text)
 
 describe('the MCP server', () => {
@@ -99,6 +103,7 @@ describe('the MCP server', () => {
       'review_page_reading',
       'save_page_blocks',
       'save_page_translations',
+      'set_lettering_standard',
       'set_lettering_style',
       'sort_page_blocks',
       'update_workspace',
@@ -445,7 +450,7 @@ describe('set_lettering_style with a frame', () => {
 
 describe('review_lettering', () => {
   /** A page of four translated balloons, open in a stand-in window that answers as the real one would. */
-  async function lettered (lines: { size: number, set: 'auto' | 'standard' | 'chosen', capacity: number | null, over?: boolean, tight?: boolean, hyphens?: boolean }[], standard: number | null = null) {
+  async function lettered (lines: { size: number, set: 'auto' | 'standard' | 'chosen', capacity: number | null, over?: boolean, tight?: boolean, hyphens?: boolean, measuredEmphasis?: number, drawn?: string[], rewrapped?: boolean }[], standard: number | null = null) {
     const context = await aWorkspace()
     const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
     const rows = await replace(context, page!.id, lines.map((_, at) =>
@@ -524,6 +529,48 @@ describe('review_lettering', () => {
     expect(out.images).toEqual([])
   })
 
+  it('calls a line filling a big balloon large for the page — unless the original shouts it', async () => {
+    const { ids } = await lettered([
+      { size: 40, set: 'auto', capacity: 40 },
+      { size: 42, set: 'auto', capacity: 42 },
+      { size: 41, set: 'auto', capacity: 41 },
+      { size: 70, set: 'auto', capacity: 70 },
+      { size: 72, set: 'auto', capacity: 72, measuredEmphasis: 1.6 },
+    ])
+    const out = report(await review({ images: 'none' }))
+    const flags = Object.fromEntries(out.lines.map((line: { blockId: number, flags: string[] }) => [line.blockId, line.flags]))
+
+    expect(flags[ids[3]!]).toEqual(['larger-than-the-page'])
+    expect(flags[ids[4]!]).toEqual([])
+    expect(out.lines[4].measuredEmphasis).toBe(1.6)
+    // No standard: every balloon is filled, and the answer is one.
+    expect(out.next).toContain('set_lettering_standard')
+  })
+
+  it('does not suggest a standard to a chapter that has one', async () => {
+    await lettered([{ size: 30, set: 'standard', capacity: 60 }, { size: 45, set: 'standard', capacity: 60 }], 30)
+
+    expect(report(await review({ images: 'none' })).next).not.toContain('set_lettering_standard')
+  })
+
+  it('reports the lines as drawn, flags bad breaks, and shows no picture for a break alone', async () => {
+    const { ids, asked } = await lettered([
+      { size: 28, set: 'standard', capacity: 30, drawn: ['FIRST, LET', 'ME SHOW', 'YOU', 'AROUND THE'] },
+      { size: 28, set: 'standard', capacity: 30, drawn: ['HM? OH,', 'YEAH, IT', 'IS.'] },
+      { size: 28, set: 'standard', capacity: 30, drawn: ['HM?', 'OH, YEAH,', 'IT IS.'], rewrapped: true },
+      { size: 28, set: 'standard', capacity: 30, drawn: ['WAIT, IS', 'THIS ONE', 'OF THOSE'] },
+    ], 28)
+    const out = report(await review())
+
+    expect(out.lines.map((line: { flags: string[] }) => line.flags)).toEqual([['stranded-word'], ['lone-last-word'], ['rewrapped'], []])
+    expect(out.lines[0].drawn).toEqual(['FIRST, LET', 'ME SHOW', 'YOU', 'AROUND THE'])
+    expect(out.next).toContain('newlines')
+    // The words say it: no crop for a balloon flagged only for its breaks.
+    expect(out.images).toEqual([])
+    expect(asked.map((ask) => ask.type)).toEqual(['fits'])
+    expect(ids).toHaveLength(4)
+  })
+
   it('says why when the window cannot measure', async () => {
     const context = await aWorkspace()
     const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
@@ -538,5 +585,38 @@ describe('review_lettering', () => {
 
     expect(result.isError).toBe(true)
     expect(textOf(result)).toBe('[409] Kemolate has another chapter open.')
+  })
+})
+
+describe('set_lettering_standard', () => {
+  const call = async (args: Record<string, unknown>) => (await connect(true)).callTool({ name: 'set_lettering_standard', arguments: args })
+
+  it('keeps the size in the workspace record, and turns it off with null', async () => {
+    const context = await aWorkspace()
+    const workspaceId = context.workspace.publicId
+
+    expect(JSON.parse(textOf(await call({ workspaceId, size: 34 })))).toMatchObject({ standard: 34, was: null })
+
+    const read = await getWorkspace(context.workspace.publicId)
+
+    expect(read?.letteringStandard).toBe(34)
+    expect(JSON.parse(textOf(await call({ workspaceId, size: null })))).toMatchObject({ standard: null, was: 34 })
+  })
+
+  it('tells the open window, so it re-fits', async () => {
+    const context = await aWorkspace()
+    const sent: string[] = []
+
+    hold(context.workspace.publicId, [], (_publicId, frame) => sent.push(frame))
+
+    await call({ workspaceId: context.workspace.publicId, size: 30 })
+
+    expect(sent.map((frame) => JSON.parse(frame))).toEqual([{ type: 'changed', change: { scope: 'workspace' } }])
+  })
+
+  it('refuses a size that is not one', async () => {
+    const context = await aWorkspace()
+
+    expect((await call({ workspaceId: context.workspace.publicId, size: 0 })).isError).toBe(true)
   })
 })

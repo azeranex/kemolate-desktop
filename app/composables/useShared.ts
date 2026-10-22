@@ -53,6 +53,12 @@ export interface SharedState {
      * the target language does.
      */
     direction: 'ltr' | 'rtl' | null
+    /**
+     * Desktop: the chapter's standard lettering size, null when it has none.
+     * Absent from an answer made before the column existed — see
+     * `useLetteringStandard`.
+     */
+    letteringStandard?: number | null
   }
   role: WorkspaceRole | null
   /** Whether the scans are presumably on this person's disk. */

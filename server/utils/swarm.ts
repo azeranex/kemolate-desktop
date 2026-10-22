@@ -127,6 +127,8 @@ export type SwarmChange =
   | { scope: 'cast' }
   | { scope: 'glossary', locale: string }
   | { scope: 'repairs', pageId: number }
+  // Desktop: the workspace's own record — its standard lettering size, for one.
+  | { scope: 'workspace' }
 
 /**
  * Tell the window that some of a workspace's record has changed — the web

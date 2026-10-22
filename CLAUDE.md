@@ -485,6 +485,60 @@ Found 2026-10-22 on a real page: "the bubble is big but the text is really small
   key on `HYPHENATION`, so changing where words break re-measures them — a stale fit drew the
   new breaks at the old size and cut the last line. The page from the report: 17 px → 25.
 
+## One size for the voice, not the balloon
+
+Decided 2026-10-23, from "text too big because the bubble is too big" and "what about a
+bubble meant to be big".
+
+- **The standard size is the chapter's, in the database** (`workspaces.lettering_standard`,
+  an in-place `ADD COLUMN`; `workspacePatchSchema.letteringStandard`). The web build keeps
+  it in the browser and names the gap; here `useLetteringStandard` reads it off the
+  workspace record and writes it with `PATCH`. The window's IndexedDB copy stays — the
+  answer for a workspace not moved in yet, and the first answer while the record loads —
+  and a standard kept only there is carried up the first time the record arrives without
+  one (`moved` marks it done). `workspaces.update` notifies `{ scope: 'workspace' }`, which
+  `useLetteringStandard` answers by reading the record again. Tested on a test profile: an
+  agent's standard re-fitted the open page at once, and a window-only 28 moved up on reload.
+- **Emphasis** (`app/utils/emphasis.ts`): a line held to the standard is set at the standard
+  × its emphasis. Measured from the *original*: each block's character pitch (its box shared
+  out among its characters — the found box, never the frame or room), against the median
+  over the chapter's dialogue and captions; 1.3× or more counts, to a tenth, at most 1.8×,
+  and nothing with fewer than four blocks to measure. A big balloon with ordinary lettering
+  is not emphasis. Per line, `Lettering.emphasis` (a style field: null measured, a number
+  chosen, 1 none) — the Lettering panel's Emphasis row, `set_lettering_style`'s `emphasis`.
+  Not automatic bold: bold is the reader's choice of face. On the test page the four
+  originals measured 0.87–1.02 — all ordinary, as they look.
+- **For agents**: `set_lettering_standard`; `review_lettering` reports `emphasis` and
+  `measuredEmphasis`, flags **larger-than-the-page** (an automatic line over 1.3× the page's
+  ordinary size whose original is ordinary; never a sound effect), and says to set a
+  standard when the chapter has none. The skill's "One size for the voice" section.
+
+## Line breaks a letterer types
+
+Added 2026-10-23. A newline in a translation was always a hard break (`LETTERING_WRAP` is
+`pre-wrap` for it), but the wrap ignored it as soon as a typed line was too wide, and at a
+standard size the automatic wrap packs lines mid-phrase: "FIRST, LET / ME SHOW / YOU",
+"HM? OH, / YEAH, IT / IS.".
+
+- **Typed breaks are kept** (`keepsBreaks` in `utils/lettering.ts`): a fit of hand-broken
+  text only counts a layout where the wrap added no break of its own — the probe reads
+  where each word landed (`breaksOf`) — so the balloon is tightened or set smaller, down to
+  the standard's floor, before a typed line is wrapped again; then it is, and the fit says
+  `rewrapped`. Not hyphenated while its breaks hold; only as the last thing before not
+  fitting at all. `FITS_VERSION` 12.
+- **A review reports the lines as drawn** (`drawnLines`, via `useLetteringFit.linesOf`):
+  each line's `drawn` in `review_lettering`, a word broken at a soft hyphen ending "-" —
+  so an agent judges breaks from words, not pictures. `server/utils/breaks.ts` flags
+  **stranded-word** (one word between two much longer lines), **lone-last-word** and
+  **rewrapped**; a line flagged only for its breaks gets no crop. A phrase split across
+  lines is left to the agent, who has the language.
+- The skill's "Line breaks" section is the rules (one phrase a line, short-long-short, no
+  pair split, no lone last word, compare the size before and after) and the fix: newlines
+  through `save_page_translations` for a machine line, a proposal for a pinned one.
+- Tested on the test page through MCP: the review flagged "YOU" and "IS."; re-broken by the
+  rules the balloons came out exactly as `drawn` said — 27 / 26 / 28 / 28 px, no flags — and
+  of two breakings of one balloon the rules' size check picked the larger (27 over 25).
+
 ## Electron
 
 - `titleBarStyle: 'hidden'`, not `frame: false` — keeps resize borders, snap and rounded

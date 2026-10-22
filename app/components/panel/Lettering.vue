@@ -47,7 +47,7 @@ const {
   page, selected, lettering, setLettering, resetLettering, setDown, styleOf, updateMany,
   framing, resetFrame,
 } = useComic()
-const { autoSize, fitOf } = useLetteringFit()
+const { autoSize, fitOf, emphasisFor } = useLetteringFit()
 const { standard, set: setStandard } = useLetteringStandard()
 const { shortenBlock, running: translating } = useTranslate()
 const { translate: translateSettings } = useComic()
@@ -541,6 +541,24 @@ const frameAspect = computed(() => {
 
 /* ---------- the chapter's standard size, and how the selection fitted ---------- */
 
+/**
+ * Desktop: how loud the selected lines are set over the standard, and what the
+ * original says — see `app/utils/emphasis.ts`. Only lines held to the standard:
+ * a sound effect, or a line with its own size, has nothing to multiply.
+ */
+const emphasised = computed(() => {
+  const held = page.value
+    ? selected.value.filter((block) => standardApplies(block.type) && block.type !== 'garbage' && styleOf(block).size === null)
+    : []
+
+  if (standard.value === null || !held.length) return null
+
+  const each = held.map((block) => emphasisFor(page.value!, block, styleOf(block)))
+  const same = (values: number[]) => values.every((value) => value === values[0]) ? values[0]! : null
+
+  return { emphasis: same(each.map((one) => one.emphasis)), measured: same(each.map((one) => one.measured)) }
+})
+
 /** The smallest the standard may be squeezed to — see `SQUEEZE_FLOOR`. */
 const floor = computed(() => (standard.value === null ? null : Math.round(standard.value * SQUEEZE_FLOOR)))
 
@@ -552,9 +570,16 @@ const fitted = computed(() => selected.value
 /** The lines that do not fit even squeezed — flagged rather than set tiny. */
 const over = computed(() => fitted.value.filter(({ fit }) => fit?.over).map(({ block }) => block))
 
+/** Desktop: the size a line is held to — the standard times its emphasis — or null with no standard. */
+function heldAim (block: Block): number | null {
+  if (standard.value === null || !page.value) return null
+
+  return Math.round(standard.value * emphasisFor(page.value, block, styleOf(block)).emphasis)
+}
+
 /** How many were squeezed to keep the standard: hyphenated, tightened, or set smaller. */
 const squeezedCount = computed(() => fitted.value.filter(({ block, fit }) => fit && !fit.over
-  && (fit.hyphens || fit.tight || (standard.value !== null && standardApplies(block.type) && styleOf(block).size === null && fit.size < standard.value))).length)
+  && (fit.hyphens || fit.tight || (standard.value !== null && standardApplies(block.type) && styleOf(block).size === null && fit.size < heldAim(block)!))).length)
 
 /**
  * How many characters a line may have to fit its frame at the size it is aimed
@@ -568,7 +593,7 @@ const squeezedCount = computed(() => fitted.value.filter(({ block, fit }) => fit
  */
 function budgetOf (block: Block): number | null {
   const input = inputOf(block)
-  const aim = styleOf(block).size ?? standard.value ?? fitOf(block)?.size
+  const aim = styleOf(block).size ?? heldAim(block) ?? fitOf(block)?.size
 
   if (!input || !aim) return null
 
@@ -972,6 +997,44 @@ async function shorten () {
             then squeezed down to {{ floor }}px. Sound effects keep their own size.
           </template>
         </p>
+
+        <!--
+          Desktop: a shout stays a shout. The original's lettering is measured
+          against the chapter's usual and a line drawn bigger is set that much over
+          the standard; a big balloon with ordinary lettering in it is not.
+        -->
+        <template v-if="emphasised">
+          <PanelNumberField
+            label-class="w-24 text-[11px]"
+            label="Emphasis"
+            :value="mixed('emphasis') ? null : emphasised.emphasis"
+            :from="emphasised.emphasis ?? 1"
+            suffix="×"
+            :precision="1"
+            :step="0.02"
+            :nudge="0.1"
+            :min="0.5"
+            :max="3"
+            :automatic="!mixed('emphasis') && style.emphasis === null"
+            :hint="!mixed('emphasis') && style.emphasis === null ? 'original' : undefined"
+            :resettable="mixed('emphasis') || style.emphasis !== null"
+            @set="setLettering({ emphasis: Math.round($event * 10) / 10 })"
+            @reset="setLettering({ emphasis: null })"
+          />
+          <p class="text-muted-foreground text-[11px] leading-snug">
+            <template v-if="emphasised.measured === null">
+              The selected lines were lettered at different sizes in the original.
+            </template>
+            <template v-else-if="emphasised.measured > 1">
+              The original is lettered {{ emphasised.measured }}× the chapter's usual size — a raised voice, set that much
+              over the standard. 1× sets it like the rest.
+            </template>
+            <template v-else>
+              The original is lettered at the chapter's usual size, however big its balloon. Raise this for a line
+              that should read louder.
+            </template>
+          </p>
+        </template>
 
         <!--
           How the selection came out against it — said, because a squeeze nobody

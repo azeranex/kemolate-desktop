@@ -11,7 +11,7 @@
  * build's, verbatim but for `list_workspaces` and `read_page` (which shows a
  * line's style) — a tool added there is a file copied to the same path here
  * and a line added below — beside the desktop's own:
- * `get_active_workspace` (see `defaulted`), `set_lettering_style`, `review_lettering` and `get_guide`.
+ * `get_active_workspace` (see `defaulted`), `set_lettering_style`, `set_lettering_standard`, `review_lettering` and `get_guide`.
  *
  * `serverFor` builds one per request, which is the toolkit's stateless mode
  * and the web build's choice (`sessions` off): every tool is a question
@@ -43,6 +43,7 @@ import reviewLettering from './tools/review-lettering'
 import reviewPageReading from './tools/review-page-reading'
 import savePageBlocks from './tools/save-page-blocks'
 import savePageTranslations from './tools/save-page-translations'
+import setLetteringStandard from './tools/set-lettering-standard'
 import setLetteringStyle from './tools/set-lettering-style'
 import sortPageBlocks from './tools/sort-page-blocks'
 import updateWorkspace from './tools/update-workspace'
@@ -70,6 +71,7 @@ const TOOLS = [
   preparePageTranslation,
   savePageTranslations,
   setLetteringStyle,
+  setLetteringStandard,
   reviewLettering,
   getGlossary,
   getCast,

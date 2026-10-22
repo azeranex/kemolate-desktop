@@ -23,6 +23,7 @@
  *
  * Called once, from the workspace page, beside `useReadErrands`.
  */
+import { ordinaryPitch } from '~/utils/emphasis'
 import { hyphenationReady } from '~/utils/hyphens'
 import { rowOf } from '~/utils/ocr/blocks'
 
@@ -31,7 +32,7 @@ const KEEP_DRAWN = 15_000
 
 export function useLetteringErrands () {
   const { pages, styleOf } = useComic()
-  const { refit, fitOf, ready, capacityOf } = useLetteringFit()
+  const { refit, fitOf, ready, capacityOf, emphasisFor, linesOf } = useLetteringFit()
   const { standard } = useLetteringStandard()
   const { preview } = usePageExport()
   const target = useState('workspace-target', () => 'en')
@@ -76,6 +77,8 @@ export function useLetteringErrands () {
 
     refit(page, styleOf, (block) => setDownIn(block, size))
 
+    const usual = ordinaryPitch(pages.value, pageSize)
+
     return shown.flatMap((block) => {
       const row = rowOf(block)
       const style = styleOf(block)
@@ -85,6 +88,8 @@ export function useLetteringErrands () {
       if (row === null || fitted === undefined) return []
 
       const set = style.size !== null ? 'chosen' as const : standard.value !== null && standardApplies(block.type) ? 'standard' as const : 'auto' as const
+      const { emphasis, measured } = emphasisFor(page, block, style, usual)
+      const drawn = linesOf(page, block, style, setDownIn(block, size))
 
       return [{
         blockId: row,
@@ -94,12 +99,24 @@ export function useLetteringErrands () {
         over: Boolean(fit?.over),
         tight: Boolean(fit?.tight),
         hyphens: Boolean(fit?.hyphens),
+        // Only a line held to the standard is multiplied; the measure is reported either way.
+        emphasis: set === 'standard' ? emphasis : 1,
+        measuredEmphasis: measured,
+        ...(style.emphasis !== null && style.emphasis !== undefined ? { emphasisChosen: true } : {}),
+        // The lines as drawn, and how they broke — a balloon's breaks judged from its words.
+        ...(drawn ? { drawn: drawn.lines, wrapped: drawn.wrapped, broken: drawn.broken, byHand: drawn.byHand } : {}),
+        ...(fit?.rewrapped ? { rewrapped: true } : {}),
       }]
     })
   }
 
   /** The page as lettered, drawn once and kept briefly for the next crop. */
   let drawn: { id: string, at: number, blob: Promise<Blob | null> } | null = null
+
+  // A change an agent made — a restyle, a new standard — is what the next look
+  // is for; a page drawn before it would show the old lettering.
+  onSwarmChange(() => { drawn = null })
+  watch(standard, () => { drawn = null })
 
   function letteredOf (page: ComicPage): Promise<Blob | null> {
     if (drawn && drawn.id === page.id && Date.now() - drawn.at < KEEP_DRAWN) return drawn.blob

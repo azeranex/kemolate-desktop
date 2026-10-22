@@ -51,6 +51,8 @@ export const workspacePatchSchema = z
      */
     honorifics: z.boolean().optional(),
     wholePage: z.boolean().optional(),
+    // Desktop: the chapter's standard lettering size in scan pixels; null turns it off.
+    letteringStandard: z.number().int().min(1).max(2000).nullable().optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, 'Nothing to change.')
 
@@ -305,6 +307,8 @@ export const letteringStyleSchema = z.object({
   points: z.array(z.number().min(0).max(1)).min(6).max(64)
     .refine((points) => points.length % 2 === 0, 'A shape\'s points come in pairs.')
     .nullish(),
+  // Desktop: a multiple of the chapter's standard size — see `Lettering.emphasis`. Null is measured.
+  emphasis: z.number().min(0.5).max(3).nullish(),
 }) satisfies z.ZodType<Partial<Lettering>>
 
 /**

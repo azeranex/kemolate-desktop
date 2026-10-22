@@ -115,7 +115,8 @@ and the line is wrapped into it.
 - `style` — `font` (dialogue, sfx, retro, casual, marker, hand, poster, sans,
   serif, mono), `size`, `line`, `spacing`, `stroke`, `bold`, `italic`,
   `underline`, `align`, `anchor` (top/middle/bottom), `vertical`, `color` and
-  `outline` (`#rrggbb`), `shape` (box, soft, oval, diamond, custom). Only the
+  `outline` (`#rrggbb`), `shape` (box, soft, oval, diamond, custom), `emphasis`
+  (see below). Only the
   fields you send change; **send a field as `null` to give it back to
   automatic**; `reset: true` clears them all.
 - **Sizes are in the scan's own pixels** — the same numbers as Kemolate's
@@ -125,6 +126,57 @@ and the line is wrapped into it.
   lines match.
 - `frame` — where the lines are set, upright, in the width-normalised units
   above; one block per call. `frame: null` hands the line back to its room.
+
+### One size for the voice, not the balloon
+
+A lettered book sets every ordinary line of dialogue at **one size** — the
+chapter's **standard** — and centres it in its balloon with air round it. The
+artist leaves room; the room is not the voice. Without a standard Kemolate fills
+each balloon, so lines change size with their balloons and a big balloon gets
+big text: set one with `set_lettering_standard` (`review_lettering` gives the
+page's ordinary size as a starting value; null turns it off). It is a setting of
+the whole chapter — say so and ask before setting or changing it.
+
+A line set **louder** than the standard is one the *original* lettered louder:
+a shout drawn in bigger characters. Kemolate measures that from the source's
+characters against the chapter's usual ones — `measuredEmphasis` in
+`review_lettering`, 1 for ordinary — and sets the line that many times the
+standard. Override per line with `set_lettering_style`'s `emphasis` (1.5 for a
+shout the measure missed, 1 to set one like the rest, null to measure). Look at
+the original before raising one: big characters mean a raised voice; a big
+balloon with ordinary characters does not. A jagged or burst balloon is a shout
+too; a wobbly or dashed one is weak or whispered, and can go under 1. Sound
+effects keep their own size.
+
+### Line breaks
+
+**A newline in a translation is a line break Kemolate keeps.** Left alone, a
+balloon's words are wrapped to fill each line, which at a standard size packs a
+line mid-phrase and strands what is left: "FIRST, LET / ME SHOW / YOU", "HM? OH, /
+YEAH, IT / IS.". A letterer breaks by hand, and so can you:
+
+- **One phrase to a line.** Break after punctuation and between phrases ("Hm? /
+  Oh, yeah, / it is."). Never split a pair that reads as one: "let / me",
+  "it / is", "going to / be", an article from its noun, a name from its
+  honorific.
+- **The shape of the balloon.** Short lines at the top and foot, the longest in
+  the middle — an oval's widest part. Three to five lines for an ordinary
+  balloon; a very short line belongs at the top or the foot, never between two
+  long ones.
+- **No word alone on the last line**, and no hyphen where another set of breaks
+  would do: hand-broken lines are never hyphenated.
+- Keep each typed line short enough for its place. If one is too long, Kemolate
+  sets the balloon a little smaller to keep your breaks, down to the standard's
+  floor; past that it wraps the line again and `review_lettering` says
+  **rewrapped** — make that line shorter or move a word. **Compare `size` before
+  and after**: breaks that set a balloon smaller than the automatic ones did are
+  too long — use more, shorter lines. A word too long for any line ("neighborhood...")
+  can be broken by hand with a typed hyphen: "neighbor-⏎hood...".
+- Breaks are part of the wording: a pinned line's breaks are the user's
+  (**propose** them); a machine line you may re-break with
+  `save_page_translations` — `entries` naming each block, plus `glossary: []`
+  and `cast: []`. Change nothing but the breaks unless the line also needs
+  shortening.
 
 ## Reviewing lettering
 
@@ -139,6 +191,18 @@ gives the size it is set at, what decided it (`auto` fitted to its frame,
 - **small-for-its-balloon** — a chosen size well under what the frame holds.
 - **smaller-than-the-page** — an automatic line well under the page's ordinary
   size: a frame too small for its balloon, or one long word.
+- **larger-than-the-page** — an automatic line well over it, in a big balloon
+  with ordinary lettering in the original. The fix is a standard size, not
+  shrinking that one line. (A line the original shouts is not flagged.)
+- **stranded-word**, **lone-last-word** — a word alone between longer lines, or
+  alone at the foot. **rewrapped** — a line you broke by hand was too long for its
+  place and was wrapped again. See "Line breaks".
+
+Each line comes with `drawn`: its lines exactly as Kemolate draws them. Read
+them for every balloon, flagged or not — a phrase split across two lines
+("LET / ME") is not flagged, because telling one needs the language, and you
+have it. Breaks need no picture, so a line flagged only for its breaks comes back
+without a crop.
 
 It returns a close crop of each flagged balloon **as lettered**, not the scan
 (`images: "all"` for every line). `get_page_image` with `lettered: true` shows a
@@ -156,7 +220,10 @@ Work in the order a letterer works; each step changes less than the next.
    `style: { shape: "oval", size: null }`. Kemolate then wraps the words into the
    balloon, breaks a long word once if that sets them much larger, and sizes
    them to fill it.
-2. **Then the words**, only if the line still does not fit or is held small by
+2. **Then the breaks.** Where `drawn` splits a phrase or strands a word, re-break
+   the line by hand (see "Line breaks"). It changes no word, and often lets a
+   line go at its size without a hyphen.
+3. **Then the words**, only if the line still does not fit or is held small by
    its length. This is copyfitting, and it belongs to whoever owns the script:
    - A line the user typed (`pinned`) is theirs. **Propose** a shorter wording
      and ask; do not save it.
@@ -173,9 +240,11 @@ Work in the order a letterer works; each step changes less than the next.
    - Never change what happens, soften or sharpen the tone (a threat does not
      become polite), smooth away a character's deliberate way of speaking, or
      reword a sound effect that should be redrawn as art.
-3. **Size last.** A chosen `size` is for matching lines on purpose, or when the
-   user asks. Raising the chapter's standard is the user's decision, in the
-   Lettering panel.
+4. **Size last.** A chosen `size` is for matching lines on purpose, or when the
+   user asks; it also takes the line off the standard. Prefer `emphasis` for a
+   line that should be louder, so it follows the standard if that changes.
+   Setting or changing the chapter's standard (`set_lettering_standard`) is the
+   user's decision — propose a value and ask.
 
 Then `review_lettering` again, and tell the user what you changed and what is
 left for their eye — fitting is measured, but tone and placement are theirs.
@@ -218,7 +287,7 @@ rooms on chapters read before) is Detect › **Measure balloons**.
 `review_page_reading` + `correct_blocks` per page →
 `prepare_page_translation` (batched, text mode) → answer →
 `save_page_translations` (one call, with `glossary` and `cast`) →
-`review_lettering` per page, fixing layout first and words last → tell the user
+`review_lettering` per page, fixing layout, then breaks, then words → tell the user
 what was done, what was held by their pins, and anything you were unsure of.
 
 The server also offers a `translate_chapter` prompt with the same order, for a

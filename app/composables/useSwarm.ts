@@ -36,6 +36,8 @@ export type SwarmChange =
   | { scope: 'cast' }
   | { scope: 'glossary', locale: string }
   | { scope: 'repairs', pageId: number }
+  // Desktop: the workspace's own record — its standard lettering size, for one.
+  | { scope: 'workspace' }
 
 /**
  * What the main process asks of the window on an agent's behalf — the web

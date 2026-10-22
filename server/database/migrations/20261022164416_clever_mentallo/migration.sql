@@ -1,0 +1,1 @@
+ALTER TABLE `workspaces` ADD `lettering_standard` integer;

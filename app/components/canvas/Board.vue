@@ -164,7 +164,7 @@ watch(
 
     return [block.id, block.translation || block.source, box.w, box.h,
       style.font, block.type, style.size, style.line, style.spacing, style.bold, style.italic,
-      setDown(block), style.shape, style.points?.join(','), style.anchor].join('|')
+      setDown(block), style.shape, style.points?.join(','), style.anchor, style.emphasis].join('|')
     // The chapter's standard size and the language being lettered decide a fit
     // as much as anything on the block does — see `useLetteringFit.keyOf`.
   }).join('\n') + `@${dims.value.width}x${dims.value.height}#${faces.value}:${fitsReady.value}~${letterStandard.value}~${letterTarget.value}`,

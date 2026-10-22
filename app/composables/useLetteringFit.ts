@@ -26,8 +26,9 @@ import type { ComicPage } from '~/composables/useComic'
 // By hand, so a dev server already running picks up exports it has not seen.
 import { shapeFor, shapeOutline, standardApplies } from '#shared/utils/lettering'
 import { useLetteringStandard } from '~/composables/useLetteringStandard'
+import { emphasisOf, measuredEmphasis, ordinaryPitch } from '~/utils/emphasis'
 import { HYPHENATION, hyphenationReady } from '~/utils/hyphens'
-import { fitAt, fitSize, fitStandard } from '~/utils/lettering'
+import { drawnLines, fitAt, fitSize, fitStandard } from '~/utils/lettering'
 
 /**
  * What a block's fit depends on. Anything else changing cannot alter it.
@@ -111,8 +112,10 @@ const STORE = 'lettering-fits'
  * probe's taller wrap and set the words high in the oval (2026-10-22).
  * 11 (desktop): a shaped line's words are placed by search, and a size only goes
  * if they sit where the anchor says (`tryFit`, `ANCHOR_SLACK`) (2026-10-22).
+ * 12 (desktop): a line broken by hand keeps its breaks, set smaller rather than
+ * wrapped again, and is never hyphenated (`keepsBreaks`) (2026-10-23).
  */
-const FITS_VERSION = 11
+const FITS_VERSION = 12
 const KEEP = 4000
 
 const remembered = new Map<string, LetterFit>()
@@ -235,6 +238,18 @@ export function useLetteringFit () {
   /** The chapter's standard size — see `useLetteringStandard` — and the language being lettered. */
   const { standard } = useLetteringStandard()
   const target = useState('workspace-target', () => 'en')
+  const { pages } = useComic()
+
+  /**
+   * Desktop: how much over the standard a line is set — chosen, or read off the
+   * original (`app/utils/emphasis.ts`). `usual` is the chapter's ordinary
+   * character size; pass it when asking for many blocks, so it is measured once.
+   */
+  function emphasisFor (page: ComicPage, block: Block, style: Lettering, usual = ordinaryPitch(pages.value, pageSize)) {
+    const measured = measuredEmphasis(block, pageSize(page), usual)
+
+    return { measured, emphasis: emphasisOf(style.emphasis ?? null, measured) }
+  }
 
   if (import.meta.client && !reading) {
     reading = idb.get<{ v: number, sizes: [string, LetterFit][] }>(STORE)
@@ -271,6 +286,8 @@ export function useLetteringFit () {
     const measured = keys.value
     const held = standard.value
     const lang = target.value
+    // Measured once a pass — every page's blocks, so a page of shouting is loud against the chapter.
+    const usual = held === null ? null : ordinaryPitch(pages.value, pageSize)
 
     for (const block of page.blocks) {
       const style = styleOf(block)
@@ -294,7 +311,11 @@ export function useLetteringFit () {
 
       // Only a translation is held to the standard: a line still showing what
       // was read is a placeholder, set to fill its box as it always was.
-      const aim = style.size ?? (block.translation.trim() && standardApplies(block.type) ? held : null)
+      // Desktop: held to the standard times the line's emphasis — a shout in the
+      // original is set louder than the dialogue round it (`emphasisFor`).
+      const aim = style.size ?? (block.translation.trim() && standardApplies(block.type) && held !== null
+        ? Math.round(held * emphasisFor(page, block, style, usual).emphasis)
+        : null)
       // Asking starts the patterns loading; their arrival brings this back, as a face's does.
       const breaks = hyphenationReady(lang, () => { faces.value += 1 })
       const plan = { shape: shape === 'custom' ? `custom:${style.points?.join(',')}` : shape, standard: aim, lang, breaks }
@@ -408,5 +429,25 @@ export function useLetteringFit () {
     return fitSize(input, letteringRange(size.w).size).size
   }
 
-  return { fits, faces, ready, refit, fitOf, faceReady, autoSize, capacityOf }
+  /**
+   * Desktop: a block's lines as its fit sets them — see `drawnLines`. For a
+   * review, which reports a balloon's breaks as words. Null where its face has
+   * not arrived, or it has no fit or size.
+   */
+  function linesOf (page: ComicPage, block: Block, style: Lettering, vertical: boolean) {
+    const scan = page.scan
+    const fit = style.size !== null && !fits.value[block.id] ? { size: style.size } : fits.value[block.id]
+
+    if (!scan?.width || !scan.height || !fit) return null
+
+    const family = fontStack(faceOf(style.font, block.type))
+
+    if (!loadFace(family, style.bold, style.italic, () => { faces.value += 1 })) return null
+
+    const size = { w: scan.width, h: scan.height }
+
+    return drawnLines(inputOf(block, letterBoxOf(block), style, size, vertical, family, shapeFor(style, block), target.value), fit)
+  }
+
+  return { fits, faces, ready, refit, fitOf, faceReady, autoSize, capacityOf, emphasisFor, linesOf }
 }

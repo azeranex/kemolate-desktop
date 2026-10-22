@@ -41,6 +41,9 @@ declare global {
   const DOCK_SIDES: typeof import('./composables/usePanelDock').DOCK_SIDES
   const EASE_MS: typeof import('./composables/useComic').EASE_MS
   const EFFORT_ORDER: typeof import('./composables/useComic').EFFORT_ORDER
+  const EMPHASIS_FROM: typeof import('./utils/emphasis').EMPHASIS_FROM
+  const EMPHASIS_MAX: typeof import('./utils/emphasis').EMPHASIS_MAX
+  const EMPHASIS_QUORUM: typeof import('./utils/emphasis').EMPHASIS_QUORUM
   const EXPORT_DEFAULTS: typeof import('./composables/usePageExport').EXPORT_DEFAULTS
   const EffectScope: typeof import('vue').EffectScope
   const FAMILIES: typeof import('./utils/ocr/detectors').FAMILIES
@@ -239,6 +242,7 @@ declare global {
   const detectorBytes: typeof import('./utils/ocr/detectors').detectorBytes
   const distorted: typeof import('../shared/utils/transform').distorted
   const download: typeof import('./utils/download').download
+  const drawnLines: typeof import('./utils/lettering').drawnLines
   const dropHistory: typeof import('./utils/history').dropHistory
   const dropLayer: typeof import('../shared/utils/layers').dropLayer
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
@@ -246,6 +250,7 @@ declare global {
   const editsForTile: typeof import('./utils/ocr/mask').editsForTile
   const effectScope: typeof import('vue').effectScope
   const effectiveMask: typeof import('./utils/ocr/mask').effectiveMask
+  const emphasisOf: typeof import('./utils/emphasis').emphasisOf
   const engineBytes: typeof import('./utils/ocr/paddle-rec').engineBytes
   const estimateCost: typeof import('../shared/utils/models').estimateCost
   const estimateSize: typeof import('../shared/utils/lettering').estimateSize
@@ -369,6 +374,7 @@ declare global {
   const mapped: typeof import('../shared/utils/transform').mapped
   const markRaw: typeof import('vue').markRaw
   const matrixOf: typeof import('../shared/utils/transform').matrixOf
+  const measuredEmphasis: typeof import('./utils/emphasis').measuredEmphasis
   const modelById: typeof import('../shared/utils/models').modelById
   const modelFamilyOf: typeof import('../shared/utils/models').modelFamilyOf
   const modelLabel: typeof import('../shared/utils/models').modelLabel
@@ -418,6 +424,7 @@ declare global {
   const opfsRead: typeof import('./utils/opfs').opfsRead
   const opfsUsable: typeof import('./utils/opfs').opfsUsable
   const opfsWrite: typeof import('./utils/opfs').opfsWrite
+  const ordinaryPitch: typeof import('./utils/emphasis').ordinaryPitch
   const orientedIn: typeof import('./utils/letterCss').orientedIn
   const ortOnce: typeof import('./utils/ocr/onnx').ortOnce
   const ovalIn: typeof import('./utils/ocr/balloon').ovalIn
@@ -448,6 +455,7 @@ declare global {
   const pickImage: typeof import('./utils/images').pickImage
   const pickImages: typeof import('./utils/images').pickImages
   const pickedName: typeof import('./utils/images').pickedName
+  const pitchOf: typeof import('./utils/emphasis').pitchOf
   const pixelsIn: typeof import('./utils/letterCss').pixelsIn
   const placedExtension: typeof import('./utils/placed').placedExtension
   const planPage: typeof import('./composables/useTranslate').planPage
@@ -1017,7 +1025,7 @@ declare global {
   export type { LetterSpace, LetterSetting, ShapeParts } from './utils/letterCss'
   import('./utils/letterCss')
   // @ts-ignore
-  export type { FitInput } from './utils/lettering'
+  export type { FitInput, DrawnLines } from './utils/lettering'
   import('./utils/lettering')
   // @ts-ignore
   export type { RateGate, AiUsage, TranslateInput, Translated, RegionInput, RegionRead, ShortenInput, Shortened } from './utils/openrouter'
@@ -1188,6 +1196,9 @@ declare module 'vue' {
     readonly DOCK_SIDES: UnwrapRef<typeof import('./composables/usePanelDock')['DOCK_SIDES']>
     readonly EASE_MS: UnwrapRef<typeof import('./composables/useComic')['EASE_MS']>
     readonly EFFORT_ORDER: UnwrapRef<typeof import('./composables/useComic')['EFFORT_ORDER']>
+    readonly EMPHASIS_FROM: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_FROM']>
+    readonly EMPHASIS_MAX: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_MAX']>
+    readonly EMPHASIS_QUORUM: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_QUORUM']>
     readonly EXPORT_DEFAULTS: UnwrapRef<typeof import('./composables/usePageExport')['EXPORT_DEFAULTS']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly FAMILIES: UnwrapRef<typeof import('./utils/ocr/detectors')['FAMILIES']>
@@ -1386,6 +1397,7 @@ declare module 'vue' {
     readonly detectorBytes: UnwrapRef<typeof import('./utils/ocr/detectors')['detectorBytes']>
     readonly distorted: UnwrapRef<typeof import('../shared/utils/transform')['distorted']>
     readonly download: UnwrapRef<typeof import('./utils/download')['download']>
+    readonly drawnLines: UnwrapRef<typeof import('./utils/lettering')['drawnLines']>
     readonly dropHistory: UnwrapRef<typeof import('./utils/history')['dropHistory']>
     readonly dropLayer: UnwrapRef<typeof import('../shared/utils/layers')['dropLayer']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
@@ -1393,6 +1405,7 @@ declare module 'vue' {
     readonly editsForTile: UnwrapRef<typeof import('./utils/ocr/mask')['editsForTile']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly effectiveMask: UnwrapRef<typeof import('./utils/ocr/mask')['effectiveMask']>
+    readonly emphasisOf: UnwrapRef<typeof import('./utils/emphasis')['emphasisOf']>
     readonly engineBytes: UnwrapRef<typeof import('./utils/ocr/paddle-rec')['engineBytes']>
     readonly estimateCost: UnwrapRef<typeof import('../shared/utils/models')['estimateCost']>
     readonly estimateSize: UnwrapRef<typeof import('../shared/utils/lettering')['estimateSize']>
@@ -1516,6 +1529,7 @@ declare module 'vue' {
     readonly mapped: UnwrapRef<typeof import('../shared/utils/transform')['mapped']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly matrixOf: UnwrapRef<typeof import('../shared/utils/transform')['matrixOf']>
+    readonly measuredEmphasis: UnwrapRef<typeof import('./utils/emphasis')['measuredEmphasis']>
     readonly modelById: UnwrapRef<typeof import('../shared/utils/models')['modelById']>
     readonly modelFamilyOf: UnwrapRef<typeof import('../shared/utils/models')['modelFamilyOf']>
     readonly modelLabel: UnwrapRef<typeof import('../shared/utils/models')['modelLabel']>
@@ -1565,6 +1579,7 @@ declare module 'vue' {
     readonly opfsRead: UnwrapRef<typeof import('./utils/opfs')['opfsRead']>
     readonly opfsUsable: UnwrapRef<typeof import('./utils/opfs')['opfsUsable']>
     readonly opfsWrite: UnwrapRef<typeof import('./utils/opfs')['opfsWrite']>
+    readonly ordinaryPitch: UnwrapRef<typeof import('./utils/emphasis')['ordinaryPitch']>
     readonly orientedIn: UnwrapRef<typeof import('./utils/letterCss')['orientedIn']>
     readonly ortOnce: UnwrapRef<typeof import('./utils/ocr/onnx')['ortOnce']>
     readonly ovalIn: UnwrapRef<typeof import('./utils/ocr/balloon')['ovalIn']>
@@ -1595,6 +1610,7 @@ declare module 'vue' {
     readonly pickImage: UnwrapRef<typeof import('./utils/images')['pickImage']>
     readonly pickImages: UnwrapRef<typeof import('./utils/images')['pickImages']>
     readonly pickedName: UnwrapRef<typeof import('./utils/images')['pickedName']>
+    readonly pitchOf: UnwrapRef<typeof import('./utils/emphasis')['pitchOf']>
     readonly pixelsIn: UnwrapRef<typeof import('./utils/letterCss')['pixelsIn']>
     readonly placedExtension: UnwrapRef<typeof import('./utils/placed')['placedExtension']>
     readonly planPage: UnwrapRef<typeof import('./composables/useTranslate')['planPage']>

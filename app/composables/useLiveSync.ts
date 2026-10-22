@@ -372,7 +372,8 @@ export function useLiveSync () {
     // left to fall through because the fall-through below reads `pageId`, and
     // a chapter-wide notice has none: without this the first term anybody
     // learned would have set a timer keyed on `undefined`.
-    if (change.scope === 'cast' || change.scope === 'glossary') return
+    // Desktop: the workspace's own record is `useLetteringStandard`'s to hear.
+    if (change.scope === 'cast' || change.scope === 'glossary' || change.scope === 'workspace') return
 
     // A repair kept or taken back — `useClean` compares the page's repairs with
     // the server's and fetches only what differs.

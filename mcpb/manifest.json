@@ -102,6 +102,10 @@
       "description": "How lines are lettered: face, size, weight, placement, ink, shape."
     },
     {
+      "name": "set_lettering_standard",
+      "description": "The chapter's standard lettering size, so balloons are not each filled."
+    },
+    {
       "name": "review_lettering",
       "description": "How each line on a page is lettered, with flags and lettered close-ups."
     },

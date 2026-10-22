@@ -50,6 +50,7 @@ const stylePatch = z.object({
   outline: field.outline.describe('Outline colour as #rrggbb. Null is the reverse of the ink.'),
   shape: field.shape.describe('What the lines wrap into: box, soft (a rounded box, a balloon\'s default), oval, diamond, or custom with points.'),
   points: field.points.describe('A custom shape\'s polygon, [x0, y0, x1, y1, …] as shares of the frame, 0 to 1.'),
+  emphasis: field.emphasis.describe('How much louder than the chapter\'s standard size the line is set, e.g. 1.5 for a shout; 1 for none. Null reads it off the original\'s lettering. Only a line held to a standard has one.'),
 }).partial()
 
 export default defineMcpTool({

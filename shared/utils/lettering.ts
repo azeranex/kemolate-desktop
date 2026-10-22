@@ -80,6 +80,14 @@ export interface Lettering {
    * every other shape.
    */
   points: number[] | null
+  /**
+   * Desktop: how much louder than the chapter's standard this line is set, as a
+   * multiple of it. Null is "as the original was lettered": the source's
+   * characters measured against the chapter's usual ones (`emphasisOf` in
+   * `app/utils/emphasis.ts`). 1 is no emphasis, whatever the original did. Only
+   * a line held to a standard has anything to multiply.
+   */
+  emphasis: number | null
 }
 
 /**
@@ -131,6 +139,7 @@ export const LETTERING: Lettering = {
   outline: null,
   shape: null,
   points: null,
+  emphasis: null,
 }
 
 /**
@@ -497,6 +506,8 @@ export interface LetterFit {
   tight?: boolean
   /** Does not fit even at the floor: set at it, clipped, and flagged. */
   over?: boolean
+  /** Desktop: broken by hand, and no size in range kept those breaks — wrapped again. See `keepsBreaks`. */
+  rewrapped?: boolean
 }
 
 /**

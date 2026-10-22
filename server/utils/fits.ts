@@ -33,6 +33,22 @@ export interface LineFit {
   tight: boolean
   /** A long word broken to go. */
   hyphens: boolean
+  /** The multiple of the standard it is aimed at: 1 unless held to a standard and emphasised. */
+  emphasis?: number
+  /** How much bigger than the chapter's ordinary lettering the original's characters are, as an emphasis (1 for ordinary). */
+  measuredEmphasis?: number
+  /** The emphasis was chosen for the line rather than measured. */
+  emphasisChosen?: boolean
+  /** Each line as drawn, a word broken across two ending in "-". */
+  drawn?: string[]
+  /** How many of those breaks the wrap made, rather than a newline in the text. */
+  wrapped?: number
+  /** How many words were broken across lines. */
+  broken?: number
+  /** The text carries line breaks somebody typed. */
+  byHand?: boolean
+  /** Broken by hand, and wrapped again because no size kept those breaks. */
+  rewrapped?: boolean
 }
 
 /** What the window says about a page. */

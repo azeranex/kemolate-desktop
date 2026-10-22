@@ -229,6 +229,14 @@ export const workspaces = sqliteTable('workspaces', {
   honorifics: integer('honorifics', { mode: 'boolean' }).notNull().default(true),
   /** Read the whole page before doing any line of it. */
   wholePage: integer('whole_page', { mode: 'boolean' }).notNull().default(true),
+  /**
+   * Desktop: the chapter's standard lettering size, in scan pixels — the one size
+   * every ordinary line is set at (`useLetteringStandard`). Null is off: each
+   * balloon is filled. A setting of the chapter, so an agent can read and set it
+   * (`set_lettering_standard`); it lived in the window's IndexedDB before.
+   * Nullable, so an in-place `ADD COLUMN`.
+   */
+  letteringStandard: integer('lettering_standard'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),

@@ -154,6 +154,14 @@ const fitReportSchema = z.object({
     over: z.boolean(),
     tight: z.boolean(),
     hyphens: z.boolean(),
+    emphasis: z.number().min(0).max(10).optional(),
+    measuredEmphasis: z.number().min(0).max(10).optional(),
+    emphasisChosen: z.boolean().optional(),
+    drawn: z.array(z.string().max(400)).max(80).optional(),
+    wrapped: z.number().int().min(0).max(1000).optional(),
+    broken: z.number().int().min(0).max(1000).optional(),
+    byHand: z.boolean().optional(),
+    rewrapped: z.boolean().optional(),
   })).max(1000).optional(),
   error: z.string().transform((text) => text.slice(0, 400)).optional(),
 })
@@ -172,6 +180,8 @@ const ROUTES: [string, string, Handler][] = [
       // Desktop: nobody's row — the one person there is owns everything.
       ownerId: null,
       targetLocale: context.workspace.targetLocale,
+      // Desktop: the chapter's standard lettering size — see `useLetteringStandard`.
+      letteringStandard: context.workspace.letteringStandard,
     },
     role: context.role,
     owner: true,
@@ -196,6 +206,7 @@ const ROUTES: [string, string, Handler][] = [
       targetLocale: changed.targetLocale,
       honorifics: changed.honorifics,
       wholePage: changed.wholePage,
+      letteringStandard: changed.letteringStandard,
     }
   })],
   ['DELETE', W, workspace(async (context) => {

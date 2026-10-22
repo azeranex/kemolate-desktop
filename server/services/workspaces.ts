@@ -15,7 +15,7 @@
  */
 import { desc, eq } from 'drizzle-orm'
 
-import { must } from './access'
+import { must, notify } from './access'
 import { record } from './logs'
 
 import type { Context } from './access'
@@ -86,6 +86,8 @@ export type WorkspacePatch = {
   /** How a page is prompted when there is no browser to ask — see the schema. */
   honorifics?: boolean
   wholePage?: boolean
+  /** Desktop: the chapter's standard lettering size, null for none. */
+  letteringStandard?: number | null
 }
 
 export async function update (context: Context, patch: WorkspacePatch): Promise<Workspace> {
@@ -103,6 +105,9 @@ export async function update (context: Context, patch: WorkspacePatch): Promise<
     action: 'workspace.updated',
     detail: patch,
   })
+
+  // Desktop: an agent's change (a standard size, say) reaches the window.
+  notify(context, { scope: 'workspace' })
 
   return workspace!
 }
