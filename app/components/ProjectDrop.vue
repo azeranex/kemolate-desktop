@@ -95,7 +95,7 @@ const showing = computed(() => depth.value > 0 || Boolean(busy))
 
 <template>
   <div
-    class="relative min-h-dvh"
+    class="relative"
     @dragenter="onEnter"
     @dragleave="onLeave"
     @dragover.prevent="onOver"

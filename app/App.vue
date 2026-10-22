@@ -134,7 +134,15 @@ const { resolved } = useColorScheme()
 
 <template>
   <template v-if="arrived">
-    <WorkspacePage v-if="workspace" v-show="!settings && !lab" :key="workspace" />
+    <!--
+      Hidden by a wrapper, not on the page: the layout's root is reka's
+      TooltipProvider, which renders only its slot — a fragment, which `v-show`
+      cannot hide. On the page itself it did nothing, and Settings was drawn
+      under the whole workspace rather than in place of it.
+    -->
+    <div v-if="workspace" v-show="!settings && !lab">
+      <WorkspacePage :key="workspace" />
+    </div>
 
     <CollectionPage v-else-if="!settings && !lab" />
 
