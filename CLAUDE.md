@@ -157,7 +157,7 @@ and a later fix in one can be carried to the other. Keep it that way.
     hidden chapter. The web build's lab is a URL with no layout; here that would be a
     window with no frame to move, close or leave. Its intro still quotes Manga OCR's
     download sizes, as the web build's does.
-  - Readers: no Manga OCR or Manga OCR 2025 (`READERS` in `utils/ocr/readers.ts`), and
+  - Readers: no Manga OCR, Manga OCR 2025 or Lab (`READERS` in `utils/ocr/readers.ts`), and
     Kemolate OCR is the default (`useOcr`). Their code is kept; an entry put back brings
     one back. Kemolate OCR's weights (`kemolate/…`, ours, never asked of the Hub) are
     downloaded from `OWN_MODELS` in `server/models.ts`, the project's Hugging Face account —

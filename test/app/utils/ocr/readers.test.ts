@@ -51,7 +51,12 @@ describe('readerBytes', () => {
 
   it('says nothing for a reader that fetches nothing', () => {
     expect(readerBytes(READERS_BY_ID.get('vision')!, HALF)).toBeUndefined()
-    expect(readerBytes(READERS_BY_ID.get('lab')!, WASM)).toBeUndefined()
+    expect(readerBytes(READERS_BY_ID.get('vision')!, WASM)).toBeUndefined()
+  })
+
+  // Desktop: the Lab reader is off the list — see `READERS`.
+  it('has no Lab reader', () => {
+    expect(READERS_BY_ID.has('lab')).toBe(false)
   })
 })
 

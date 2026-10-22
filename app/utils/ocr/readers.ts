@@ -115,12 +115,11 @@ export const READERS: Reader[] = [
     detects: true,
     provider: 'vision',
   },
-  {
-    id: 'lab',
-    label: 'Lab (multilingual)',
-    note: 'Japanese, Korean, Chinese — needs the lab server running',
-    lab: true,
-  },
+  // Desktop: no Lab reader. The web build lists it last, for a development
+  // server on the same desk; an installed app has none to reach. Its code is
+  // kept (`readWithLab`, and `'lab'` in `ReaderId`), so putting the entry back
+  // brings it back, and a remembered choice of it falls back to the default
+  // as Manga OCR's does.
 ]
 
 export const READERS_BY_ID = new Map(READERS.map((reader) => [reader.id, reader]))
