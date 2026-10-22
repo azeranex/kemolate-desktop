@@ -31,7 +31,10 @@
  *
  * An import replaces whatever chapter is open, through the ordinary
  * `useLibrary.opened` path — the same one a dropped folder takes, so the pages
- * are copied, remembered and pushed exactly as they always are. Nothing here
+ * are kept, remembered and pushed exactly as they always are. Where the file
+ * came with a handle (a desktop pick or drop) "kept" means read in place out of
+ * the `.kemolate` file on every open — an `archive` `Source` — and nothing is
+ * copied; without one, the scans are copied into OPFS as before. Nothing here
  * reaches into storage to reconstruct a state; it opens a chapter and then says
  * what is on each page.
  *
@@ -52,6 +55,7 @@ import { serverStacks } from '~/composables/useLayerSync'
 import { download } from '~/utils/download'
 import { hashFile } from '~/utils/hash'
 import { idbKey } from '~/utils/idbKeys'
+import { archivePage, archiveSource } from '~/utils/images'
 import { listPatches, patchScan, readPatch, writePatch } from '~/utils/ocr/patches'
 import { localPaint, mergePaint, remotePaint } from '~/utils/paint/gather'
 import { keepPlaced, readPlacedMany } from '~/utils/placed'
@@ -136,11 +140,14 @@ export function useProjectFile () {
    * a destructive act aimed at the wrong target, from a gesture that was not
    * about it.
    */
-  const arriving = useState<{ workspace: string, file: File } | null>('project-arriving', () => null)
+  const arriving = useState<{ workspace: string, file: File, handle?: FileSystemFileHandle } | null>('project-arriving', () => null)
 
-  /** Park a file for a workspace that is about to be opened. */
-  function handOver (id: string, file: File) {
-    arriving.value = { workspace: id, file }
+  /**
+   * Park a file for a workspace that is about to be opened — with the handle
+   * it came by where there was one, so its scans can be read in place (`load`).
+   */
+  function handOver (id: string, file: File, handle?: FileSystemFileHandle) {
+    arriving.value = { workspace: id, file, ...(handle ? { handle } : {}) }
   }
 
   /**
@@ -157,7 +164,7 @@ export function useProjectFile () {
 
     arriving.value = null
 
-    return load(waiting.file)
+    return load(waiting.file, waiting.handle)
   }
 
   /* ---------- out ---------- */
@@ -432,7 +439,7 @@ export function useProjectFile () {
    * all elsewhere has records this browser cannot found a chapter on, and
    * saying so is better than an empty canvas.
    */
-  async function load (file: File): Promise<boolean> {
+  async function load (file: File, handle?: FileSystemFileHandle): Promise<boolean> {
     if (busy.value) return false
 
     busy.value = 'Opening the project…'
@@ -484,6 +491,25 @@ export function useProjectFile () {
       }
 
       const absent = ordered.length - images.length
+
+      /*
+       * Desktop: read in place where the file came with a handle, rather than
+       * copied into OPFS by `opened` — see `ArchiveSource`. The pages are cut
+       * out of the archive again by `archivePage`, the way every reopen will
+       * cut them, so the hash this open works out is the one the memo answers
+       * with next time. Anything that cannot be read in place (a deflated scan
+       * from some other tool's archive) leaves the whole chapter to the copy.
+       */
+      const source = handle
+        ? await archiveSource(handle, file, images.map(({ file: bytes, path }) => ({
+            path,
+            name: carried.get(path)!.name,
+            entry: carried.get(path)!.file!,
+            type: bytes.type,
+          }))).catch(() => null)
+        : null
+
+      if (source) images.splice(0, images.length, ...source.pages.map((page) => archivePage(file, page)))
 
       busy.value = 'Restoring placed images…'
 
@@ -592,12 +618,12 @@ export function useProjectFile () {
       }
 
       // Handed over to `useLibrary` rather than done here, so the pages are
-      // copied into storage, remembered for next time and pushed to the
-      // workspace exactly as a dropped folder would be. Its own progress line
+      // kept (read in place, or copied into storage), remembered for next time
+      // and pushed to the workspace exactly as a dropped folder would be. Its own progress line
       // takes over from here, which is why ours comes down first.
       busy.value = null
 
-      if (!await opened({ handle: null, images, title: project.title || null, rest: null }, dress)) return false
+      if (!await opened({ handle: null, images, title: project.title || null, rest: null, ...(source ? { sources: [source] } : {}) }, dress)) return false
 
       // Desktop: the chapter in the file is the workspace's name now — a name
       // the reader gave the chapter it replaced is about that chapter, and the

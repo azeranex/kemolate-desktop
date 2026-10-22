@@ -32,7 +32,11 @@ import { LoaderCircleIcon, PackageOpenIcon } from '@lucide/vue'
 
 import { isProjectFile, PROJECT_EXTENSION } from '~/utils/project'
 
-const emit = defineEmits<{ project: [file: File] }>()
+/**
+ * The project, and — desktop — a handle on it, asked for now and answered
+ * later, so its scans can be read in place rather than copied (`ArchiveSource`).
+ */
+const emit = defineEmits<{ project: [file: File, handle: Promise<FileSystemHandle | null> | null] }>()
 
 /** Whether the page is busy making the workspace this drop is going into. */
 const { busy } = defineProps<{ busy?: boolean }>()
@@ -70,11 +74,14 @@ function onDrop (event: DragEvent) {
 
   // Read straight out of the event and not after an await: a `DataTransfer` is
   // emptied when the handler returns, so anything reached for later is gone.
-  const dropped = [...(event.dataTransfer?.files ?? [])]
+  // The handle too: asking is synchronous, the answer is not.
+  const dropped = [...(event.dataTransfer?.items ?? [])]
+    .filter((item) => item.kind === 'file')
+    .map((item) => ({ file: item.getAsFile(), handle: item.getAsFileSystemHandle?.() ?? null }))
 
   if (!dropped.length) return
 
-  const project = dropped.find(isProjectFile)
+  const project = dropped.find(({ file }) => file && isProjectFile(file))
 
   if (!project) {
     // Named, and with the way forward, because the two mistakes behind this are
@@ -87,7 +94,7 @@ function onDrop (event: DragEvent) {
     return
   }
 
-  emit('project', project)
+  emit('project', project.file!, project.handle)
 }
 
 const showing = computed(() => depth.value > 0 || Boolean(busy))

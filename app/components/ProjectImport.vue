@@ -17,11 +17,21 @@ const { pages, title } = useComic()
 const picker = ref<HTMLInputElement | null>(null)
 
 /**
+ * A chosen project, and the handle it came by where the picker gave one.
+ *
+ * Desktop: through the file picker where there is one, because a handle is what
+ * lets the scans be read out of the `.kemolate` file in place on every open
+ * rather than copied into the private filesystem — see `ArchiveSource`. The
+ * input is the fallback, and its file is copied as it always was.
+ */
+interface Picked { file: File, handle?: FileSystemFileHandle }
+
+/**
  * The file waiting on the question. The file rather than a flag: the picker's
  * input is cleared on the next open, and a dialog that confirmed a boolean
  * would go looking for a file that is no longer there.
  */
-const asking = ref<File | null>(null)
+const asking = ref<Picked | null>(null)
 
 /**
  * Whether the question is up — its own state rather than `Boolean(asking)`, and
@@ -42,7 +52,24 @@ watch(open, (now) => {
   if (!now) asking.value = null
 })
 
-function choose () {
+async function choose () {
+  const showPicker = typeof window === 'undefined' ? undefined : window.showOpenFilePicker
+
+  if (showPicker) {
+    const [handle] = await showPicker.call(window, {
+      types: [{ description: 'Kemolate project', accept: { 'application/zip': [PROJECT_EXTENSION] } }],
+    }).catch((error: unknown) => {
+      // A dismissed dialog is nothing chosen.
+      if (error instanceof DOMException && error.name === 'AbortError') return []
+
+      throw error
+    })
+
+    if (handle) take({ file: await handle.getFile(), handle })
+
+    return
+  }
+
   // Cleared before opening, so choosing the same file twice in a row still
   // fires `change` — an input holding its own value is the classic way a second
   // attempt at an import appears to do nothing.
@@ -54,26 +81,28 @@ function choose () {
 function picked (event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
 
-  if (!file) return
+  if (file) take({ file })
+}
 
+function take (chosen: Picked) {
   // Only asked over a chapter that is open, so the question is a real one.
   if (pages.value.length) {
-    asking.value = file
+    asking.value = chosen
     open.value = true
 
     return
   }
 
-  load(file)
+  load(chosen.file, chosen.handle)
 }
 
 function confirm () {
-  const file = asking.value
+  const chosen = asking.value
 
   asking.value = null
   open.value = false
 
-  if (file) load(file)
+  if (chosen) load(chosen.file, chosen.handle)
 }
 
 defineExpose({ choose })
