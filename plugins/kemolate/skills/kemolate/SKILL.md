@@ -65,7 +65,26 @@ Let the app read. Do not read pages by looking at images.
    mark a block `kind: "garbage"` (not lettering — signs, background text it
    should leave alone) or `hidden`. It patches one block at a time and leaves
    the rest of the page alone.
-4. `sort_page_blocks` only if a page's order is clearly wrong. It overwrites an
+4. **Fix blocks that are not one balloon each** — before translating, because
+   both cost the translation of the blocks they change:
+   - `join_blocks` for one balloon read as several blocks (a block per column or
+     per line — the crops show half a sentence each). Name them **in reading
+     order**; their text is joined in that order. The balloon is one block with
+     the parts inside it (`parts` in `read_page`).
+   - `split_block` for the other way round. A joined balloon (one with `parts`)
+     is taken apart with no `parts` given. Any other block is cut into the
+     `parts` you send: each a box in page-width units and the text it holds, in
+     reading order — for one box drawn round two balloons, or a balloon and a
+     caption. Look at the block first (`get_page_image` with its `blockId`) to
+     place the boxes.
+   - Both answer with any translation they removed, quoted. Translate the new
+     blocks afterwards; tell the user if a wording of theirs was removed.
+   - Both have Kemolate clean the new blocks as they are made: a join's balloon
+     and a cut's parts are boxes no repair covered, so the original lettering
+     would show again under them. `cleaning` in the answer says which blocks are
+     clean now. If it says `cleaned: false` (chapter not open, no cleaner chosen),
+     pass on what it says to do — the user presses **Clean page** later.
+5. `sort_page_blocks` only if a page's order is clearly wrong. It overwrites an
    order the user set by hand, so do not run it over a whole chapter blindly.
 
 `save_page_blocks` is for a balloon the reading missed (`mode: "append"`).
@@ -284,7 +303,7 @@ rooms on chapters read before) is Detect › **Measure balloons**.
 
 `get_active_workspace` → `list_pages {needs: "anything"}` →
 `request_page_read` (all unread, once) → poll `list_pages` →
-`review_page_reading` + `correct_blocks` per page →
+`review_page_reading` + `correct_blocks` (and `join_blocks` / `split_block`) per page →
 `prepare_page_translation` (batched, text mode) → answer →
 `save_page_translations` (one call, with `glossary` and `cast`) →
 `review_lettering` per page, fixing layout, then breaks, then words → tell the user

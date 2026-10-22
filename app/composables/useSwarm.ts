@@ -57,6 +57,7 @@ export type SwarmServerMessage =
   }
   | { type: 'read', request: string, hashes: string[], pageIds: number[] }
   | { type: 'fits', request: string, hash: string }
+  | { type: 'clean', request: string, hash: string, blockIds: number[] }
   | { type: 'changed', change: SwarmChange }
 
 const changeListeners = new Set<(room: string, change: SwarmChange) => void>()
@@ -180,6 +181,22 @@ function toLetterers (workspace: string, errand: LetterErrand) {
   }
 }
 
+/** Desktop: blocks the server asks this window to clean — see `useCleanErrands`. */
+export type CleanErrand = Extract<SwarmServerMessage, { type: 'clean' }>
+
+/** Who cleans for an agent — `useCleanErrands`, which has the open chapter's cleaner. */
+const cleaners = new Set<(workspace: string, errand: CleanErrand) => void>()
+
+export function onCleanErrand (listener: (workspace: string, errand: CleanErrand) => void): () => void {
+  cleaners.add(listener)
+
+  const off = () => cleaners.delete(listener)
+
+  if (getCurrentScope()) onScopeDispose(off)
+
+  return off
+}
+
 /** The workspace the window holds pages of, and those pages by hash — see `holdScans`. */
 let holding: { workspace: string, files: Map<string, File> } | null = null
 
@@ -236,6 +253,22 @@ function handle (workspace: string, payload: SwarmServerMessage) {
     }
 
     toLetterers(workspace, payload)
+  } else if (payload.type === 'clean') {
+    // With nobody to clean, said so at once rather than left to time out.
+    if (!cleaners.size) {
+      $fetch(`/api/workspaces/${workspace}/clean/${payload.request}`, {
+        method: 'POST',
+        body: { ok: false, error: 'Kemolate has no chapter open to clean.' },
+      }).catch(() => {})
+    }
+
+    for (const cleaner of cleaners) {
+      try {
+        cleaner(workspace, payload)
+      } catch (error) {
+        console.warn('[kemolate] a cleaning errand failed:', error)
+      }
+    }
   } else if (payload.type === 'read') {
     // With nobody to hand it to, said so at once — see the web build's `handle`.
     if (!hands.size) {

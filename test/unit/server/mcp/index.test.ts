@@ -94,6 +94,7 @@ describe('the MCP server', () => {
       'get_guide',
       'get_page_image',
       'get_workspace',
+      'join_blocks',
       'list_pages',
       'list_workspaces',
       'prepare_page_translation',
@@ -106,6 +107,7 @@ describe('the MCP server', () => {
       'set_lettering_standard',
       'set_lettering_style',
       'sort_page_blocks',
+      'split_block',
       'update_workspace',
     ])
     expect((await client.listPrompts()).prompts.map((prompt) => prompt.name)).toEqual(['translate_chapter'])
@@ -618,5 +620,158 @@ describe('set_lettering_standard', () => {
     const context = await aWorkspace()
 
     expect((await call({ workspaceId: context.workspace.publicId, size: 0 })).isError).toBe(true)
+  })
+})
+
+describe('join_blocks and split_block', () => {
+  /** A page of four blocks in reading order, the first translated. */
+  async function page4 () {
+    const context = await aWorkspace()
+    const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
+    const rows = await replace(context, page!.id, ['あい', 'う', 'え', 'お'].map((source, at) =>
+      ({ kind: 'bubble' as const, source, cx: 0.2 + at * 0.2, cy: 0.5, w: 0.1, h: 0.2 })))
+
+    await putOnPage(context, page!.id, 'en', [{ blockId: rows[0]!.id, text: 'Hello' }])
+
+    return { workspaceId: context.workspace.publicId, pageId: page!.id, ids: rows.map((row) => row.id) }
+  }
+
+  const call = async (name: string, args: Record<string, unknown>) => (await connect(true)).callTool({ name, arguments: args })
+  const json = (result: unknown) => JSON.parse(textOf(result))
+
+  /** The page's top-level blocks as `read_page` reports them: id, source, and parts. */
+  async function blocksOf (workspaceId: string, pageId: number) {
+    const read = json(await call('read_page', { workspaceId, pageIds: [pageId] }))
+
+    return read.pages[0].blocks.map((block: { blockId: number, source: string, parts?: { blockId: number }[] }) =>
+      ({ id: block.blockId, source: block.source, parts: block.parts?.map((part) => part.blockId) ?? [] }))
+  }
+
+  it('joins blocks into one balloon, where the first one read', async () => {
+    const { workspaceId, pageId, ids } = await page4()
+    const out = json(await call('join_blocks', { workspaceId, pageId, blockIds: [ids[1], ids[2]] }))
+
+    expect(out.source).toBe('うえ')
+    expect(out.parts).toEqual([ids[1], ids[2]])
+    // The union of the two boxes.
+    expect(out.box.cx).toBeCloseTo(0.5)
+    expect(out.box.w).toBeCloseTo(0.3)
+    expect(await blocksOf(workspaceId, pageId)).toEqual([
+      { id: ids[0], source: 'あい', parts: [] },
+      { id: out.blockId, source: 'うえ', parts: [ids[1], ids[2]] },
+      { id: ids[3], source: 'お', parts: [] },
+    ])
+  })
+
+  it('keeps the balloon its parts were measured in, and only one', async () => {
+    const context = await aWorkspace()
+    const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
+    const balloon = { cx: 0.3, cy: 0.5, w: 0.3, h: 0.3, round: true }
+    const rows = await replace(context, page!.id, [
+      { kind: 'bubble' as const, source: 'あ', cx: 0.25, cy: 0.5, w: 0.05, h: 0.2, room: balloon },
+      { kind: 'bubble' as const, source: 'い', cx: 0.32, cy: 0.5, w: 0.05, h: 0.2, room: balloon },
+      { kind: 'bubble' as const, source: 'う', cx: 0.8, cy: 0.5, w: 0.05, h: 0.2, room: { cx: 0.8, cy: 0.5, w: 0.2, h: 0.3 } },
+    ])
+    const workspaceId = context.workspace.publicId
+
+    expect(json(await call('join_blocks', { workspaceId, pageId: page!.id, blockIds: [rows[0]!.id, rows[1]!.id] })).room).toEqual(balloon)
+
+    const mixed = json(await call('join_blocks', { workspaceId, pageId: page!.id, blockIds: [rows[2]!.id, (await blocksOf(workspaceId, page!.id))[0].id] }))
+
+    expect(mixed.room).toBeNull()
+    expect(mixed.note).toContain('Measure balloons')
+  })
+
+  it('dissolves a balloon among the joined, and quotes the translation that cost', async () => {
+    const { workspaceId, pageId, ids } = await page4()
+    const first = json(await call('join_blocks', { workspaceId, pageId, blockIds: [ids[0], ids[1]] }))
+
+    await putOnPage((await contextFor(workspaceId))!, pageId, 'en', [{ blockId: first.blockId, text: 'Hi there' }])
+
+    const out = json(await call('join_blocks', { workspaceId, pageId, blockIds: [first.blockId, ids[2]] }))
+
+    expect(out.parts).toEqual([ids[0], ids[1], ids[2]])
+    expect(out.translationsRemoved).toEqual([{ blockId: first.blockId, locale: 'en', text: 'Hi there' }])
+  })
+
+  it('takes a joined balloon apart, in its place', async () => {
+    const { workspaceId, pageId, ids } = await page4()
+    const joined = json(await call('join_blocks', { workspaceId, pageId, blockIds: [ids[1], ids[2]] }))
+    const out = json(await call('split_block', { workspaceId, pageId, blockId: joined.blockId }))
+
+    expect(out.blocks.map((block: { blockId: number }) => block.blockId)).toEqual([ids[1], ids[2]])
+    expect((await blocksOf(workspaceId, pageId)).map((block: { id: number }) => block.id)).toEqual(ids)
+  })
+
+  it('cuts a block into parts, in its place, and quotes the translation that cost', async () => {
+    const { workspaceId, pageId, ids } = await page4()
+    const out = json(await call('split_block', {
+      workspaceId,
+      pageId,
+      blockId: ids[0],
+      parts: [
+        { cx: 0.18, cy: 0.5, w: 0.05, h: 0.2, source: 'あ' },
+        { cx: 0.23, cy: 0.5, w: 0.05, h: 0.2, source: 'い', kind: 'caption' },
+      ],
+    }))
+
+    expect(out.translationsRemoved).toEqual([{ locale: 'en', text: 'Hello' }])
+    expect(out.blocks.map((block: { kind: string }) => block.kind)).toEqual(['bubble', 'caption'])
+
+    const [a, b] = out.blocks.map((block: { blockId: number }) => block.blockId)
+
+    expect((await blocksOf(workspaceId, pageId)).map((block: { id: number }) => block.id)).toEqual([a, b, ids[1], ids[2], ids[3]])
+  })
+
+  it('has the open window clean what it made, and says so', async () => {
+    const { workspaceId, pageId, ids } = await page4()
+    const asked: { type: string, blockIds?: number[] }[] = []
+
+    // The window: holds the page and cleans whatever it is asked to.
+    hold(workspaceId, ['sha-01'], (publicId, frame) => {
+      const ask = JSON.parse(frame) as { type: string, request: string, blockIds?: number[] }
+
+      asked.push(ask)
+
+      if (ask.type === 'clean') queueMicrotask(() => finish(ask.request, publicId, { ok: true, cleaned: ask.blockIds }))
+    }, pageId)
+
+    const joined = json(await call('join_blocks', { workspaceId, pageId, blockIds: [ids[1], ids[2]] }))
+
+    expect(joined.cleaning).toEqual({ cleaned: [joined.blockId] })
+
+    const cut = json(await call('split_block', {
+      workspaceId,
+      pageId,
+      blockId: ids[0],
+      parts: [{ cx: 0.18, cy: 0.5, w: 0.05, h: 0.2, source: 'あ' }, { cx: 0.23, cy: 0.5, w: 0.05, h: 0.2, source: 'い' }],
+    }))
+
+    expect(cut.cleaning.cleaned).toEqual(cut.blocks.map((block: { blockId: number }) => block.blockId))
+    expect(asked.filter((ask) => ask.type === 'clean').map((ask) => ask.blockIds)).toEqual([[joined.blockId], cut.cleaning.cleaned])
+  })
+
+  it('joins anyway when nothing can clean, and says what to do', async () => {
+    const { workspaceId, pageId, ids } = await page4()
+    const out = json(await call('join_blocks', { workspaceId, pageId, blockIds: [ids[1], ids[2]] }))
+
+    expect(out.cleaning.cleaned).toBe(false)
+    expect(out.cleaning.why).toContain('Clean page')
+  })
+
+  it('says which split was meant when asked the wrong one', async () => {
+    const { workspaceId, pageId, ids } = await page4()
+    const joined = json(await call('join_blocks', { workspaceId, pageId, blockIds: [ids[1], ids[2]] }))
+    const parts = [{ cx: 0.1, cy: 0.5, w: 0.05, h: 0.2, source: 'x' }, { cx: 0.2, cy: 0.5, w: 0.05, h: 0.2, source: 'y' }]
+
+    expect(textOf(await call('split_block', { workspaceId, pageId, blockId: joined.blockId, parts }))).toMatch(/send no `parts`/)
+    expect(textOf(await call('split_block', { workspaceId, pageId, blockId: ids[0] }))).toMatch(/send `parts`/)
+    expect(textOf(await call('split_block', { workspaceId, pageId, blockId: ids[1], parts }))).toMatch(/\[404\]/)
+    expect(textOf(await call('join_blocks', { workspaceId, pageId, blockIds: [ids[1], ids[3]] }))).toMatch(/\[404\]/)
+
+    // A part reaching above the block it is cut from — what painted a balloon's outline out.
+    const above = [{ cx: 0.4, cy: 0.35, w: 0.05, h: 0.1, source: 'x' }, { cx: 0.4, cy: 0.5, w: 0.05, h: 0.1, source: 'y' }]
+
+    expect(textOf(await call('split_block', { workspaceId, pageId, blockId: ids[0], parts: above }))).toMatch(/Part 1 reaches outside/)
   })
 })

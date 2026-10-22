@@ -397,6 +397,7 @@ declare global {
   const onBeforeMount: typeof import('vue').onBeforeMount
   const onBeforeUnmount: typeof import('vue').onBeforeUnmount
   const onBeforeUpdate: typeof import('vue').onBeforeUpdate
+  const onCleanErrand: typeof import('./composables/useSwarm').onCleanErrand
   const onClickOutside: typeof import('@vueuse/core').onClickOutside
   const onDeactivated: typeof import('vue').onDeactivated
   const onElementRemoval: typeof import('@vueuse/core').onElementRemoval
@@ -669,6 +670,7 @@ declare global {
   const useCached: typeof import('@vueuse/core').useCached
   const useCast: typeof import('./composables/useCast').useCast
   const useClean: typeof import('./composables/useClean').useClean
+  const useCleanErrands: typeof import('./composables/useCleanErrands').useCleanErrands
   const useCleanSettings: typeof import('./composables/useClean').useCleanSettings
   const useClipboard: typeof import('@vueuse/core').useClipboard
   const useClipboardItems: typeof import('@vueuse/core').useClipboardItems
@@ -997,7 +999,7 @@ declare global {
   export type { RemotePage, SharedState } from './composables/useShared'
   import('./composables/useShared')
   // @ts-ignore
-  export type { SwarmChange, SwarmServerMessage, SwarmLive, SwarmPeer, ErrandListener, LetterErrand } from './composables/useSwarm'
+  export type { SwarmChange, SwarmServerMessage, SwarmLive, SwarmPeer, ErrandListener, LetterErrand, CleanErrand } from './composables/useSwarm'
   import('./composables/useSwarm')
   // @ts-ignore
   export type { ToolId, ToolOption, Tool } from './composables/useTools'
@@ -1560,6 +1562,7 @@ declare module 'vue' {
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeUnmount: UnwrapRef<typeof import('vue')['onBeforeUnmount']>
     readonly onBeforeUpdate: UnwrapRef<typeof import('vue')['onBeforeUpdate']>
+    readonly onCleanErrand: UnwrapRef<typeof import('./composables/useSwarm')['onCleanErrand']>
     readonly onClickOutside: UnwrapRef<typeof import('@vueuse/core')['onClickOutside']>
     readonly onDeactivated: UnwrapRef<typeof import('vue')['onDeactivated']>
     readonly onElementRemoval: UnwrapRef<typeof import('@vueuse/core')['onElementRemoval']>
@@ -1832,6 +1835,7 @@ declare module 'vue' {
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
     readonly useCast: UnwrapRef<typeof import('./composables/useCast')['useCast']>
     readonly useClean: UnwrapRef<typeof import('./composables/useClean')['useClean']>
+    readonly useCleanErrands: UnwrapRef<typeof import('./composables/useCleanErrands')['useCleanErrands']>
     readonly useCleanSettings: UnwrapRef<typeof import('./composables/useClean')['useCleanSettings']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>

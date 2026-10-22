@@ -706,3 +706,80 @@ export async function reorder (
 
   return sorted.map((block, position) => ({ ...block, position }))
 }
+
+/**
+ * Desktop: one block cut into several, in its place in the reading order.
+ *
+ * What a detector gets wrong the other way from `compound`: one box round two
+ * balloons, or round a balloon and the caption beside it. The window has no cut
+ * either — a person deletes the block and draws two — and an agent working over
+ * MCP has neither a pointer nor a pen, so this is the cut, said once.
+ *
+ * The parts take the block's place: written at its `position`, and every
+ * top-level block after it moved down to make room, so the page reads in the
+ * order it did. The block itself goes, and with it — by the cascades on
+ * `translations.blockId` and `surfaces.blockId` — its translations and its
+ * cleaning, as `compound` costs a dissolved balloon its own: each part says less
+ * than the whole did, so the whole's wording is no part's.
+ *
+ * Not a balloon (that is `release`), and not a column of one (release the
+ * balloon first): a part belongs to the page, never to a balloon it was cut from.
+ */
+export async function split (
+  context: Context,
+  blockId: number,
+  parts: Omit<NewBlock, 'pageId' | 'position' | 'parentId'>[],
+): Promise<Block[]> {
+  await must(context, editWorkspace, context)
+
+  const pageId = await blockIn(context, blockId)
+
+  const block = await db.query.blocks.findFirst({
+    where: { id: blockId },
+    with: { children: { columns: { id: true } } },
+  })
+
+  if (!block) throw createError({ statusCode: 404, statusMessage: 'No such block.' })
+
+  if (block.parentId) {
+    throw createError({ statusCode: 409, statusMessage: 'That block is a column of a joined balloon — take the balloon apart first.' })
+  }
+
+  if (block.children.length) {
+    throw createError({ statusCode: 409, statusMessage: 'That block is a joined balloon — take it apart, rather than cutting it.' })
+  }
+
+  if (parts.length < 2) {
+    throw createError({ statusCode: 400, statusMessage: 'A block is cut into two or more parts.' })
+  }
+
+  // One transaction: a page with the block gone and its parts not yet written
+  // has lost a balloon, and one with both has it twice.
+  const made = db.transaction((tx) => {
+    tx.update(blocks)
+      .set({ position: sql`${blocks.position} + ${parts.length - 1}` })
+      .where(and(eq(blocks.pageId, pageId), isNull(blocks.parentId), sql`${blocks.position} > ${block.position}`))
+      .run()
+
+    tx.delete(blocks).where(eq(blocks.id, blockId)).run()
+
+    return tx
+      .insert(blocks)
+      .values(parts.map((part, index) => ({ ...part, pageId, position: block.position + index })))
+      .returning()
+      .all()
+  })
+
+  await record({
+    workspaceId: context.workspaceId,
+    userId: context.actor?.id ?? null,
+    action: 'blocks.split',
+    subject: 'pages',
+    subjectId: pageId,
+    detail: { block: blockId, parts: made.length },
+  })
+
+  notify(context, { scope: 'blocks', pageId })
+
+  return made
+}

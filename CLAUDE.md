@@ -332,6 +332,25 @@ by the main process on the loopback, for an MCP client on this machine. Read the
   which sets the style column alone: `putOnPage` as a person re-signs and pins a line, which
   restyling it is not. Sizes are scan pixels, the Lettering panel's numbers. `read_page` reports
   a line's style where it has one — the one change to that web build file.
+- **An agent can join and split blocks** (2026-10-23, the desktop's own). `join_blocks` is
+  the window's Join (`useBlockMerge.merge`) restated: members flattened, source joined by
+  `tidyText`, the union box, the least confidence, through `blocks.compound` — then moved to
+  the first chosen block's place, which the window does on its side and the service does
+  not. It keeps the parts' balloon interior (`room`) when they were all measured in the same
+  one. `split_block` takes a joined balloon apart (`blocks.release`) or, given `parts`, cuts
+  any other block into them (`blocks.split`, new: the parts take its place in the reading
+  order, the rest moved down, in one transaction). Both quote any translation they remove.
+  Modifying a block stays `correct_blocks`. **Both clean what they made** (`cleanAfter`,
+  `server/utils/cleaning.ts`): a repair is the block's, so a cut's parts and a join's
+  balloon have none and the original lettering showed again. The window is sent a `clean`
+  errand and `useCleanErrands` runs `useClean.cleanBlock` per block — after waiting for the
+  blocks to arrive (the change notice is re-read a moment later) and for any cleaning
+  already running — answering through `/clean/:request`. Never a refusal: no chapter open
+  or no cleaner chosen is said in `cleaning` with "press Clean page". A cut's parts must
+  lie inside the block's box (3% slack): parts guessed a little high painted the balloon's
+  outline and tail out in testing. Tested against the packaged app on a test
+  profile: the open window followed a join, a release, a cut and a re-join live (4 → 3 → 4 →
+  5 → 4 blocks), the reading order kept.
 - **A balloon's frame for an agent to set** (2026-10-22): `set_lettering_style` also takes a
   `frame` — the lettering's own box (`translations.restyle` writes it beside the style; null
   hands the line back to its room) — and `read_page` reports each block's `room` and each

@@ -56,6 +56,8 @@ export type SwarmServerMessage =
   | { type: 'read', request: string, hashes: string[], pageIds: number[] }
   /** Desktop: how each line on a page is fitted — see `server/utils/fits.ts`. */
   | { type: 'fits', request: string, hash: string }
+  /** Desktop: clean these blocks of a page — see `server/utils/cleaning.ts`. */
+  | { type: 'clean', request: string, hash: string, blockIds: number[] }
   /** Go and re-read this much; an agent edited it. See `announce`. */
   | { type: 'changed', change: SwarmChange }
 

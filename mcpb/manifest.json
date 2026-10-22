@@ -82,6 +82,14 @@
       "description": "Fix what a reading got wrong, one block at a time."
     },
     {
+      "name": "join_blocks",
+      "description": "Join blocks a reading split into one balloon."
+    },
+    {
+      "name": "split_block",
+      "description": "Take a joined balloon apart, or cut a block into parts."
+    },
+    {
       "name": "save_page_blocks",
       "description": "File text blocks read off a page."
     },

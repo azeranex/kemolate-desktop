@@ -11,7 +11,7 @@
  * build's, verbatim but for `list_workspaces` and `read_page` (which shows a
  * line's style) — a tool added there is a file copied to the same path here
  * and a line added below — beside the desktop's own:
- * `get_active_workspace` (see `defaulted`), `set_lettering_style`, `set_lettering_standard`, `review_lettering` and `get_guide`.
+ * `get_active_workspace` (see `defaulted`), `join_blocks`, `split_block`, `set_lettering_style`, `set_lettering_standard`, `review_lettering` and `get_guide`.
  *
  * `serverFor` builds one per request, which is the toolkit's stateless mode
  * and the web build's choice (`sessions` off): every tool is a question
@@ -34,6 +34,7 @@ import getGlossary from './tools/get-glossary'
 import getGuide from './tools/get-guide'
 import getPageImage from './tools/get-page-image'
 import getWorkspace from './tools/get-workspace'
+import joinBlocks from './tools/join-blocks'
 import listPages from './tools/list-pages'
 import listWorkspaces from './tools/list-workspaces'
 import preparePageTranslation from './tools/prepare-page-translation'
@@ -46,6 +47,7 @@ import savePageTranslations from './tools/save-page-translations'
 import setLetteringStandard from './tools/set-lettering-standard'
 import setLetteringStyle from './tools/set-lettering-style'
 import sortPageBlocks from './tools/sort-page-blocks'
+import splitBlock from './tools/split-block'
 import updateWorkspace from './tools/update-workspace'
 
 import type { McpPromptDefinition, McpToolDefinition, McpToolResult } from '~~/server/utils/mcpToolkit'
@@ -66,6 +68,8 @@ const TOOLS = [
   reviewPageReading,
   getPageImage,
   correctBlocks,
+  joinBlocks,
+  splitBlock,
   savePageBlocks,
   sortPageBlocks,
   preparePageTranslation,

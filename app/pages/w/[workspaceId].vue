@@ -50,6 +50,7 @@ import {
 } from '@lucide/vue'
 
 import { patchStands } from '~/composables/useClean'
+import { useCleanErrands } from '~/composables/useCleanErrands'
 import Workspace from '~/layouts/Workspace.vue'
 import { repairOvers } from '~/utils/raster/engine/overs'
 import { fitLevel, fittedHeight } from '~/utils/raster/plan'
@@ -114,6 +115,8 @@ useHolding()
 useReadErrands()
 // Desktop: an agent's questions about the lettering — how each line is fitted, and the page as lettered.
 useLetteringErrands()
+// Desktop: an agent's join or cut, cleaned — see `server/utils/cleaning.ts`.
+useCleanErrands()
 
 /*
  * Whether the record has been asked for on the way in — so that "no record"

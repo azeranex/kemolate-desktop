@@ -5,6 +5,7 @@ import { backup, backupsFolder, databaseFile, listBackups, openingNotice, restor
 
 import type { DataAnswer, DataRequest } from './preload'
 import type { Context } from '~~/server/services'
+import type { CleanReport } from '~~/server/utils/cleaning'
 import type { FitReport } from '~~/server/utils/fits'
 import type { ReadReport } from '~~/server/utils/reading'
 
@@ -163,6 +164,17 @@ const fitReportSchema = z.object({
     byHand: z.boolean().optional(),
     rewrapped: z.boolean().optional(),
   })).max(1000).optional(),
+  error: z.string().transform((text) => text.slice(0, 400)).optional(),
+})
+
+/** Desktop: what the window says it cleaned — `CleanReport` in `server/utils/cleaning.ts`. */
+const cleanReportSchema = z.object({
+  ok: z.boolean(),
+  cleaned: z.array(z.number().int().positive()).max(500).optional(),
+  skipped: z.array(z.object({
+    blockId: z.number().int().positive(),
+    why: z.string().transform((text) => text.slice(0, 300)),
+  })).max(500).optional(),
   error: z.string().transform((text) => text.slice(0, 400)).optional(),
 })
 
@@ -374,6 +386,12 @@ const ROUTES: [string, string, Handler][] = [
   // The window's measurement of a page's lettering, for an agent's review — see `server/utils/fits.ts`.
   ['POST', `${W}/fits/:requestId`, workspace(async (context, call) => {
     finish<FitReport>(call.params.requestId ?? '', context.workspace.publicId, valid(fitReportSchema, call.body))
+
+    return null
+  })],
+  // Desktop: the window's answer to an agent's cleaning — see `server/utils/cleaning.ts`.
+  ['POST', `${W}/clean/:requestId`, workspace(async (context, call) => {
+    finish<CleanReport>(call.params.requestId ?? '', context.workspace.publicId, valid(cleanReportSchema, call.body))
 
     return null
   })],
