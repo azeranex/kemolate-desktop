@@ -40,6 +40,7 @@ import {
   BookImageIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  FilesIcon,
   FolderOpenIcon,
   MaximizeIcon,
   MinusIcon,
@@ -60,7 +61,7 @@ import { cleaningSignature, makePreviews } from '~/utils/raster/previews'
 useWorkspaceReset()
 
 const { open, pages, title, at, page, selection, epoch, room, go, zoomAt, resetView } = useComic()
-const { kind, pending, restoring, openFolder, restore, reopen, forget, identify } = useLibrary()
+const { kind, pending, restoring, openFolder, openFiles, restore, reopen, forget, identify } = useLibrary()
 const { tool } = useTools()
 const { shared, standing, look, syncPages, showMissing, fill: fillPages } = useShared()
 const { restore: restoreBlocks } = useOcr()
@@ -519,7 +520,7 @@ const untranslated = computed(() =>
               Last opened from a folder on this computer. Kemolate needs your
               say-so to read it again.
             </UEmptyDescription>
-            <UEmptyContent class="flex-row gap-2">
+            <UEmptyContent class="flex-row justify-center gap-2">
               <UButton size="sm" @click="reopen">
                 <FolderOpenIcon class="size-4" /> Reopen folder
               </UButton>
@@ -535,7 +536,11 @@ const untranslated = computed(() =>
               Drop a folder of pages — or a PDF of them — here to start
               translating. They stay on this computer.
             </UEmptyDescription>
-            <UEmptyContent>
+            <!-- Desktop: loose pages or a PDF too, as File › Open files… opens them, not only a folder. -->
+            <UEmptyContent class="flex-row justify-center gap-2">
+              <UButton variant="outline" size="sm" @click="openFiles">
+                <FilesIcon class="size-4" /> Open files
+              </UButton>
               <UButton variant="outline" size="sm" @click="openFolder">
                 <FolderOpenIcon class="size-4" /> Open folder
               </UButton>
