@@ -10,8 +10,8 @@
  * (`electron/mcp.ts`, which says why). The tool and prompt files are the web
  * build's, verbatim but for `list_workspaces` and `read_page` (which shows a
  * line's style) — a tool added there is a file copied to the same path here
- * and a line added below — beside two of the desktop's own:
- * `get_active_workspace` (see `defaulted`) and `set_lettering_style`.
+ * and a line added below — beside three of the desktop's own:
+ * `get_active_workspace` (see `defaulted`), `set_lettering_style` and `get_guide`.
  *
  * `serverFor` builds one per request, which is the toolkit's stateless mode
  * and the web build's choice (`sessions` off): every tool is a question
@@ -31,6 +31,7 @@ import correctBlocks from './tools/correct-blocks'
 import getActiveWorkspace from './tools/get-active-workspace'
 import getCast from './tools/get-cast'
 import getGlossary from './tools/get-glossary'
+import getGuide from './tools/get-guide'
 import getPageImage from './tools/get-page-image'
 import getWorkspace from './tools/get-workspace'
 import listPages from './tools/list-pages'
@@ -52,6 +53,7 @@ import { requireMcpActor } from '~~/server/utils/mcp'
 import { swarmState } from '~~/server/utils/swarm'
 
 const TOOLS = [
+  getGuide,
   getActiveWorkspace,
   listWorkspaces,
   getWorkspace,

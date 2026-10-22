@@ -1,0 +1,18 @@
+{
+  "name": "kemolate",
+  "owner": {
+    "name": "Azeranex",
+    "url": "https://github.com/azeranex"
+  },
+  "metadata": {
+    "description": "Kemolate, the desktop comic translation app, for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "kemolate",
+      "source": "./plugins/kemolate",
+      "description": "Kemolate's MCP server and the skill for using it: read pages with the app's own OCR, check and correct the reading, translate with the chapter's glossary and cast, and fix lettering.",
+      "category": "productivity"
+    }
+  ]
+}

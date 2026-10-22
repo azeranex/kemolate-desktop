@@ -238,7 +238,7 @@ const api = {
   },
   /**
    * The MCP server, for an agent on this machine — see `mcp.ts`. `status`,
-   * `set`, `addToClaude` and `showBundle` are Settings'; `have` is the workspace page saying which scans it holds and which page
+   * `set`, `addToClaude`, `showBundle` and `saveSkill` are Settings'; `have` is the workspace page saying which scans it holds and which page
    * is on screen, and
    * `onFrame` hears an agent's ask for one — a frame of the web build's swarm
    * protocol, with the workspace it was asked under. Returns the unsubscribe.
@@ -249,6 +249,8 @@ const api = {
     /** Opens the bundle in Claude Desktop; answers why not, or null. */
     addToClaude: (): Promise<string | null> => ipcRenderer.invoke('mcp:add-to-claude'),
     showBundle: (): Promise<void> => ipcRenderer.invoke('mcp:show-bundle'),
+    /** Saves the Kemolate skill as the ZIP Claude's skill upload takes; answers where, or null. */
+    saveSkill: (): Promise<string | null> => ipcRenderer.invoke('mcp:save-skill'),
     have: (workspace: string | null, hashes: string[], pageId: number | null = null): Promise<void> => ipcRenderer.invoke('mcp:have', { workspace, hashes, pageId }),
     onFrame: (listener: (workspace: string, frame: string) => void) => {
       const forward = (_event: IpcRendererEvent, workspace: string, frame: string) => listener(workspace, frame)

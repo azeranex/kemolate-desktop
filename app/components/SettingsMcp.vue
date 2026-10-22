@@ -60,7 +60,25 @@ function keepPort () {
   if (value !== status.value?.port) set({ port: value })
 }
 
-const claudeCode = computed(() => `claude mcp add --transport http kemolate ${status.value?.url}`)
+/** The port the Claude Desktop bundle and the Claude Code plugin assume — `DEFAULT_PORT` in `electron/mcp.ts`. */
+const DEFAULT_PORT = 38427
+
+/**
+ * How Claude Code gets Kemolate: the plugin from this app's repository, which
+ * brings the server and the skill together (`plugins/kemolate`). Its address is
+ * fixed at the default port, so on any other the server is added by hand — the
+ * skill then comes as `get_guide`, which every client has.
+ */
+const claudeCode = computed(() => status.value?.port === DEFAULT_PORT
+  ? 'claude plugin install kemolate --marketplace azeranex/kemolate-desktop'
+  : `claude mcp add --transport http kemolate ${status.value?.url}`)
+
+/** The Kemolate skill as Claude's skill upload takes it — see `mcp:save-skill`. */
+async function saveSkill () {
+  const saved = await bridge?.saveSkill()
+
+  if (saved) toast.success('Skill saved', { description: 'Upload it in Claude under Customize › Skills.' })
+}
 
 const json = computed(() => JSON.stringify({
   mcpServers: { kemolate: { type: 'http', url: status.value?.url } },
@@ -73,9 +91,6 @@ async function copy (what: string, text: string) {
     if (copied.value === what) copied.value = null
   }, 1500)
 }
-
-/** The port the Claude Desktop bundle assumes — `DEFAULT_PORT` in `electron/mcp.ts`. */
-const DEFAULT_PORT = 38427
 
 /** Claude Desktop's install dialog, or why it could not be opened. */
 async function addToClaude () {
@@ -168,6 +183,24 @@ const said = computed(() => {
           </p>
         </div>
 
+        <!-- The skill, for Claude's chat — the extension cannot carry one; see `electron/mcp.ts`. -->
+        <div class="grid gap-1.5">
+          <p class="text-xs font-medium">
+            The Kemolate skill
+          </p>
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton size="sm" variant="outline" @click="saveSkill">
+              Save the skill for Claude
+            </UButton>
+          </div>
+          <p class="text-muted-foreground text-xs">
+            How to use Kemolate's tools well — the order that saves images, the coordinate rules, fixing lettering.
+            Upload it in Claude under Customize › Skills (with Code execution on, in Settings › Capabilities).
+            Optional: Kemolate hands the same guide to any client that asks (<code class="font-mono">get_guide</code>),
+            and the Claude Code plugin below brings it with the tools.
+          </p>
+        </div>
+
         <div class="grid gap-1">
           <div class="flex items-center justify-between gap-2">
             <p class="text-xs font-medium">
@@ -179,6 +212,16 @@ const said = computed(() => {
             </UButton>
           </div>
           <pre class="bg-muted overflow-x-auto rounded-md p-2 font-mono text-xs break-all whitespace-pre-wrap">{{ claudeCode }}</pre>
+          <p class="text-muted-foreground text-xs">
+            <template v-if="status.port === DEFAULT_PORT">
+              The plugin brings the tools and the skill together. In an older Claude Code, run
+              <code class="font-mono">/plugin marketplace add azeranex/kemolate-desktop</code>, then
+              <code class="font-mono">/plugin install kemolate@kemolate</code>.
+            </template>
+            <template v-else>
+              The plugin assumes port {{ DEFAULT_PORT }}, so on this one the server is added by hand.
+            </template>
+          </p>
         </div>
 
         <div class="grid gap-1">

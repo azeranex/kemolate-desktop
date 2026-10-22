@@ -85,6 +85,7 @@ describe('the MCP server', () => {
       'get_active_workspace',
       'get_cast',
       'get_glossary',
+      'get_guide',
       'get_page_image',
       'get_workspace',
       'list_pages',
@@ -109,6 +110,24 @@ describe('the MCP server', () => {
 
     // Static in the manifest, live on the server: a tool added to one is added to the other.
     expect(manifest.tools.map((tool) => tool.name).sort()).toEqual(offered)
+  })
+
+  it('hands out the Kemolate skill as its guide, and the skill names only tools it has', async () => {
+    const client = await connect(true)
+    const offered = new Set((await client.listTools()).tools.map((tool) => tool.name))
+    const guide = textOf(await client.callTool({ name: 'get_guide', arguments: {} }))
+    const skill = readFileSync(fileURLToPath(new URL('../../../../plugins/kemolate/skills/kemolate/SKILL.md', import.meta.url)), 'utf8')
+
+    // The skill's body, without the front matter that is for choosing a skill.
+    expect(guide.startsWith('# Working in Kemolate through MCP')).toBe(true)
+    expect(skill).toContain(guide)
+
+    // Every tool the guide tells an agent to call is one this server has — so a
+    // tool renamed or removed cannot leave the skill telling agents to call it.
+    const named = new Set([...guide.matchAll(/`([a-z]+(?:_[a-z]+)+)`/g)].map((match) => match[1]!))
+    const unknown = [...named].filter((name) => /^(get|list|read|request|review|correct|save|sort|prepare|update|set)_/.test(name) && !offered.has(name))
+
+    expect(unknown).toEqual([])
   })
 
   it('lists the workspaces in the database, with their page counts', async () => {

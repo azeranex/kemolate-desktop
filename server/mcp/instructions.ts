@@ -10,8 +10,9 @@
  * loads the tools, which open the database.
  */
 export const INSTRUCTIONS = [
-  'This server exposes the comic translation workspaces of one Kemolate desktop app. Start with',
-  '`get_active_workspace` — the chapter and page open in the Kemolate window — or `list_workspaces`,',
+  'This server exposes the comic translation workspaces of one Kemolate desktop app.',
+  'Before any job of more than a step or two, call `get_guide` once: it is the full playbook.',
+  'Start with `get_active_workspace` — the chapter and page open in the Kemolate window — or `list_workspaces`,',
   'then `list_pages`, then `read_page`. Leave `workspaceId` out of any tool to work on the open chapter,',
   'and `pageId` out of a one-page tool to work on the page on screen.',
   '',

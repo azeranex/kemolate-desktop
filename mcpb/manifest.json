@@ -38,6 +38,10 @@
   },
   "tools": [
     {
+      "name": "get_guide",
+      "description": "The playbook for working in Kemolate, read before a multi-step job."
+    },
+    {
       "name": "get_active_workspace",
       "description": "The chapter and page open in the Kemolate window right now."
     },

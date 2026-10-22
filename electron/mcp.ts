@@ -42,6 +42,12 @@
  * app, and Settings' **Add to Claude Desktop** opens it, which Claude Desktop
  * answers with its own install dialog.
  *
+ * The bundle cannot carry a skill (the MCPB manifest has no place for one), and
+ * Claude Desktop's chat installs skills only by upload — so Settings' **Save the
+ * skill for Claude** writes the Kemolate skill as the ZIP that upload takes. The
+ * same text is on the server for every client as `get_guide`, and in the Claude
+ * Code plugin (`plugins/kemolate`).
+ *
  * ## One request, one server
  *
  * Stateless, as the web build's is (`sessions` off): every tool answers in one
@@ -56,15 +62,17 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { app, ipcMain, shell } from 'electron'
+import { app, dialog, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 
 import { written } from './database'
+import { zipOf } from './zip'
 
 import type { McpStatus } from './preload'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 
+import skill from '~~/plugins/kemolate/skills/kemolate/SKILL.md?raw'
 import { serverFor } from '~~/server/mcp'
 import { MCP_ACTOR } from '~~/server/utils/mcp'
 import { hold } from '~~/server/utils/swarm'
@@ -348,6 +356,25 @@ export async function serveMcp (trusted: (event: IpcMainInvokeEvent) => boolean,
 
   ipcMain.handle('mcp:show-bundle', only(() => {
     shell.showItemInFolder(bundleFile())
+  }))
+
+  // The skill, as Claude's skill upload takes it: a ZIP with the skill's folder at
+  // its top, named as the skill is — see the header. Answers where it went, or null.
+  ipcMain.handle('mcp:save-skill', only(async () => {
+    const win = window()
+    const options = {
+      title: 'Save the Kemolate skill for Claude',
+      defaultPath: path.join(app.getPath('downloads'), 'kemolate.zip'),
+      filters: [{ name: 'Skill', extensions: ['zip'] }],
+    }
+    const { canceled, filePath } = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+
+    if (canceled || !filePath) return null
+
+    writeFileSync(filePath, zipOf([{ path: 'kemolate/SKILL.md', text: skill }]))
+    shell.showItemInFolder(filePath)
+
+    return filePath
   }))
 
   await apply()

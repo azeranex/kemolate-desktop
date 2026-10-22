@@ -87,6 +87,7 @@ never attach to the reader's.
 | `test/app/` | `test/nuxt/` | the app's tests — see Commands |
 | `electron/` | — | main process and preload (the bridge, `window.kemolate`) |
 | `mcpb/` | — | the Claude Desktop bundle: manifest, the stdio bridge, its build — see **The MCP server** |
+| `plugins/kemolate/`, `.claude-plugin/` | — | the Claude Code plugin (the server's address and the Kemolate skill) and the marketplace that lists it — see **The MCP server** |
 | `server/` | `server/` | the model store (`models.ts`), and the web build's data layer — `database/` (schema, relations, client, migrations) and `services/` — run by the main process, not a server; see **The workspace database**. `mcp/` and its `utils/` are the web build's MCP server; see **The MCP server** |
 | `.github/workflows/` | — | CI on every push and pull request, and the release on a `v*` tag — see **Releases and updates** |
 
@@ -335,6 +336,25 @@ by the main process on the loopback, for an MCP client on this machine. Read the
   `frame` — the lettering's own box (`translations.restyle` writes it beside the style; null
   hands the line back to its room) — and `read_page` reports each block's `room` and each
   line's `frame`. The tool's description tells an agent how to fix tiny type in a big balloon.
+- **The skill for agents using it** is `plugins/kemolate/skills/kemolate/SKILL.md` (added 2026-10-22): the
+  order that saves images, which tool for which job, the coordinate and pinning rules, and the
+  lettering fixes. Change it when a tool's behaviour changes — `index.test.ts` fails if it names a
+  tool the server does not have. **One file, three ways in**, because a skill installs differently
+  in every client and the MCPB manifest cannot carry one:
+  - `get_guide`, a tool on the server, returns it (front matter stripped; read in with Vite's
+    `?raw`), and the briefing every client gets says to call it first — so every client has the
+    guide with nothing installed, and always the one for the tools it is talking to.
+  - **Claude Code**: this repository is a plugin marketplace (`.claude-plugin/marketplace.json`)
+    listing `plugins/kemolate`, which holds the skill and `.mcp.json` (the server at the default
+    port). `claude plugin install kemolate --marketplace azeranex/kemolate-desktop` installs both;
+    Settings shows it, or `claude mcp add` on another port. Both manifests pass `claude plugin
+    validate`, and the plugin's loopback server connected (`mcp list`) — tested 2026-10-22 with
+    the packaged app on a test profile. It installs from the pushed repository, so it is as current
+    as `main` on GitHub.
+  - **Claude's chat** (Desktop or web): Settings' **Save the skill for Claude** writes the ZIP the
+    skill upload takes (`kemolate/SKILL.md` at the top; `electron/zip.ts`, stored, checked with
+    Python's `zipfile`), uploaded under Customize › Skills with code execution on. No app can
+    install a skill there by itself.
 - **An agent's writes reach the window.** `mcpContext` gives its context `origin: 'agent'`, and
   `notify` (`access.ts`) sends those — and only those — to the window as `changed` frames, so
   `useLiveSync` and the rest re-read as for a collaborator. The window's own writes are not
