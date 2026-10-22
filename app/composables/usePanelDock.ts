@@ -152,23 +152,34 @@ export const MIN_COLUMN_WIDTH = 360
 export const COLUMN_WIDTH = Math.max(360, MIN_COLUMN_WIDTH)
 
 /**
- * Everything in one column on the right, as it was before there was a left —
- * the left dock starts with no columns at all, and takes up no room until
- * something is dragged into it.
+ * Desktop: two columns on the right — the page and what is on it (reading,
+ * layers, the chapter's pages) beside the words (translation, the blocks, how
+ * each is set, what the chapter has settled). The web build's default is one
+ * column; a desktop window is wide enough for both at once. The left dock
+ * starts with no columns at all, and takes up no room until something is
+ * dragged into it.
  */
 const DEFAULT_LAYOUT: PanelLayout = {
   left: [],
-  right: [{
-    id: 'main',
-    // The bench goes in the default as well as the registry, and has to: the
-    // second loop in `reconcile` is what slots a newly added section into a
-    // layout somebody has already arranged, and it works from this list. Left
-    // out, the panel would exist and only ever appear for someone who had never
-    // touched their docks — which is nobody, after the first drag.
-    sections: ['detect', 'blocks', 'text', 'lettering', 'translate', 'cast', 'glossary', 'layers', 'align', 'transform', 'pages', ...(import.meta.env.DEV ? ['dev', 'block-images'] : [])],
-    compact: false,
-    width: COLUMN_WIDTH,
-  }],
+  right: [
+    {
+      id: 'main',
+      sections: ['detect', 'layers', 'pages'],
+      compact: false,
+      width: COLUMN_WIDTH,
+    },
+    {
+      id: 'words',
+      // The bench goes in the default as well as the registry, and has to: the
+      // second loop in `reconcile` is what slots a newly added section into a
+      // layout somebody has already arranged, and it works from this list. Left
+      // out, the panel would exist and only ever appear for someone who had never
+      // touched their docks — which is nobody, after the first drag.
+      sections: ['translate', 'blocks', 'text', 'lettering', 'cast', 'glossary', 'align', 'transform', ...(import.meta.env.DEV ? ['dev', 'block-images'] : [])],
+      compact: false,
+      width: COLUMN_WIDTH,
+    },
+  ],
 }
 
 const STORAGE_KEY = 'panel-layout'
@@ -237,7 +248,7 @@ function dockState () {
 }
 
 /** What is open before anyone has said otherwise. */
-const DEFAULT_OPENED = ['detect', 'blocks', 'text']
+const DEFAULT_OPENED = ['detect', 'layers', 'pages', 'translate', 'blocks', 'text', 'lettering']
 
 /**
  * Read back which sections were left open, keeping only the ones that still
@@ -291,6 +302,10 @@ function reconcile (stored: Partial<PanelLayout> | null): PanelLayout {
   }
 
   for (const side of DOCK_SIDES) {
+    // Desktop: a side nobody has arranged takes the default's columns as they
+    // are. Only into an arranged one are the missing sections gathered up.
+    const fresh = !layout[side].length
+
     for (const column of DEFAULT_LAYOUT[side]) {
       const missing = column.sections.filter((id) => !placed.has(id))
 
@@ -300,7 +315,7 @@ function reconcile (stored: Partial<PanelLayout> | null): PanelLayout {
 
       // Into the first column that is already there, so a newly added section
       // joins the panel rather than opening a column of its own.
-      const home = layout[side][0]
+      const home = fresh ? undefined : layout[side][0]
 
       if (home) home.sections.push(...missing)
       else layout[side].push({ id: column.id, sections: missing, compact: false, width: COLUMN_WIDTH })
