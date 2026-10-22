@@ -36,6 +36,10 @@ extraResources:
     to: migrations
     filter:
       - "**/migration.sql"
+  # Kemolate for Claude Desktop — the MCP bridge, packed by `pnpm build` (mcpb/vite.config.ts).
+  # Beside the app so Settings › Agents can hand the file to Claude Desktop. See electron/mcp.ts.
+  - from: out/mcpb/kemolate.mcpb
+    to: kemolate.mcpb
 
 # A .kemolate double-clicked opens in the app — see electron/opening.ts, which takes
 # the path from the command line, or from a second launch through the single-instance lock.

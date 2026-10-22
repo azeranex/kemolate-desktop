@@ -116,6 +116,20 @@ export interface UpdateState {
   message?: string
 }
 
+/** The MCP server, as Settings shows it — see `mcp.ts`. */
+export interface McpStatus {
+  enabled: boolean
+  port: number
+  /** Whether it is actually listening — false while off, or when the port was taken. */
+  listening: boolean
+  /** Why it is not listening when it should be. */
+  error: string | null
+  /** The address a client is given. */
+  url: string
+  /** Whether this copy carries the Claude Desktop bundle (`kemolate.mcpb`). */
+  bundle: boolean
+}
+
 /** What happened while opening, for the window to say. */
 export interface DataNotice {
   /** The damaged file, moved aside. */
@@ -219,6 +233,28 @@ const api = {
       ipcRenderer.on('cuda:progress', forward)
       return () => {
         ipcRenderer.off('cuda:progress', forward)
+      }
+    },
+  },
+  /**
+   * The MCP server, for an agent on this machine — see `mcp.ts`. `status`,
+   * `set`, `addToClaude` and `showBundle` are Settings'; `have` is the workspace page saying which scans it holds and which page
+   * is on screen, and
+   * `onFrame` hears an agent's ask for one — a frame of the web build's swarm
+   * protocol, with the workspace it was asked under. Returns the unsubscribe.
+   */
+  mcp: {
+    status: (): Promise<McpStatus> => ipcRenderer.invoke('mcp:status'),
+    set: (patch: { enabled?: boolean, port?: number }): Promise<McpStatus> => ipcRenderer.invoke('mcp:set', patch),
+    /** Opens the bundle in Claude Desktop; answers why not, or null. */
+    addToClaude: (): Promise<string | null> => ipcRenderer.invoke('mcp:add-to-claude'),
+    showBundle: (): Promise<void> => ipcRenderer.invoke('mcp:show-bundle'),
+    have: (workspace: string | null, hashes: string[], pageId: number | null = null): Promise<void> => ipcRenderer.invoke('mcp:have', { workspace, hashes, pageId }),
+    onFrame: (listener: (workspace: string, frame: string) => void) => {
+      const forward = (_event: IpcRendererEvent, workspace: string, frame: string) => listener(workspace, frame)
+      ipcRenderer.on('mcp:frame', forward)
+      return () => {
+        ipcRenderer.off('mcp:frame', forward)
       }
     },
   },

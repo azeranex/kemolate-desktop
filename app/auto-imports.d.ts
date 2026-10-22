@@ -290,6 +290,7 @@ declare global {
   const hashLanes: typeof import('./utils/resources').hashLanes
   const heldOcrSettings: typeof import('./composables/useOcr').heldOcrSettings
   const hexOf: typeof import('../shared/utils/raster').hexOf
+  const holdScans: typeof import('./composables/useSwarm').holdScans
   const idb: typeof import('./utils/idb').idb
   const idbKey: typeof import('./utils/idbKeys').idbKey
   const idbPrefix: typeof import('./utils/idbKeys').idbPrefix
@@ -398,6 +399,7 @@ declare global {
   const onServerPrefetch: typeof import('vue').onServerPrefetch
   const onStartTyping: typeof import('@vueuse/core').onStartTyping
   const onSwarmChange: typeof import('./composables/useSwarm').onSwarmChange
+  const onSwarmErrand: typeof import('./composables/useSwarm').onSwarmErrand
   const onSwarmLive: typeof import('./composables/useSwarm').onSwarmLive
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
@@ -704,6 +706,7 @@ declare global {
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
   const useGlossary: typeof import('./composables/useGlossary').useGlossary
   const useHead: typeof import('./composables/nuxt').useHead
+  const useHolding: typeof import('./composables/useHolding').useHolding
   const useId: typeof import('vue').useId
   const useIdle: typeof import('@vueuse/core').useIdle
   const useImage: typeof import('@vueuse/core').useImage
@@ -781,6 +784,7 @@ declare global {
   const useProjectFile: typeof import('./composables/useProjectFile').useProjectFile
   const useProviderKeys: typeof import('./composables/useProviderKeys').useProviderKeys
   const useRafFn: typeof import('@vueuse/core').useRafFn
+  const useReadErrands: typeof import('./composables/useReadErrands').useReadErrands
   const useReadingDirection: typeof import('./composables/useReadingDirection').useReadingDirection
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
   const useRegion: typeof import('./composables/useRegion').useRegion
@@ -968,7 +972,7 @@ declare global {
   export type { RemotePage, SharedState } from './composables/useShared'
   import('./composables/useShared')
   // @ts-ignore
-  export type { SwarmChange, SwarmLive, SwarmPeer } from './composables/useSwarm'
+  export type { SwarmChange, SwarmServerMessage, SwarmLive, SwarmPeer, ErrandListener } from './composables/useSwarm'
   import('./composables/useSwarm')
   // @ts-ignore
   export type { ToolId, ToolOption, Tool } from './composables/useTools'
@@ -1421,6 +1425,7 @@ declare module 'vue' {
     readonly hashLanes: UnwrapRef<typeof import('./utils/resources')['hashLanes']>
     readonly heldOcrSettings: UnwrapRef<typeof import('./composables/useOcr')['heldOcrSettings']>
     readonly hexOf: UnwrapRef<typeof import('../shared/utils/raster')['hexOf']>
+    readonly holdScans: UnwrapRef<typeof import('./composables/useSwarm')['holdScans']>
     readonly idb: UnwrapRef<typeof import('./utils/idb')['idb']>
     readonly idbKey: UnwrapRef<typeof import('./utils/idbKeys')['idbKey']>
     readonly idbPrefix: UnwrapRef<typeof import('./utils/idbKeys')['idbPrefix']>
@@ -1529,6 +1534,7 @@ declare module 'vue' {
     readonly onServerPrefetch: UnwrapRef<typeof import('vue')['onServerPrefetch']>
     readonly onStartTyping: UnwrapRef<typeof import('@vueuse/core')['onStartTyping']>
     readonly onSwarmChange: UnwrapRef<typeof import('./composables/useSwarm')['onSwarmChange']>
+    readonly onSwarmErrand: UnwrapRef<typeof import('./composables/useSwarm')['onSwarmErrand']>
     readonly onSwarmLive: UnwrapRef<typeof import('./composables/useSwarm')['onSwarmLive']>
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
@@ -1835,6 +1841,7 @@ declare module 'vue' {
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
     readonly useGlossary: UnwrapRef<typeof import('./composables/useGlossary')['useGlossary']>
     readonly useHead: UnwrapRef<typeof import('./composables/nuxt')['useHead']>
+    readonly useHolding: UnwrapRef<typeof import('./composables/useHolding')['useHolding']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useIdle: UnwrapRef<typeof import('@vueuse/core')['useIdle']>
     readonly useImage: UnwrapRef<typeof import('@vueuse/core')['useImage']>
@@ -1911,6 +1918,7 @@ declare module 'vue' {
     readonly useProjectFile: UnwrapRef<typeof import('./composables/useProjectFile')['useProjectFile']>
     readonly useProviderKeys: UnwrapRef<typeof import('./composables/useProviderKeys')['useProviderKeys']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
+    readonly useReadErrands: UnwrapRef<typeof import('./composables/useReadErrands')['useReadErrands']>
     readonly useReadingDirection: UnwrapRef<typeof import('./composables/useReadingDirection')['useReadingDirection']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useRegion: UnwrapRef<typeof import('./composables/useRegion')['useRegion']>

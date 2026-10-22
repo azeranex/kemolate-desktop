@@ -5,6 +5,7 @@ import { backup, backupsFolder, databaseFile, listBackups, openingNotice, restor
 
 import type { DataAnswer, DataRequest } from './preload'
 import type { Context } from '~~/server/services'
+import type { ReadReport } from '~~/server/utils/reading'
 
 import { strokeBatchSchema, strokeDraftSchema } from '#shared/schemas/paint'
 import {
@@ -20,6 +21,7 @@ import {
   layerPresetSchema,
   layerSyncSchema,
   pageSyncSchema,
+  readReportSchema,
   revisionChoiceSchema,
   revisionRestoreSchema,
   revisionRevertSchema,
@@ -30,7 +32,9 @@ import {
 import { PLATES } from '#shared/utils/layers'
 import { parseRect } from '#shared/utils/repairs'
 import { blocks, cast, contextFor, glossaries, layers, pages, paint, repairs, translations, workspaces } from '~~/server/services'
+import { finish } from '~~/server/utils/errand'
 import { createError, HttpError } from '~~/server/utils/errors'
+import { deliver, MAX_BYTES } from '~~/server/utils/relay'
 
 /**
  * The window's requests for workspace data, answered in the main process.
@@ -46,8 +50,9 @@ import { createError, HttpError } from '~~/server/utils/errors'
  * changes, and do not grow logic here — it belongs in the service.
  *
  * What is left out is the web build's people: contributors, invitations,
- * leaving, the swarm ticket, and the MCP errands (`reading`, `relay`), which
- * answer an agent the desktop does not serve.
+ * leaving and the swarm ticket. The MCP errands' answers (`reading`, `relay`)
+ * are here: the window answers an agent's ask through them as a tab does
+ * (`electron/mcp.ts`, `useHolding`).
  *
  * An answer goes back as JSON would have — `answer()` round-trips it, so a
  * `Date` arrives as the ISO string the composables were written for rather than
@@ -330,6 +335,27 @@ const ROUTES: [string, string, Handler][] = [
     await translations.unpin(context, input.blockIds, input.locale)
 
     return { ok: true }
+  })],
+
+  // The window's report on a reading an agent asked for — the blocks came by `pages/:pageId/blocks`.
+  ['POST', `${W}/reading/:requestId`, workspace(async (context, call) => {
+    finish<ReadReport>(call.params.requestId ?? '', context.workspace.publicId, valid(readReportSchema, call.body))
+
+    return null
+  })],
+  // A rendition an agent asked to be shown, handed straight on and kept nowhere — see
+  // `server/utils/relay.ts`. Its type comes as `?type=`, where the web build reads the
+  // Content-Type: the window's `$fetch` carries no headers over IPC.
+  ['POST', `${W}/relay/:requestId`, workspace(async (context, { params, query, body }) => {
+    const type = String(query.type ?? '')
+
+    if (!type.startsWith('image/')) throw createError({ statusCode: 415, statusMessage: 'A rendition is an image.' })
+    if (!(body instanceof Uint8Array) || !body.byteLength) throw createError({ statusCode: 400, statusMessage: 'No rendition sent.' })
+    if (body.byteLength > MAX_BYTES) throw createError({ statusCode: 413, statusMessage: 'That rendition is too large.' })
+
+    deliver(params.requestId ?? '', context.workspace.publicId, Buffer.from(body), type)
+
+    return null
   })],
 
   ['GET', `${W}/repairs`, workspace(async (context) => repairs.list(context))],

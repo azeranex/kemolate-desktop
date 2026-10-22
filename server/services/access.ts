@@ -11,9 +11,10 @@
  *   one person, and the schema keeps those columns without a foreign key.
  * - `role` is always `owner`: the reader can do anything to their own work.
  * - `must` allows every ability (see `#shared/utils/abilities`).
- * - `notify` does nothing. In the web build it told the other browsers in the
- *   workspace's swarm; here there is one window, and every write already brings
- *   its own answer back to the window that made it.
+ * - `notify` tells the window only about a change an agent made over MCP
+ *   (`origin: 'agent'`, set by `mcpContext`). In the web build it told every
+ *   other browser in the workspace's swarm; here there is one window, and its
+ *   own writes already bring their answer back to it.
  *
  * `pageIn` is the web build's, verbatim: a page id from another workspace is
  * still refused, which keeps a slip in the window from writing into the wrong
@@ -23,6 +24,7 @@ import type { Ability, Access } from '#shared/utils/abilities'
 import type { Workspace } from '~~/server/database'
 
 import { db } from '~~/server/database'
+import { announce, type SwarmChange } from '~~/server/utils/swarm'
 
 export interface Context extends Access {
   workspace: Workspace
@@ -42,8 +44,10 @@ export async function contextFor (publicId: string): Promise<Context | null> {
 /** Allowed — see the header. Kept so the services can name what they need. */
 export async function must (_context: Context, _ability: Ability, ..._args: unknown[]): Promise<void> {}
 
-/** Nobody else to tell — see the header. */
-export function notify (_context: Context, _change: unknown): void {}
+/** The window, about what an agent changed — see the header. */
+export function notify (context: Context, change: SwarmChange): void {
+  if (context.origin === 'agent') announce(context.workspace.publicId, change)
+}
 
 /**
  * A 404 unless the page is this workspace's.

@@ -70,6 +70,13 @@ the version and has a button to check now.
 
 ## Optional extras
 
+- **An AI agent (MCP).** Settings › Agents turns on an MCP server for a client on this computer —
+  Claude Code, Claude Desktop, an editor. It can list your workspaces, have pages read by
+  Kemolate's own OCR, check and correct the reading, and translate and file the result. It
+  listens on this computer only, takes no token, and is off until you turn it on. While it is
+  on, any program on this computer can use your workspaces through it. It works on the chapter
+  and page open in the window unless told otherwise, and page images come from that window.
+  For Claude Desktop, **Add to Claude Desktop** installs Kemolate as an extension.
 - **NVIDIA GPU (CUDA).** On Windows x64 with an NVIDIA card, Settings › NVIDIA GPU (CUDA) sets
   up a private Python environment inside Kemolate's own folder with one press. It runs the
   comic detector and Kemolate OCR on CUDA, about twice as fast as WebGPU. Remove deletes the

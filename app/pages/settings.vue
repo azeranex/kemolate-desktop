@@ -310,6 +310,9 @@ useEventListener(document, 'focusin', (event: FocusEvent) => {
         <!-- Desktop: models on an NVIDIA GPU, opt-in — see `SettingsCuda`. -->
         <SettingsCuda />
 
+        <!-- Desktop: the MCP server, for an agent on this machine — see `SettingsMcp`. -->
+        <SettingsMcp />
+
         <!-- Desktop: where the work is kept, and its backups — see `SettingsData`. -->
         <SettingsData />
 

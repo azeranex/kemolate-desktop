@@ -68,6 +68,14 @@ function stateOf (win: BrowserWindow | null): WindowState {
   }
 }
 
+/**
+ * What to forget when the page goes — a reload, a navigation, the window
+ * closing. Today the MCP server's note of which scans the window holds
+ * (`mcp.ts`): a page that is gone can show nobody anything, and an errand sent
+ * to it would only wait out its timeout.
+ */
+const leaving: (() => void)[] = []
+
 function createWindow () {
   // Where it was last time, or 1920 × 1080 the first time — see `windowState.ts`.
   const place = windowPlace()
@@ -109,6 +117,13 @@ function createWindow () {
   win.setBounds(place.bounds)
 
   keepWindowPlace(win, place.bounds)
+
+  win.webContents.on('did-start-navigation', (event) => {
+    if (event.isMainFrame && !event.isSameDocument) for (const forget of leaving) forget()
+  })
+  win.on('closed', () => {
+    for (const forget of leaving) forget()
+  })
 
   win.once('ready-to-show', () => {
     // Maximised before it is shown, so it does not open small and then jump.
@@ -267,6 +282,20 @@ async function startDatabase () {
     const { serveData } = await import('./data')
 
     serveData(trusted)
+
+    // The MCP server, on the loopback if the reader turned it on — see `mcp.ts`.
+    // Its tools call the toolkit's globals as they load, so those come first.
+    const { installMcpGlobals } = await import('~~/server/utils/mcpToolkit')
+
+    installMcpGlobals()
+
+    const { closeMcp, serveMcp, windowLeft } = await import('./mcp')
+
+    await serveMcp(trusted, mainWindow)
+    leaving.push(windowLeft)
+    app.on('will-quit', () => {
+      closeMcp().catch(() => {})
+    })
   } catch (error) {
     console.error('[database] could not open', error)
     dialog.showErrorBox('Kemolate could not open its database', `Your workspaces' work could not be read: ${error instanceof Error ? error.message : String(error)}

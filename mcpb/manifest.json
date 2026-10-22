@@ -1,0 +1,117 @@
+{
+  "manifest_version": "0.3",
+  "name": "kemolate",
+  "display_name": "Kemolate",
+  "version": "0.0.0",
+  "description": "Work on your Kemolate comic translation chapters: read pages with Kemolate's own OCR, check and correct the reading, translate and file it.",
+  "long_description": "Connects Claude to the Kemolate desktop app running on this computer. Kemolate must be open, with its MCP server turned on in Settings › Agents. Pages stay on this computer: images come from the chapter open in the Kemolate window, as reduced-size renditions, only when a tool asks for one.",
+  "author": {
+    "name": "Azeranex",
+    "url": "https://github.com/azeranex/kemolate-desktop"
+  },
+  "homepage": "https://github.com/azeranex/kemolate-desktop",
+  "support": "https://github.com/azeranex/kemolate-desktop/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.mjs"
+      ],
+      "env": {
+        "KEMOLATE_MCP_PORT": "${user_config.port}"
+      }
+    }
+  },
+  "user_config": {
+    "port": {
+      "type": "number",
+      "title": "Port",
+      "description": "The port shown in Kemolate › Settings › Agents. Change it only if you changed it there.",
+      "default": 38427,
+      "min": 1024,
+      "max": 65535,
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "get_active_workspace",
+      "description": "The chapter and page open in the Kemolate window right now."
+    },
+    {
+      "name": "list_workspaces",
+      "description": "List the comic chapters, most recently touched first."
+    },
+    {
+      "name": "get_workspace",
+      "description": "A chapter's languages, reading direction and translator's note."
+    },
+    {
+      "name": "update_workspace",
+      "description": "Change a chapter's settings."
+    },
+    {
+      "name": "list_pages",
+      "description": "A chapter's pages in reading order, and how far each has got."
+    },
+    {
+      "name": "read_page",
+      "description": "Every text block on some pages, with its source and translations."
+    },
+    {
+      "name": "request_page_read",
+      "description": "Read pages with Kemolate's own OCR, in the open chapter."
+    },
+    {
+      "name": "review_page_reading",
+      "description": "Each block's reading beside a close crop of it, to check."
+    },
+    {
+      "name": "get_page_image",
+      "description": "A page, or a region of it, as a reduced-size image."
+    },
+    {
+      "name": "correct_blocks",
+      "description": "Fix what a reading got wrong, one block at a time."
+    },
+    {
+      "name": "save_page_blocks",
+      "description": "File text blocks read off a page."
+    },
+    {
+      "name": "sort_page_blocks",
+      "description": "Put a page's blocks into reading order."
+    },
+    {
+      "name": "prepare_page_translation",
+      "description": "The translation job for some pages, as Kemolate would prompt it."
+    },
+    {
+      "name": "save_page_translations",
+      "description": "File translations, and what the pages taught the glossary and cast."
+    },
+    {
+      "name": "get_glossary",
+      "description": "The terms a chapter has settled on in one language."
+    },
+    {
+      "name": "get_cast",
+      "description": "The characters a chapter knows about."
+    }
+  ],
+  "tools_generated": true,
+  "prompts_generated": true,
+  "compatibility": {
+    "platforms": [
+      "win32",
+      "darwin",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}

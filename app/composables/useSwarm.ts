@@ -7,6 +7,14 @@
  * back; with no socket for the workspace the web build answers `{}`, and so
  * does this, always. The live-stroke half below is the same: a hand drawing is
  * told to nobody and hears from nobody.
+ *
+ * What is real here is the part of the swarm an agent reaches. The web build's
+ * MCP server asks a tab holding a scan to show it (`render`) or to read it
+ * (`read`), and tells every tab what an agent changed (`changed`) — all down
+ * the room's socket. Here the same frames come from the main process
+ * (`electron/mcp.ts`, `server/utils/swarm.ts`) over the bridge, and are handled
+ * as the web build's `handle` handles them; the window says which scans it
+ * holds through `holdScans`, called by `useHolding`.
  */
 import type { StrokeParams } from '~~/server/database'
 
@@ -30,12 +38,37 @@ export type SwarmChange =
   | { scope: 'repairs', pageId: number }
 
 /**
- * Hear another window of a shared workspace change something. Nothing is ever
- * heard: there is one window, and nobody else at the database it writes to.
- * Returns the unsubscribe, as the web build's does.
+ * What the main process asks of the window on an agent's behalf — the web
+ * build's `SwarmServerMessage`, the three kinds that reach here. See
+ * `server/utils/swarm.ts`.
  */
-export function onSwarmChange (_listener: (room: string, change: SwarmChange) => void): () => void {
-  return () => {}
+export type SwarmServerMessage =
+  | {
+    type: 'render'
+    request: string
+    hash: string
+    maxEdge: number
+    quality: number
+    region: { x: number, y: number, w: number, h: number } | null
+  }
+  | { type: 'read', request: string, hashes: string[], pageIds: number[] }
+  | { type: 'changed', change: SwarmChange }
+
+const changeListeners = new Set<(room: string, change: SwarmChange) => void>()
+
+/**
+ * Hear a change somebody else made to a workspace — here, only ever an agent
+ * over MCP; the window's own writes are not told back to it. Taken off the list
+ * when the caller's scope ends, as the web build's is. Returns the unsubscribe.
+ */
+export function onSwarmChange (listener: (room: string, change: SwarmChange) => void): () => void {
+  changeListeners.add(listener)
+
+  const off = () => changeListeners.delete(listener)
+
+  if (getCurrentScope()) onScopeDispose(off)
+
+  return off
 }
 
 /**
@@ -84,4 +117,111 @@ const nobody = computed<SwarmPeer[]>(() => [])
 
 export function useSwarm () {
   return { peers: nobody }
+}
+
+/** A job the server is asking this window to do — see `SwarmServerMessage`. */
+export type ErrandListener = (
+  workspace: string,
+  errand: Extract<SwarmServerMessage, { type: 'read' }>,
+) => void
+
+/**
+ * Who is willing to read pages on an agent's behalf — the web build's: the
+ * frame is handed on rather than done here, because reading needs the open
+ * chapter and the OCR, which `useReadErrands` has and a bridge callback does
+ * not. Nothing is queued.
+ */
+const hands = new Set<ErrandListener>()
+
+export function onSwarmErrand (listener: ErrandListener): () => void {
+  hands.add(listener)
+
+  const off = () => hands.delete(listener)
+
+  if (getCurrentScope()) onScopeDispose(off)
+
+  return off
+}
+
+/** The workspace the window holds pages of, and those pages by hash — see `holdScans`. */
+let holding: { workspace: string, files: Map<string, File> } | null = null
+
+/**
+ * Say which scans the window holds — the web build's `have`, sent when a room
+ * is joined and whenever the inventory changes. `null` is holding nothing: the
+ * workspace page has gone. `pageId` is the page on screen, by its row, so an
+ * agent can be asked about "this page". Best effort: a main process that did not hear it
+ * answers an agent that nobody is holding the page, which is what it says when
+ * no chapter is open.
+ */
+export function holdScans (workspace: string | null, files: Map<string, File>, pageId: number | null = null) {
+  holding = workspace ? { workspace, files } : null
+
+  window.kemolate?.mcp.have(workspace, workspace ? [...files.keys()] : [], pageId).catch(() => {})
+}
+
+/**
+ * Show a page to an agent — the web build's `render`: a bounded rendition made
+ * for the asking, posted to the relay row (`electron/data.ts`), which hands it
+ * straight on. Silent about everything, as there: a hash not held here, or an
+ * answer that arrives late, is nobody's fault.
+ */
+async function render (workspace: string, ask: Extract<SwarmServerMessage, { type: 'render' }>) {
+  const file = holding?.workspace === workspace ? holding.files.get(ask.hash) : undefined
+
+  if (!file) return
+
+  const made = await renditionOf(file, ask.maxEdge, ask.quality, ask.region).catch(() => null)
+
+  if (!made) return
+
+  await $fetch(`/api/workspaces/${workspace}/relay/${ask.request}`, {
+    method: 'POST',
+    body: made.blob,
+    // Desktop: the type as a query — `$fetch` carries no headers over the bridge.
+    query: { type: made.blob.type || 'image/jpeg' },
+  }).catch(() => {})
+}
+
+function handle (workspace: string, payload: SwarmServerMessage) {
+  if (payload.type === 'render') {
+    // Not awaited, as in the web build: `render` swallows its own failures.
+    render(workspace, payload)
+  } else if (payload.type === 'read') {
+    // With nobody to hand it to, said so at once — see the web build's `handle`.
+    if (!hands.size) {
+      $fetch(`/api/workspaces/${workspace}/reading/${payload.request}`, {
+        method: 'POST',
+        body: { ok: false, error: 'Kemolate has no chapter open to read with.' },
+      }).catch(() => {})
+    }
+
+    for (const hand of hands) {
+      try {
+        hand(workspace, payload)
+      } catch (error) {
+        console.warn('[kemolate] an errand listener failed:', error)
+      }
+    }
+  } else if (payload.type === 'changed') {
+    for (const listener of changeListeners) {
+      try {
+        listener(workspace, payload.change)
+      } catch (error) {
+        console.warn('[kemolate] a change listener failed:', error)
+      }
+    }
+  }
+}
+
+// Once, for the window's life — the bridge is the room's socket. Absent in a
+// plain browser and in the tests, where nothing ever arrives.
+if (typeof window !== 'undefined') {
+  window.kemolate?.mcp?.onFrame((workspace, frame) => {
+    try {
+      handle(workspace, JSON.parse(frame) as SwarmServerMessage)
+    } catch (error) {
+      console.warn('[kemolate] an unreadable frame from the MCP server:', error)
+    }
+  })
 }

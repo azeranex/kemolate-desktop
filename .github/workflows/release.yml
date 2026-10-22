@@ -54,7 +54,8 @@ jobs:
       - run: pnpm test
 
       # `pnpm build` is vue-tsc and Vite: the renderer into dist/, the main
-      # process and preload into dist-electron/ (emptied first, see vite.config.ts).
+      # process and preload into dist-electron/ (emptied first, see vite.config.ts),
+      # and the Claude Desktop bundle into out/mcpb/ (mcpb/vite.config.ts).
       - run: pnpm build
 
       # The Release made here, before electron-builder runs, and not by it.

@@ -105,6 +105,13 @@ useTranslationSync()
 useLiveSync()
 useLayerSync()
 
+// An agent on the MCP server (`electron/mcp.ts`) can ask for a page of the open
+// chapter to be shown or read. The window says which scans it holds
+// (`useHolding`, the web build's `have`), and `useReadErrands` — the web
+// build's, which explains why reading beats an agent looking — does the reading.
+useHolding()
+useReadErrands()
+
 /*
  * Whether the record has been asked for on the way in — so that "no record"
  * means there is none, rather than that the answer has not come back yet. A

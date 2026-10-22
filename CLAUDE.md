@@ -12,7 +12,8 @@ this file is about how this repository differs from it.
 
 ```bash
 pnpm dev          # Vite + Electron; main restarts on edit, preload reloads the page
-pnpm build        # vue-tsc, then renderer → dist/, main + preload → dist-electron/
+pnpm build        # vue-tsc, then renderer → dist/, main + preload → dist-electron/, then build:mcpb
+pnpm build:mcpb   # the Claude Desktop bundle → out/mcpb/kemolate.mcpb (see The MCP server)
 pnpm preview      # run the built app
 pnpm dist         # build, then the installer (electron-builder → release/)
 pnpm dist:dir     # build, then the packaged app unpacked (release/win-unpacked) — no installer
@@ -50,10 +51,13 @@ Two things the Nuxt environment did that this one does by hand, and that fail qu
 
 The sync composables' tests came back with the database (2026-10-21), as the web build has
 them. What did **not** come across from `test/nuxt/` is the swarm and the accounts — `useSwarm`,
-`wire`, `vault`, the auth middleware, the read errands — and the payload tests: there is no
+`wire`, `vault`, the auth middleware — and the payload tests: there is no
 Nuxt payload here. The readers' tests name Kemolate OCR where they named Manga OCR, and say so.
 The server's tests are the web build's `test/unit/server/` on the same harness (an in-memory
 database, the real migrations replayed), less every case about people, roles and the swarm.
+The MCP server's came across with it (2026-10-22: `relay`, `reading`, `brief`, a tool's), with
+`useReadErrands`', and `test/unit/server/mcp/index.test.ts` is the desktop's own — the
+registration that stands in for the toolkit, through a real SDK client.
 A fix carried from the web build's tests should land at the same path here.
 
 `electron . --smoke=out/smoke.png` opens the built window, saves a capture of it and quits —
@@ -82,7 +86,8 @@ never attach to the reader's.
 | `test/unit/` | `test/unit/` | node, mirrors the tree it covers |
 | `test/app/` | `test/nuxt/` | the app's tests — see Commands |
 | `electron/` | — | main process and preload (the bridge, `window.kemolate`) |
-| `server/` | `server/` | the model store (`models.ts`), and the web build's data layer — `database/` (schema, relations, client, migrations) and `services/` — run by the main process, not a server; see **The workspace database** |
+| `mcpb/` | — | the Claude Desktop bundle: manifest, the stdio bridge, its build — see **The MCP server** |
+| `server/` | `server/` | the model store (`models.ts`), and the web build's data layer — `database/` (schema, relations, client, migrations) and `services/` — run by the main process, not a server; see **The workspace database**. `mcp/` and its `utils/` are the web build's MCP server; see **The MCP server** |
 | `.github/workflows/` | — | CI on every push and pull request, and the release on a `v*` tag — see **Releases and updates** |
 
 A file migrated from the web build goes to **the same path** here, so the two can be diffed
@@ -120,13 +125,14 @@ and a later fix in one can be carried to the other. Keep it that way.
   original stays unchanged and reads it truthfully: things that need a chapter disable
   themselves; things that cannot, say so with a toast. Each stand-in names what replaces it.
   - Permanent: `useSwarm` (no room: `peerHeader` is `{}`, `peers` is empty, a live stroke is
-    told to nobody and no change notice ever arrives — there is one window), and
+    told to nobody; the only frames that arrive are an agent's — see **The MCP server**), and
     `useUserSession` (always signed in, as nobody in particular — see the database section).
   - Nuxt's `<NuxtLink>` is `components/NuxtLink.vue`: an anchor that goes through
     `navigateTo`.
   - `pages/w/[workspaceId].vue` is the desktop's page with the web build's open chain in it
     (`look`, `syncPages`, `showMissing`, the four syncs mounted, sizes filled) — not the web
-    file, which also joins the swarm and serves MCP errands. Its `composing` wait asks once
+    file, which also joins the swarm (the MCP errands are served here, by `useHolding` and
+    `useReadErrands`). Its `composing` wait asks once
     before watching: the web build's `immediate` watch called `stop()` before `watch` had
     returned it whenever the page's reading was already there, which is every absent page —
     the web build very likely has the same bug.
@@ -271,6 +277,88 @@ cleaned repairs' rows — is `<profile>/kemolate.db`, and its pictures stay the 
   written and read back, kept across a relaunch and a deleted IndexedDB, a workspace made by
   the build before the database moved whole, a damaged file set aside and restored, and a
   restore through Settings.
+
+## The MCP server
+
+Added 2026-10-22: the web build's `/mcp` — an agent in somebody's editor lists the chapters,
+has pages read by the app's own OCR, checks and corrects the reading, and translates — served
+by the main process on the loopback, for an MCP client on this machine. Read the web build's
+**MCP** section first; this is how the desktop differs.
+
+- **The tools, the prompt and their utils are the web build's files at the same paths**
+  (`server/mcp/tools/`, `prompts/`, `server/utils/{brief,errand,relay,reading}.ts`), verbatim
+  but for `list_workspaces` (`listAll`, no contributors) and the refusal `noHolder` gives, said
+  of a window. A tool added there is a file copied here and a line in `server/mcp/index.ts`,
+  which lists them by hand (the toolkit discovers them) and holds the server instructions
+  (`mcp.instructions` in the web build's `nuxt.config.ts`). The toolkit's auto-imports
+  (`defineMcpTool`, `jsonResult`, `imageResult`) and `mcpJson` are globals
+  (`installMcpGlobals`), installed before a tool loads. `@modelcontextprotocol/sdk` is pinned
+  to the version the web build's toolkit resolves.
+- **`electron/mcp.ts` is the server**: `node:http` on 127.0.0.1, stateless (one `McpServer` per
+  request, as the web build's `sessions` off), each request inside its own event
+  (`useEvent`, an `AsyncLocalStorage`). **Off until Settings › Agents turns it on**
+  (`SettingsMcp.vue`); `mcp.json` in the profile keeps on/off and the port (default 38427).
+  **No token** (decided 2026-10-22, by the reader): the first version had one, kept as a digest
+  like the web build's access tokens, and on one person's machine it kept going wrong — made in
+  one app, pasted into another — while guarding only against programs that could read the
+  profile anyway. Who may come in is the loopback: it listens on 127.0.0.1 and refuses any
+  other remote address (`loopback`). Still refused: a `Host` that is not the loopback (DNS
+  rebinding), any `Origin` (a web page), anything but POST `/mcp`. The actor checks
+  (`mcpEnabled`, `requireMcpActor`) stay, so the tools read as the web build's; every caller
+  that comes in passes them. `serverFor` still answers `tools/list` and `tools/call` itself
+  for a caller offered nothing, since the SDK says "Method not found" then — the bridge once
+  read that as Kemolate not running.
+- **The window is the swarm's one peer.** `server/utils/swarm.ts` keeps the web build's
+  `swarmState` shape so `errand`, `relay` and `reading` stay verbatim: the workspace page
+  says which scans it holds (`useHolding` → `mcp:have`), a frame for it goes over IPC
+  (`mcp:frame`, with the workspace it was asked under), and `useSwarm` handles `render` and
+  `read` as the web build's `handle` does — answering through `/relay/:request` and
+  `/reading/:request`, rows in `electron/data.ts` (a rendition's type as `?type=`; `$fetch`
+  carries no headers). The window holds one workspace or none; a navigation or reload forgets
+  it (`leaving` in `main.ts`). The scans never leave the reader's files but as these
+  renditions, as the web build's invariant says.
+- **The open chapter is the default** (added 2026-10-22, the desktop's own). The window also
+  says which page is on screen, by its row (`useHolding`, `rowOfPage`), kept as
+  `swarmState.active`. `get_active_workspace` answers what is open, and `defaulted` in
+  `server/mcp/index.ts` makes every tool's `workspaceId`, and a one-page tool's `pageId`,
+  optional at registration — an id given is used as given; a missing one is the open chapter, and
+  the page on screen only within it. The tool files stay the web build's. Nothing open is a 409
+  that says to name one, never a guess.
+- **An agent's writes reach the window.** `mcpContext` gives its context `origin: 'agent'`, and
+  `notify` (`access.ts`) sends those — and only those — to the window as `changed` frames, so
+  `useLiveSync` and the rest re-read as for a collaborator. The window's own writes are not
+  told back, as the web build spares the author.
+- **Claude Desktop gets a bundle** (added 2026-10-22): `kemolate.mcpb`, an MCP Bundle, built by
+  `pnpm build:mcpb` (`mcpb/vite.config.ts`: the bridge and the SDK into one file, the manifest
+  with `package.json`'s version, `build/icon.png`, packed and validated by
+  `@anthropic-ai/mcpb`, pinned) and carried by the installer (`extraResources`). Claude Desktop
+  runs its servers over stdio, so `mcpb/bridge.ts` is a bridge to this server, on the port the
+  reader enters in Claude Desktop's install dialog (`user_config`). It answers the handshake
+  itself and asks Kemolate for every list and call, so it works whether Kemolate was open
+  first or not: while Kemolate cannot be reached, or something else answers on its port, it
+  offers one tool, `kemolate_status`, saying which and what to do, looks again every 5 s, and
+  sends `tools/list_changed` when the real ones appear. A protocol error from a call is a
+  refusal, not Kemolate gone. Settings' **Add to Claude Desktop** opens the file
+  (`mcp:add-to-claude`), which Windows hands to Claude Desktop (the MSIX package) — tried on
+  2026-10-22, at the reader's request; **Show the file** is for dragging it onto Claude
+  Desktop's Settings › Extensions where nothing opens it. The manifest lists the tools statically for the
+  install screen; `index.test.ts` keeps that list equal to the server's. The briefing is
+  `server/mcp/instructions.ts`, importing nothing, so the bridge carries it without the tools.
+  Manifest version 0.3: 0.4 adds only `uv` servers.
+- Port 47615, the first default, could not be bound on the machine this was written on —
+  nothing in 45000–48999 could, with no exclusion listed — and `EADDRINUSE` is said as
+  "in use, or reserved".
+- Verified 2026-10-22, over HTTP with the SDK's client: against the packaged build on a test
+  profile, all sixteen tools and the prompt with no token, `list_workspaces`/`list_pages`
+  (`reachable` true for the open chapter), `get_page_image` whole and by region relayed from the
+  window, and the Origin, Host, path and GET refusals. The bundle's bridge, run as Claude Desktop
+  runs it (`node server/index.mjs` over stdio, configured by environment): the status tool with
+  Kemolate closed, then Kemolate opened after the bridge — the list change arrived and the
+  tools, the prompt and `list_workspaces` came through. Then, installed on the reader's own
+  profile, `get_active_workspace`, `list_pages` and `get_page_image` with no ids, against the
+  chapter and page on their screen.
+  **`request_page_read` was not run end to end** — its two halves are tested
+  (`reading.test.ts`, `useReadErrands.test.ts`), the pass through the window was not.
 
 ## Releases and updates
 
