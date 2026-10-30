@@ -5,7 +5,7 @@ import { effectScope, nextTick } from 'vue'
 
 import { forgetAgreed, useBlockSync } from '~/composables/useBlockSync'
 import { useComic } from '~/composables/useComic'
-import { useLiveSync } from '~/composables/useLiveSync'
+import { caughtUp, useLiveSync } from '~/composables/useLiveSync'
 import { useOcr } from '~/composables/useOcr'
 
 /**
@@ -253,6 +253,30 @@ describe('a page re-read because somebody else changed it', () => {
 
     // The hand on the mouse is the later writer — see `reconcile`.
     expect(writes()).toEqual(['PATCH 731'])
+  })
+
+  it('is caught up at once for an agent asking about what it has just written', async () => {
+    // The agent's write, and its notice, and its question straight after — long
+    // before the notice's settle would have read the page.
+    server.rows = [row(730, 0, 0.3), row(731, 1, 0.6, 'just written'), row(732, 2, 0.9)]
+    hear.value!('ws', { scope: 'blocks', pageId: PAGE })
+
+    await caughtUp(useComic().pages.value[0]!)
+
+    expect(useComic().pages.value[0]!.blocks[1]!.source).toBe('just written')
+    expect(calls.filter((call) => call === 'GET page')).toEqual(['GET page'])
+
+    // And the settle that was waiting does not read it a second time.
+    await wait(400)
+
+    expect(calls.filter((call) => call === 'GET page')).toEqual(['GET page'])
+    expect(writes()).toEqual([])
+  })
+
+  it('has nothing to wait for when no notice is waiting', async () => {
+    await caughtUp(useComic().pages.value[0]!)
+
+    expect(calls).toEqual([])
   })
 
   it('does not open a page to appending that a refused reading closed', async () => {

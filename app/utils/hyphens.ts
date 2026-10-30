@@ -56,8 +56,22 @@ const MIN_WORD = 7
 /** Patterns that have arrived, by language. */
 const loaded = new Map<string, Hyphenator>()
 
-/** Languages whose patterns have been asked for, so a page of thirty balloons asks once. */
-const asked = new Set<string>()
+/**
+ * Languages whose patterns are on their way, with everybody waiting for them,
+ * so a page of thirty balloons asks once — and every one of them is told.
+ * This was a set of names, and only the first asker's `done` was kept: the
+ * board's fit asked, an agent's `review_lettering` asked while the patterns
+ * were still in flight, and its promise never settled — the first review of
+ * every session timed out after thirty seconds (2026-10-30).
+ */
+const asked = new Map<string, Array<() => void>>()
+
+/**
+ * Languages whose patterns did not load, which are ready from then on without
+ * them. Not asked again: each waiter told measures again, and asks — a load
+ * retried there fails again and tells it again, for as long as the tab is open.
+ */
+const failed = new Set<string>()
 
 /** The patterns' language for a target language — its own, or the language without its region. */
 const keyOf = (lang: string | undefined) =>
@@ -71,23 +85,36 @@ const keyOf = (lang: string | undefined) =>
 export function hyphenationReady (lang: string | undefined, done: () => void): boolean {
   const key = keyOf(lang)
 
-  if (!key || loaded.has(key)) return true
+  if (!key || loaded.has(key) || failed.has(key)) return true
 
-  if (!asked.has(key)) {
-    asked.add(key)
+  const waiting = asked.get(key)
 
-    PATTERNS[key]!()
-      .then((module) => {
-        // A CommonJS module, so its exports may arrive as the module or as its default.
-        const found = (module as Hyphenator & { default?: Hyphenator }).default ?? module
+  if (waiting) {
+    waiting.push(done)
 
-        loaded.set(key, found)
-      })
-      .catch((error: unknown) => {
-        console.warn(`[kemolate] hyphenation patterns for ${key} did not load`, error)
-      })
-      .finally(done)
+    return false
   }
+
+  asked.set(key, [done])
+
+  PATTERNS[key]!()
+    .then((module) => {
+      // A CommonJS module, so its exports may arrive as the module or as its default.
+      const found = (module as Hyphenator & { default?: Hyphenator }).default ?? module
+
+      loaded.set(key, found)
+    })
+    .catch((error: unknown) => {
+      failed.add(key)
+      console.warn(`[kemolate] hyphenation patterns for ${key} did not load`, error)
+    })
+    .finally(() => {
+      const told = asked.get(key) ?? []
+
+      asked.delete(key)
+
+      for (const call of told) call()
+    })
 
   return false
 }

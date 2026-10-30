@@ -23,6 +23,7 @@
  *
  * Called once, from the workspace page, beside `useReadErrands`.
  */
+import { caughtUp } from '~/composables/useLiveSync'
 import { ordinaryPitch } from '~/utils/emphasis'
 import { hyphenationReady } from '~/utils/hyphens'
 import { rowOf } from '~/utils/ocr/blocks'
@@ -130,7 +131,14 @@ export function useLetteringErrands () {
   }
 
   onLetterErrand(async (workspace, errand) => {
-    const page = workspace === open ? pages.value.find((candidate) => candidate.scan?.hash === errand.hash) : undefined
+    const found = workspace === open ? pages.value.find((candidate) => candidate.scan?.hash === errand.hash) : undefined
+
+    // An agent asks about what it has just written: the page is brought up to
+    // date with the notice of that write first — see `caughtUp` — and looked up
+    // again, because catching up puts new blocks on it.
+    if (found) await caughtUp(found)
+
+    const page = found ? pages.value.find((candidate) => candidate.id === found.id) : undefined
 
     if (errand.type === 'fits') {
       const report = (body: Record<string, unknown>) =>

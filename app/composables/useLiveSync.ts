@@ -133,6 +133,27 @@ export function agreeArrived (
   }
 }
 
+/** The open workspace's `catchUp`, while a `useLiveSync` is mounted — see `caughtUp`. */
+let catchUp: ((page: ComicPage) => Promise<void>) | null = null
+
+/**
+ * Desktop: the page brought up to date with every notice already heard about
+ * it, before an agent's question about it is answered.
+ *
+ * An agent writes, and asks about what it wrote in its next breath:
+ * `save_page_translations` and then `review_lettering`. The notice of the
+ * write reaches this window before the question does — both come down the one
+ * channel, in order — but a notice waits out `SETTLE` and then a read, so the
+ * question was answered from the page as it was: every line just translated
+ * was still empty, and the review reported no lines at all (the hidden-tab
+ * probe, 2026-10-30; three seconds later the same review found all six). This
+ * runs any read still waiting at once and waits for it, and for one already
+ * in flight. Nothing waiting is nothing to wait for.
+ */
+export function caughtUp (page: ComicPage): Promise<void> {
+  return catchUp ? catchUp(page) : Promise.resolve()
+}
+
 export function useLiveSync () {
   const route = useRoute()
   // `epoch` because `settled` records what a page held *in this open of the
@@ -147,6 +168,20 @@ export function useLiveSync () {
 
   /** Pages with a read already scheduled, by row id, so a burst is one fetch. */
   const due = new Map<number, ReturnType<typeof setTimeout>>()
+
+  /** Reads under way, by row id — what `caughtUp` waits for. */
+  const reading = new Map<number, Promise<void>>()
+
+  /** A page's read, recorded while it runs. */
+  function start (pageId: number): Promise<void> {
+    const run = reread(pageId).finally(() => {
+      if (reading.get(pageId) === run) reading.delete(pageId)
+    })
+
+    reading.set(pageId, run)
+
+    return run
+  }
 
   // A page's cleaning, on its own timers: a chapter cleaned in one go sends a
   // notice a balloon, and a page wants one re-read for all of them.
@@ -409,13 +444,33 @@ export function useLiveSync () {
     clearTimeout(due.get(pageId))
     due.set(pageId, setTimeout(() => {
       due.delete(pageId)
-      reread(pageId)
+      start(pageId)
     }, SETTLE))
   })
+
+  const mine = (page: ComicPage) => {
+    const pageId = pageRowOf(page)
+
+    if (pageId === null) return Promise.resolve()
+
+    // A read still sitting out its settle is run now: the asker is the later edit.
+    if (due.has(pageId)) {
+      clearTimeout(due.get(pageId))
+      due.delete(pageId)
+
+      return start(pageId)
+    }
+
+    return reading.get(pageId) ?? Promise.resolve()
+  }
+
+  catchUp = mine
 
   // Nothing to unhook for `onSwarmChange` itself — it takes itself off the list
   // when this scope ends. The timers are ours.
   onScopeDispose(() => {
+    if (catchUp === mine) catchUp = null
+
     for (const timer of due.values()) clearTimeout(timer)
     for (const timer of cleaning.values()) clearTimeout(timer)
 

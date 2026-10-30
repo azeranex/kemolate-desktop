@@ -44,6 +44,19 @@ describe('withHyphens', () => {
   })
 })
 
+describe('hyphenationReady', () => {
+  it('tells everybody who asked while the patterns were on their way, not only the first', async () => {
+    // The board's fit asks, and an agent's review asks before the patterns land —
+    // the review used to wait forever, and time out at thirty seconds.
+    const board = new Promise<string>((resolve) => { if (hyphenationReady('fr', () => resolve('board'))) resolve('board') })
+    const review = new Promise<string>((resolve) => { if (hyphenationReady('fr', () => resolve('review'))) resolve('review') })
+    const late = new Promise<string>((resolve) => setTimeout(() => resolve('never told'), 5000))
+
+    expect(await Promise.race([Promise.all([board, review]), late])).toEqual(['board', 'review'])
+    expect(hyphenationReady('fr', () => {})).toBe(true)
+  })
+})
+
 describe('one break to a word', () => {
   it('keeps only the break nearest the middle, so no fragment is left on a line of its own', async () => {
     await loaded('en')
