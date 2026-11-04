@@ -202,12 +202,16 @@ useEventListener(document, 'focusin', (event: FocusEvent) => {
     @keydown="onKeys"
   >
     <Default>
+      <!-- In the title bar, beside the menus, as the OCR lab's — not scrolled away with the page. -->
+      <template #toolbar>
+        <UButton variant="ghost" size="sm" @click="back">
+          <ArrowLeftIcon class="size-4" />
+          {{ route.params.workspaceId ? 'Back to the chapter' : 'Back to workspaces' }}
+        </UButton>
+      </template>
+
       <div class="mx-auto flex w-full max-w-2xl flex-col gap-8 p-6">
         <header class="grid gap-1">
-          <UButton variant="ghost" size="sm" class="text-muted-foreground mb-2 -ml-2 justify-self-start" @click="back">
-            <ArrowLeftIcon class="size-4" />
-            Back to the chapter
-          </UButton>
           <h1 class="text-2xl font-semibold tracking-tight">
             Settings
           </h1>

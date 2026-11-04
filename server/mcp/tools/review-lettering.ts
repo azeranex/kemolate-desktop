@@ -19,12 +19,17 @@
  *   frame would hold.
  * - **smaller-than-the-page**: an automatic line set well under the page's
  *   ordinary size — one long word, or a frame too small for its balloon.
+ *   Desktop: only automatic lines, so a murmur held under the standard by its
+ *   measured emphasis is never flagged — small is what the original says.
  * - **larger-than-the-page**: an automatic line set well over it, in a balloon
  *   the artist drew big with ordinary-sized lettering in it — filled because
  *   nothing holds it. Not where the original's own characters are big
  *   (`measuredEmphasis`): that is a shout, and loud is right. Never a sound
  *   effect, which is meant to be as big as it is.
  *
+ * - **collides**: its drawn words run into another line's (`collidesWith`) —
+ *   several utterances in one balloon, each in a room cut round its own original.
+ *   Desktop, from the window's ink (`collisions` in `useLetteringErrands`).
  * - **stranded-word**, **lone-last-word**, **rewrapped**: where the lines break,
  *   from `drawn` — the lines as the window drew them (`server/utils/breaks.ts`).
  *   No picture: the words say it.
@@ -59,7 +64,7 @@ const MAX_IMAGES = 12
 const MARGIN = 0.12
 const FLOOR = 0.01
 
-type Flag = 'does-not-fit' | 'squeezed' | 'small-for-its-balloon' | 'smaller-than-the-page' | 'larger-than-the-page' | BreakFlag
+type Flag = 'does-not-fit' | 'squeezed' | 'small-for-its-balloon' | 'smaller-than-the-page' | 'larger-than-the-page' | 'collides' | BreakFlag
 
 /** Flags about where lines break: judged from `drawn`, so their balloons need no picture. */
 const BREAKS = new Set<Flag>(['stranded-word', 'lone-last-word', 'rewrapped'])
@@ -68,7 +73,7 @@ export default defineMcpTool({
   name: 'review_lettering',
   description: [
     'Check how a page is lettered: each translated line\'s size, what decided it (fitted, the chapter\'s standard, or chosen),',
-    'the size its frame would allow (`capacity`), how loud the original lettered it (`measuredEmphasis`, over 1 for a shout), and flags for lines',
+    'the size its frame would allow (`capacity`), how loud the original lettered it (`measuredEmphasis`, over 1 for a shout, under 1 for a murmur), and flags for lines',
     'that do not fit, were squeezed, are small for their balloon, or are small or large for the page — with a close crop of each flagged balloon AS LETTERED (not the scan).',
     'Each line\'s `drawn` is its lines as drawn, and badly broken ones are flagged (a word stranded mid-balloon, a lone last word, a typed line wrapped again) — fixed by typing newlines into the translation.',
     'Use it after translating or restyling a page, and when the user says text looks wrong. Fix in this order:',
@@ -118,6 +123,8 @@ export default defineMcpTool({
       if (!line.over && line.set === 'auto' && median && row?.kind !== 'sfx' && (line.measuredEmphasis ?? 1) <= 1 && line.size > median * LARGE_FOR_PAGE) flags.push('larger-than-the-page')
       // Desktop: where the lines break, from the lines as drawn — see `server/utils/breaks.ts`.
       if (!line.over && line.drawn) flags.push(...breakFlags(line.drawn, line.rewrapped))
+      // Desktop: its words run into another line's — see `collisions` in `useLetteringErrands`.
+      if (line.collides?.length) flags.push('collides')
 
       return {
         blockId: line.blockId,
@@ -132,6 +139,7 @@ export default defineMcpTool({
         flags,
         // The lines as Kemolate draws them; a typed break is a newline in `text`.
         ...(line.drawn ? { drawn: line.drawn } : {}),
+        ...(line.collides?.length ? { collidesWith: line.collides } : {}),
         // Where it is set: its own frame where a letterer (or agent) placed one, else its room, else its box.
         frame: said && said.cx !== null
           ? { cx: said.cx, cy: said.cy, w: said.w, h: said.h }
@@ -160,6 +168,11 @@ export default defineMcpTool({
     const flagged = lines.filter((line) => line.flags.length).length
 
     // Lines that break badly are re-broken by hand: a newline in the translation is a break Kemolate keeps.
+    // Lines lettered over each other: usually several utterances in one balloon, each in a room cut round its own original.
+    const overlapping = lines.some((line) => line.flags.includes('collides'))
+      ? ' Lines flagged `collides` are lettered over another (`collidesWith`) — usually several utterances in one balloon: join them into one block with a blank line between (`join_blocks`, then the translation), or give each a `frame` of its own band of the balloon (`set_lettering_style`). `get_guide`, "Several lines in one balloon".'
+      : ''
+
     const rebreak = lines.some((line) => line.flags.some((flag) => BREAKS.has(flag)))
       ? ' Read each line\'s `drawn` for its breaks: re-break one by writing newlines into its translation (one phrase to a line, short-long-short — `get_guide`, "Line breaks"), through `save_page_translations` for a machine line or as a proposal for a pinned one. Kemolate keeps typed breaks, setting the line a little smaller rather than wrapping one again; `rewrapped` means a typed line is still too long for its place.'
       : ''
@@ -186,7 +199,7 @@ export default defineMcpTool({
             lines,
             next: (flagged
               ? 'Fix flagged lines in this order: give the line its balloon (`set_lettering_style` with `frame` and `shape: "oval"`); then, for a line still too long, propose a shorter wording that keeps its meaning and voice (`get_guide` says how) — save it only if the line is not pinned, otherwise ask; change the size last. A line too large for the page is fixed by a standard size, not by shrinking it alone. Check again with this tool.'
-              : 'Nothing flagged. Ask the user to look — size and fit are measured, but tone and placement are theirs to judge.') + rebreak + noStandard,
+              : 'Nothing flagged. Ask the user to look — size and fit are measured, but tone and placement are theirs to judge.') + overlapping + rebreak + noStandard,
           }),
         },
         ...crops.map((crop) => ({ type: 'image' as const, data: crop.bytes.toString('base64'), mimeType: crop.type })),

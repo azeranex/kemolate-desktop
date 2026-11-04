@@ -286,5 +286,67 @@ export function useAlign () {
     }))
   }
 
-  return { alignTo, alignable, distributable, keyBlock, measured: computed(() => Boolean(scan.value)), align, distribute }
+  /** Desktop: which way the chapter reads — the first line of a balloon is its rightmost column when right to left. */
+  const direction = useState<'ltr' | 'rtl'>('workspace-direction', () => 'rtl')
+
+  /** Desktop: columns need two — one block is already a column of itself. */
+  const columnable = computed(() => Boolean(scan.value) && selected.value.length > 1)
+
+  /**
+   * Desktop: lay the selected blocks out as columns — several lines in one
+   * balloon, each kept a block of its own, set side by side across the space
+   * they cover between them.
+   *
+   * The space is everything they take up between them — their frames, their
+   * rooms and the boxes they were read from — shared out in equal widths with
+   * `gap` scan pixels between, in reading order: the first line rightmost on a
+   * page read right to left, as the original's columns were. Each runs as high
+   * and as low as its original, so a balloon whose lines were staggered down it
+   * stays staggered. Written as each block's lettering
+   * frame (`writesLetter`, as a drag would), so it is one step to undo and a
+   * frame dragged afterwards wins, as ever. Upright: a column is.
+   *
+   * Found on a real page (2026-10-23): three sentences in one jagged balloon,
+   * each in a room measured round its own Japanese — the rooms overlapped and the
+   * English ran together. Equal columns with a gap are how a letterer shares the
+   * balloon out while keeping each line where it was.
+   */
+  function columns (gap: number) {
+    const size = scan.value
+    const all = page.value?.blocks
+
+    if (!size || !all || !columnable.value) return
+
+    // In the order they read — the page's order, not the order they were picked.
+    const row = [...selected.value].sort((a, b) => all.indexOf(a) - all.indexOf(b))
+    // Each column runs where its original did — the box it was read from — so a
+    // staggered balloon stays staggered. Not its frame: that may be a band of the
+    // balloon (`utils/sharedBalloons`), a strip a column would be squeezed into.
+    const at = row.map((block) => boundsOf(blockBoxOf(block), size))
+    // Across everything they take up between them: frames, rooms and originals.
+    const area = union(row.flatMap((block) => [
+      bounds(block, size),
+      boundsOf(blockBoxOf(block), size),
+      ...(block.room ? [boundsOf({ x: block.room.x, y: block.room.y, w: block.room.w, h: block.room.h }, size)] : []),
+    ]))
+    const space = Math.max(0, gap)
+    const width = (area.x1 - area.x0 - space * (row.length - 1)) / row.length
+
+    if (width <= 0) return
+
+    updateMany(row.map((block, index) => {
+      const slot = direction.value === 'rtl' ? row.length - 1 - index : index
+      const own = at[index]!
+      const frame: LetterBox = {
+        x: ((area.x0 + slot * (width + space)) / size.width) * 100,
+        y: (own.y0 / size.height) * 100,
+        w: (width / size.width) * 100,
+        h: ((own.y1 - own.y0) / size.height) * 100,
+      }
+
+      return { id: block.id, patch: writesLetter(block) ? { letter: frame } : frame }
+    }))
+  }
+
+  return { alignTo, alignable, distributable, columnable, keyBlock, measured: computed(() => Boolean(scan.value)), align, distribute, columns }
 }

@@ -340,7 +340,10 @@ by the main process on the loopback, for an MCP client on this machine. Read the
   one. `split_block` takes a joined balloon apart (`blocks.release`) or, given `parts`, cuts
   any other block into them (`blocks.split`, new: the parts take its place in the reading
   order, the rest moved down, in one transaction). Both quote any translation they remove.
-  Modifying a block stays `correct_blocks`. **Both clean what they made** (`cleanAfter`,
+  Modifying a block stays `correct_blocks`. **`clean_page`** (2026-10-28) is the same errand
+  for a whole page, or the `blockIds` given, less garbage and hidden blocks — added after an
+  agent, told by the skill that cleaning was the window's alone, declined to clean a page
+  it had translated; the wait grows with the blocks (15 s each, at least 120). **Both clean what they made** (`cleanAfter`,
   `server/utils/cleaning.ts`): a repair is the block's, so a cut's parts and a join's
   balloon have none and the original lettering showed again. The window is sent a `clean`
   errand and `useCleanErrands` runs `useClean.cleanBlock` per block — after waiting for the
@@ -384,7 +387,11 @@ by the main process on the loopback, for an MCP client on this machine. Read the
     Settings shows it, or `claude mcp add` on another port. Both manifests pass `claude plugin
     validate`, and the plugin's loopback server connected (`mcp list`) — tested 2026-10-22 with
     the packaged app on a test profile. It installs from the pushed repository, so it is as current
-    as `main` on GitHub.
+    as `main` on GitHub. Two more skills there are commands only (`disable-model-invocation`):
+    `/kemolate:translate` (read, check, translate, save, clean — no lettering review) and
+    `/kemolate:review` (the lettering review alone), split 2026-10-30 because the review is the
+    slow half and often not wanted; the main skill now offers the review rather than running it.
+    `index.test.ts` checks the tools they name too.
   - **Claude's chat** (Desktop or web): Settings' **Save the skill for Claude** writes the ZIP the
     skill upload takes (`kemolate/SKILL.md` at the top; `electron/zip.ts`, stored, checked with
     Python's `zipfile`), uploaded under Customize › Skills with code execution on. No app can
@@ -444,7 +451,10 @@ releases are GitHub Releases the installed app updates itself from.
 - **The app updates itself** (`electron/updates.ts`, `electron-updater`): checks 15 s after
   launch and every four hours, downloads in the background, then offers "Restart to update"
   (a toast, and Settings › Updates) — never restarts on its own, and otherwise installs on
-  the next quit. The database is backed up on that quit and before any migration. Off in
+  the next quit — both silently (2026-10-28: the button used to open the installer's wizard),
+  the button's behind a splash (`electron/splash.ts`) that the new version shows again at
+  launch until its window is ready. The seconds the installer runs show nothing: a
+  PowerShell stand-in was tried and dropped, see the file. The database is backed up on that quit and before any migration. Off in
   development and on a test profile (`KEMOLATE_PROFILE`).
 - **Unsigned.** A first install from the Release page meets SmartScreen; updates do not,
   since the updater downloads them itself. macOS needs signing and notarisation first.
@@ -557,6 +567,62 @@ standard size the automatic wrap packs lines mid-phrase: "FIRST, LET / ME SHOW /
 - Tested on the test page through MCP: the review flagged "YOU" and "IS."; re-broken by the
   rules the balloons came out exactly as `drawn` said — 27 / 26 / 28 / 28 px, no flags — and
   of two breakings of one balloon the rules' size check picked the larger (27 over 25).
+
+## Several lines in one balloon
+
+Found 2026-10-23 on a real page: one jagged balloon holding three separate sentences (staggered
+groups of columns), and two balloons of two utterances each. Each was its own block with a room
+measured round its own Japanese — the detector drew a separate balloon round each block, so
+`rooms.ts`'s "one block to a balloon" never saw them share — and the rooms overlapped: the English
+ran into its neighbour ("MOMENTARE PLOTTING", "TAKE QUIET.") and one voice came out at 14, 17, 14 px.
+
+- **Measured whole** (`sharedRooms` in `rooms.ts`): blocks declined together as `shared` (one
+  fence), or whose rooms overlap (over 4% of the smaller), are grouped, and the balloon is measured
+  once from all of them — seeded from their boxes together, bounded by the union of the fences the
+  detector drew round them (unbounded, a jagged balloon's fill escaped through its points). Where it
+  holds every member's centre, each gets that room, marked `room.shared` (a JSON field, no
+  migration; carried like `round` — `RoomBox`, `roomBoxOf`, the schemas, the project file, the
+  sync's signature, `sameRoom`). The largest upright rectangle, never the oval. A shared room
+  covers its members by design, so the crowding rule skips them. Existing chapters get it from
+  Detect › Measure balloons.
+- **Frames, derived** (`app/utils/sharedBalloons.ts`): a group with a shared room is set as
+  stacked bands of it in reading order (each as tall as its share of the words, a 20% floor, a 4%
+  gap, 2% in from the room's edges). A group whose balloon could not be measured whole keeps each
+  line in its own room, cut back from the others along the narrower overlap (`trimmed`). Bands of
+  the rectangle round separate rooms were the first try, and the reader marked what was wrong:
+  words on the speed lines in a notched corner, off a slanted bottom edge, "Why...!?" jammed into a
+  balloon's tip, "What on earth…" past its outline. Each line's own room sits inside the balloon
+  where its original sat — the placements the reader ticked on the old render.
+- **One size per balloon**: each line is fitted alone, then the group is set at its smallest
+  member's size (`together` in `useLetteringFit`, from each block's own fit kept in `naturals`).
+- Never stored: `letterBoxOf` reads `bandOf` after a dragged frame (`letter`) and before the room,
+  so board, fit, panel and export agree; `shapeFor` takes `shared` so a band is not its room's
+  oval. Laid out by `keepBands` (in `useLetteringFit`'s once-per-window scope, synchronously)
+  whenever rooms, frames or translations change. The cleaning path never reads it.
+- **Make columns** (Align panel, `columns` in `useAlign`; the reader's idea, 2026-10-23): select
+  the lines of one balloon, press it, and their lettering frames become side-by-side columns of
+  equal width with a gap (scan px, remembered) across everything they cover — frames, rooms and
+  the boxes they were read from — in reading order (the first line rightmost on a right-to-left
+  page), each running as high and low as its original, so a staggered balloon stays staggered.
+  Written as `letter`, like a drag: one step to undo, and it takes those lines out of the bands.
+  Its first version took each column's height from the current frame, which on a banded balloon
+  was a strip — 10 px and nothing fitting. On page 8: three columns, nothing clipped or touching,
+  close to the reader's own hand edit.
+- **`collides`** in `review_lettering`: the window places each line's ink on the page (`drawnLines`
+  returns the ink; `collisions` in `useLetteringErrands`, upright boxes, 2 px of slack) and reports
+  which lines run into which (`collidesWith`). A flagged pair gets crops.
+- **Paragraphs wrap** (`keepsBreaks`): only a *single* newline is a hand break to keep; text that is
+  all paragraphs — several utterances joined, a blank line between — wraps inside each.
+- The skill's "Several lines in one balloon": join with paragraphs when it is one speech laid out in
+  pieces, frames as bands when the gap is a drawn pause.
+- Tested against the packaged app on a test profile with the real chapter (page 8, read by
+  Kemolate's own OCR, measured, cleaned, the reader's English): no line runs into another or onto
+  the art; the upper balloon was measured whole (one shared room for its three sentences), the two
+  middle pairs could not be (their largest rectangle is one column wide) and kept their own rooms,
+  trimmed. **The cost is size**: 12/12/12, 12/12 and 16/16 px, against 14/17/14, 17/13 and 26/18
+  with three collisions before — a rectangle in a jagged balloon, and a column-wide room, hold
+  little. Setting the lines in the balloon's own outline (a `custom` shape from the fill) is the
+  way to more.
 
 ## Electron
 

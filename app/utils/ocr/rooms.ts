@@ -230,7 +230,12 @@ export interface RoomVerdict {
    * round room falls back to when the oval would crowd a neighbour.
    */
   square?: RoomBox
+  /** Desktop: the group of blocks sharing this room's balloon — see `sharedRooms`. */
+  together?: number
 }
+
+/** Desktop: rooms overlapping by over this share of the smaller are taken for one balloon. */
+const SHARED_OVERLAP = 0.04
 
 /**
  * Each block's verdict: its room, or the rule that declined it — see the header.
@@ -394,10 +399,72 @@ export function roomVerdicts (sheet: Sheet, blocks: Measured[], fences: Region[]
     return { room, reason: 'room', fence, balloon, gain, ...(square ? { square } : {}) }
   })
 
+  /*
+   * Desktop: several lines in one balloon share it. Two kinds of evidence that
+   * blocks are in one balloon — declined above as `shared` (one fence round
+   * them all), or rooms that overlap (each measured alone, round its own
+   * columns, out of one balloon) — and either way the balloon is measured once,
+   * from all of them together, and its room handed to each, marked `shared`.
+   * The largest upright rectangle in the fill, never its oval: the lines are set
+   * in bands of it (`app/utils/sharedBalloons.ts`), and a rectangle inside the
+   * fill keeps every band off the outline, a notched corner and a slanted edge
+   * alike — the rectangle round their separate rooms did not (2026-10-23).
+   * A balloon that cannot be measured whole leaves them as they were.
+   */
+  for (const [group, members] of sharedRooms(blocks, verdicts, fenceOf)) {
+    const seeds = members.map((at) => seedOf(blocks[at]!))
+    const x = Math.min(...seeds.map((one) => one.x))
+    const y = Math.min(...seeds.map((one) => one.y))
+    const seed = {
+      x,
+      y,
+      w: Math.max(...seeds.map((one) => one.x + one.w)) - x,
+      h: Math.max(...seeds.map((one) => one.y + one.h)) - y,
+    }
+    // Bounded by the balloons the detector drew round them — one for all, or one
+    // each where it split the balloon (as it does a jagged one), taken together.
+    // Unbounded, the fill of a jagged balloon ran out through its points.
+    const fenced = [...new Set(members.map((at) => fenceOf[at]!).filter((index) => index >= 0))].map((index) => fences[index]!)
+    const fence = fenced.length
+      ? (() => {
+          const left = Math.min(...fenced.map((one) => one.x))
+          const top = Math.min(...fenced.map((one) => one.y))
+
+          return { x: left, y: top, w: Math.max(...fenced.map((one) => one.x + one.w)) - left, h: Math.max(...fenced.map((one) => one.y + one.h)) - top }
+        })()
+      : null
+    const balloon = balloonIn(sheet, seed, fence ? { x: fence.x * scale, y: fence.y * scale, w: fence.w * scale, h: fence.h * scale } : null)
+
+    if (!balloon || balloon.escaped) continue
+
+    const room = roomOf(balloon)
+    const holds = members.every((at) => {
+      const block = blocks[at]!
+
+      return block.cx >= room.cx - room.w / 2 && block.cx <= room.cx + room.w / 2
+        && block.cy >= room.cy - room.h / 2 && block.cy <= room.cy + room.h / 2
+    })
+
+    if (!holds) continue
+
+    members.forEach((at, index) => {
+      verdicts[at] = {
+        room: { ...room, shared: true },
+        reason: 'room',
+        balloon,
+        gain: roomGain(balloon.room, seeds[index]!),
+        together: group,
+        ...(fence ? { fence } : {}),
+      }
+    })
+  }
+
   // Last, over every room at once: none may cover another block's lettering.
   return verdicts.map((verdict, at) => {
     const crowds = (room: RoomBox) => blocks.some((other, index) => {
       if (index === at || skipped(other)) return false
+      // Desktop: a shared room covers every line in its balloon, by design.
+      if (verdict.together !== undefined && verdicts[index]!.together === verdict.together) return false
 
       const across = Math.min(room.cx + room.w / 2, other.cx + other.w / 2) - Math.max(room.cx - room.w / 2, other.cx - other.w / 2)
       const down = Math.min(room.cy + room.h / 2, other.cy + other.h / 2) - Math.max(room.cy - room.h / 2, other.cy - other.h / 2)
@@ -419,6 +486,54 @@ export function roomVerdicts (sheet: Sheet, blocks: Measured[], fences: Region[]
 
     return { ...verdict, room: null, reason: 'crowded' as const }
   })
+}
+
+/**
+ * Desktop: which blocks share one balloon, by index, keyed by a group number —
+ * declined together as `shared` (one fence), or with rooms that overlap. Balloon
+ * text only; a group is two or more.
+ */
+export function sharedRooms (blocks: Measured[], verdicts: RoomVerdict[], fenceOf: number[]): Map<number, number[]> {
+  const group = blocks.map((_, at) => at)
+  const root = (at: number): number => (group[at] === at ? at : (group[at] = root(group[at]!)))
+  const taking = (at: number) => blocks[at]!.kind === 'bubble' && !skipped(blocks[at]!)
+
+  for (let a = 0; a < blocks.length; a++) {
+    if (!taking(a)) continue
+
+    for (let b = a + 1; b < blocks.length; b++) {
+      if (!taking(b)) continue
+
+      const one = verdicts[a]!
+      const other = verdicts[b]!
+      const fenced = one.reason === 'shared' && other.reason === 'shared' && fenceOf[a] === fenceOf[b]
+      let overlapping = false
+
+      if (one.room && other.room) {
+        const across = Math.min(one.room.cx + one.room.w / 2, other.room.cx + other.room.w / 2) - Math.max(one.room.cx - one.room.w / 2, other.room.cx - other.room.w / 2)
+        const down = Math.min(one.room.cy + one.room.h / 2, other.room.cy + other.room.h / 2) - Math.max(one.room.cy - one.room.h / 2, other.room.cy - other.room.h / 2)
+        const smaller = Math.min(one.room.w * one.room.h, other.room.w * other.room.h)
+
+        overlapping = across > 0 && down > 0 && across * down > smaller * SHARED_OVERLAP
+      }
+
+      if (fenced || overlapping) group[root(b)] = root(a)
+    }
+  }
+
+  const groups = new Map<number, number[]>()
+
+  blocks.forEach((_, at) => {
+    if (!taking(at)) return
+
+    const key = root(at)
+
+    groups.set(key, [...(groups.get(key) ?? []), at])
+  })
+
+  for (const [key, members] of groups) if (members.length < 2) groups.delete(key)
+
+  return groups
 }
 
 /** Each block's room, or null where it gets none — `roomVerdicts`, the rooms only. */

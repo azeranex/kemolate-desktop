@@ -637,6 +637,9 @@ const untranslated = computed(() =>
 
     <!-- what it can do to that -->
     <template #actions>
+      <!-- Which stage the layers are in, one press away — see `LayerStages`. -->
+      <LayerStages v-if="showing" />
+
       <!--
         The pipeline end to end, first among the actions because it is the one
         that does what all the others are for — see `AutoRun`, which owns every

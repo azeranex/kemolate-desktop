@@ -83,7 +83,7 @@ Let the app read. Do not read pages by looking at images.
      and a cut's parts are boxes no repair covered, so the original lettering
      would show again under them. `cleaning` in the answer says which blocks are
      clean now. If it says `cleaned: false` (chapter not open, no cleaner chosen),
-     pass on what it says to do — the user presses **Clean page** later.
+     pass on what it says to do, or `clean_page` once it can.
 5. `sort_page_blocks` only if a page's order is clearly wrong. It overwrites an
    order the user set by hand, so do not run it over a whole chapter blindly.
 
@@ -167,6 +167,12 @@ balloon with ordinary characters does not. A jagged or burst balloon is a shout
 too; a wobbly or dashed one is weak or whispered, and can go under 1. Sound
 effects keep their own size.
 
+A line set **quieter** is the same reading the other way: a murmur or an aside
+lettered in clearly smaller characters — often floating outside any balloon,
+like a blush's かぁぁ… beside a face — gets a `measuredEmphasis` under 1 (0.8 at
+most, never under 0.6; lines of three characters or fewer are not measured that
+way) and is set that much under the standard. Leave it small; it is meant to be.
+
 ### Line breaks
 
 **A newline in a translation is a line break Kemolate keeps.** Left alone, a
@@ -197,6 +203,29 @@ YEAH, IT / IS.". A letterer breaks by hand, and so can you:
   and `cast: []`. Change nothing but the breaks unless the line also needs
   shortening.
 
+### Several lines in one balloon
+
+One balloon often holds two or three separate utterances: a shout and then a
+mutter, or one accusation set as staggered groups of columns. The reading makes
+each its own block. Kemolate notices when their rooms overlap and shares the
+balloon out on its own, as a band each, top to bottom in reading order. Where it
+cannot tell, `review_lettering` flags **collides** (`collidesWith` names the
+other line). A letterer handles this in one of two ways:
+
+- **One balloon, one block.** Use this when the groups are one speech that was
+  only laid out in pieces. `join_blocks` the blocks in reading order, then
+  translate the joined block with the sentences as paragraphs, a blank line
+  between them. Inside a paragraph, break the lines by hand as usual. A
+  paragraph you leave unbroken wraps by itself.
+- **Separate lines, a band each.** Use this when the gap is a pause the artist
+  drew, like "Why...!?" … "What on earth have I done!?". Leave them as blocks.
+  If Kemolate has not banded them, give each a `frame` of its own part of the
+  balloon with `set_lettering_style`: stacked, in reading order, not
+  overlapping. Then check with `review_lettering`.
+
+Either way, the lines of one voice in one balloon should come out at one size.
+A chapter standard does that; without one, compare the sizes in the review.
+
 ## Reviewing lettering
 
 After translating or restyling a page — and whenever the user says text looks
@@ -216,6 +245,8 @@ gives the size it is set at, what decided it (`auto` fitted to its frame,
 - **stranded-word**, **lone-last-word** — a word alone between longer lines, or
   alone at the foot. **rewrapped** — a line you broke by hand was too long for its
   place and was wrapped again. See "Line breaks".
+- **collides** — its words run into another line's (`collidesWith`). Usually
+  several lines in one balloon; see "Several lines in one balloon".
 
 Each line comes with `drawn`: its lines exactly as Kemolate draws them. Read
 them for every balloon, flagged or not — a phrase split across two lines
@@ -294,10 +325,21 @@ Images cost the user tokens; text is cheap.
 
 ## Not available through MCP
 
-Cleaning the original lettering off the art, painting, layers and export are
-done in the Kemolate window (you can look at the result with `lettered: true`). If the user asks for them, tell them where:
-cleaning is the Detect panel's **Clean page**; re-measuring balloons (for oval
-rooms on chapters read before) is Detect › **Measure balloons**.
+Painting, layers and export are done in the Kemolate window (you can look at
+the result with `lettered: true`). If the user asks for them, tell them where;
+re-measuring balloons (for oval rooms on chapters read before) is Detect ›
+**Measure balloons**.
+
+## Cleaning
+
+`clean_page` cleans the original lettering off a page's art — Kemolate runs its
+own cleaner in the window, so the chapter must be open there. Clean each page
+once its blocks are right (joined, split, garbage marked) — usually right after
+`save_page_translations` — so the English is lettered on clean balloons. It
+cleans every block but those marked garbage or hidden; pass `blockIds` for a
+few. `cleaning` in the answer says which blocks are clean; `cleaned: false`
+comes with what to tell the user (open the chapter, choose a cleaner). Look at
+the result with `get_page_image` and `lettered: true`.
 
 ## A good run, in short
 
@@ -306,8 +348,14 @@ rooms on chapters read before) is Detect › **Measure balloons**.
 `review_page_reading` + `correct_blocks` (and `join_blocks` / `split_block`) per page →
 `prepare_page_translation` (batched, text mode) → answer →
 `save_page_translations` (one call, with `glossary` and `cast`) →
-`review_lettering` per page, fixing layout, then breaks, then words → tell the user
-what was done, what was held by their pins, and anything you were unsure of.
+`clean_page` per page → tell the user what was done, what was held by their
+pins, and anything you were unsure of.
+
+The lettering review (`review_lettering` per page, fixing layout, then breaks,
+then words) is a run of its own: it is the slow half, and often not wanted.
+Do it when the user asks for it, not as the end of every translation; offer it
+instead. In Claude Code the plugin has a command for each half —
+`/kemolate:translate` and `/kemolate:review`.
 
 The server also offers a `translate_chapter` prompt with the same order, for a
 user who wants to start a run from their client's menu.

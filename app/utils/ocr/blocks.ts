@@ -64,6 +64,8 @@ export interface RoomBox {
    * wraps into an oval (`shapeFor`). See `ovalIn` in `balloon.ts`.
    */
   round?: boolean
+  /** Desktop: the balloon's room, shared by several lines in it — see `sharedRooms` in `rooms.ts`. */
+  shared?: boolean
 }
 
 /**
@@ -79,6 +81,7 @@ export function roomBoxOf (room: RoomBox, scan: { width: number, height: number 
     w: room.w * 100,
     h: room.h * aspect * 100,
     ...(room.round ? { round: true } : {}),
+    ...(room.shared ? { shared: true } : {}),
   }
 }
 
@@ -724,6 +727,7 @@ export function toPatch (block: Block, scan: { width: number, height: number }, 
           w: block.room.w / 100,
           h: block.room.h / 100 / aspect,
           ...(block.room.round ? { round: true } : {}),
+          ...(block.room.shared ? { shared: true } : {}),
         }
       : null,
     source: block.source,

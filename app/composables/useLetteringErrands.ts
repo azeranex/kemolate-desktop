@@ -28,6 +28,40 @@ import { ordinaryPitch } from '~/utils/emphasis'
 import { hyphenationReady } from '~/utils/hyphens'
 import { rowOf } from '~/utils/ocr/blocks'
 
+/** Where a line's ink lands on the page, in the scan's pixels. */
+interface Ink { left: number, top: number, right: number, bottom: number }
+
+/** How far two lines' ink must overlap, both ways, before they are said to run into each other — a rounding error is not. */
+const TOUCH = 2
+
+/**
+ * Desktop: which lines' ink runs into which — several lines in one balloon,
+ * each in a room cut round its own original, set wider than the original and
+ * over its neighbour ("MOMENTARE PLOTTING", 2026-10-23). Upright boxes round
+ * the ink, which is what a reader sees collide; a turned frame is measured as
+ * if it were not.
+ */
+export function collisions (inks: ReadonlyMap<number, Ink>): Map<number, number[]> {
+  const hits = new Map<number, number[]>()
+  const all = [...inks]
+
+  for (let a = 0; a < all.length; a++) {
+    for (let b = a + 1; b < all.length; b++) {
+      const [one, first] = all[a]!
+      const [other, second] = all[b]!
+      const across = Math.min(first.right, second.right) - Math.max(first.left, second.left)
+      const down = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top)
+
+      if (across > TOUCH && down > TOUCH) {
+        hits.set(one, [...(hits.get(one) ?? []), other])
+        hits.set(other, [...(hits.get(other) ?? []), one])
+      }
+    }
+  }
+
+  return hits
+}
+
 /** How long a drawn page is kept for the next crop of it, in milliseconds. */
 const KEEP_DRAWN = 15_000
 
@@ -80,7 +114,10 @@ export function useLetteringErrands () {
 
     const usual = ordinaryPitch(pages.value, pageSize)
 
-    return shown.flatMap((block) => {
+    // Desktop: where each line's ink lands on the page, so lines that run into each other are said — see `collisions`.
+    const inks = new Map<number, Ink>()
+
+    const lines = shown.flatMap((block) => {
       const row = rowOf(block)
       const style = styleOf(block)
       const fit = fitOf(block)
@@ -91,6 +128,14 @@ export function useLetteringErrands () {
       const set = style.size !== null ? 'chosen' as const : standard.value !== null && standardApplies(block.type) ? 'standard' as const : 'auto' as const
       const { emphasis, measured } = emphasisFor(page, block, style, usual)
       const drawn = linesOf(page, block, style, setDownIn(block, size))
+      const frame = letterBoxOf(block)
+
+      if (drawn?.ink) {
+        const left = (frame.x / 100) * size.width
+        const top = (frame.y / 100) * size.height
+
+        inks.set(row, { left: left + drawn.ink.left, top: top + drawn.ink.top, right: left + drawn.ink.right, bottom: top + drawn.ink.bottom })
+      }
 
       return [{
         blockId: row,
@@ -109,6 +154,10 @@ export function useLetteringErrands () {
         ...(fit?.rewrapped ? { rewrapped: true } : {}),
       }]
     })
+
+    const hits = collisions(inks)
+
+    return lines.map((line) => (hits.get(line.blockId)?.length ? { ...line, collides: hits.get(line.blockId) } : line))
   }
 
   /** The page as lettered, drawn once and kept briefly for the next crop. */

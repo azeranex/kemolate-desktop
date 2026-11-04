@@ -14,7 +14,12 @@
 
 <template>
   <div class="bg-background text-foreground flex h-svh flex-col">
-    <TitleBar />
+    <!-- A page's own way back, beside the menus — Settings' "Back to the chapter". -->
+    <TitleBar>
+      <template #toolbar>
+        <slot name="toolbar" />
+      </template>
+    </TitleBar>
 
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <slot />

@@ -357,6 +357,10 @@ const covered = computed(() => run.value.rows.some((row) => row.visible
  * itself stayed on the page. Hiding a block looked like it had done nothing,
  * because the thing you were looking at was the thing it had not touched.
  *
+ * A block called garbage sets nothing either (2026-10-28): it is not lettering,
+ * and its reading — a sign, background text — was drawn over the art as if it
+ * were.
+ *
  * Its *box* stays, faded, which is not the same oversight: a block you cannot
  * see and cannot find again is one you cannot bring back.
  *
@@ -366,7 +370,7 @@ const covered = computed(() => run.value.rows.some((row) => row.visible
  * gone soft rather than as anything being drawn twice.
  */
 const lettered = computed(() => {
-  const set = props.page.blocks.filter((block) => !block.hidden && block.id !== props.editing?.id)
+  const set = props.page.blocks.filter((block) => !block.hidden && block.type !== 'garbage' && block.id !== props.editing?.id)
 
   return {
     dialogue: set.filter((block) => block.type !== 'sfx'),
@@ -450,7 +454,7 @@ function setStyle (block: Block): CSSProperties {
 function partsOf (block: Block): ShapeParts | null {
   const style = styleOf(block)
   const fit = fitOf(block)
-  const outline = fit?.over ? null : shapeOutline(shapeFor(style, block), style.points)
+  const outline = fit?.over ? null : shapeOutline(shapeFor(style, block, Boolean(bandOf(block))), style.points)
 
   return outline ? shapeParts(outline, setDown(block), fit?.pad ?? 0) : null
 }

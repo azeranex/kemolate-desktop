@@ -90,6 +90,10 @@
       "description": "Take a joined balloon apart, or cut a block into parts."
     },
     {
+      "name": "clean_page",
+      "description": "Clean the original lettering off a page, in the Kemolate window."
+    },
+    {
       "name": "save_page_blocks",
       "description": "File text blocks read off a page."
     },

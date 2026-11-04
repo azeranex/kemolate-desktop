@@ -67,6 +67,8 @@ const stamp = (at = new Date()) => at.toISOString().replace(/\.\d+Z$/, '').repla
 
 let notice: DataNotice = {}
 let dirty = false
+/** Written since the last checkpoint — see `checkpoint`. */
+let unsettled = false
 let lastBackup = 0
 let timers: NodeJS.Timeout[] = []
 let database: typeof import('~~/server/database') | null = null
@@ -247,6 +249,9 @@ export async function openDatabase (): Promise<DataNotice> {
     setInterval(() => {
       if (dirty) backup()
     }, HOUR),
+    setInterval(() => {
+      if (unsettled) checkpoint()
+    }, SETTLE),
     // `sweepRepairs` catches its own failures.
     setTimeout(() => { sweepRepairs() }, 60 * 1000),
     setInterval(() => { sweepRepairs() }, HOUR),
@@ -263,6 +268,35 @@ export const openingNotice = () => notice
 /** A write went through: the next hourly backup has something to keep. */
 export function written (): void {
   dirty = true
+  unsettled = true
+}
+
+/** How often what was written is folded into the database file itself. */
+const SETTLE = 5 * 60 * 1000
+
+/**
+ * Fold the write-ahead log into the database file, and empty it.
+ *
+ * SQLite does this by itself once the log reaches a thousand pages, and that was
+ * all it did. On 2026-10-28 a launch found the database damaged: the file held
+ * the chapter as it was on 2026-10-23, its tables pointing at pages that were
+ * only ever in the log, and the log no longer had them — five days of work had
+ * lived in a file beside the database and nowhere else. Settled every few
+ * minutes, the file itself holds all but the last few minutes, whatever becomes
+ * of the log. A checkpoint that cannot finish (something holding a read open)
+ * is said in the terminal — that is a bug.
+ */
+export function checkpoint (): void {
+  if (!database) return
+
+  try {
+    const [result] = database.client.prepare('PRAGMA wal_checkpoint(TRUNCATE)').all() as { busy: number, log: number, checkpointed: number }[]
+
+    if (result?.busy) console.warn('[database] a checkpoint could not finish', result)
+    else unsettled = false
+  } catch (error) {
+    console.warn('[database] checkpoint failed', error)
+  }
 }
 
 /** A backup, now. Synchronous: SQLite writes it, and quitting waits for it. */

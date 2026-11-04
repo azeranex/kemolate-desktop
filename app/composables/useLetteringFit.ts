@@ -29,6 +29,7 @@ import { useLetteringStandard } from '~/composables/useLetteringStandard'
 import { emphasisOf, measuredEmphasis, ordinaryPitch } from '~/utils/emphasis'
 import { HYPHENATION, hyphenationReady } from '~/utils/hyphens'
 import { drawnLines, fitAt, fitSize, fitStandard } from '~/utils/lettering'
+import { bandOf, groupOf, layBands } from '~/utils/sharedBalloons'
 
 /**
  * What a block's fit depends on. Anything else changing cannot alter it.
@@ -180,6 +181,32 @@ function pruneFits (fits: Ref<Record<string, LetterFit>>, keys: Ref<Record<strin
   )
 }
 
+/**
+ * Desktop: the bands of balloons several lines share, laid out again whenever
+ * what they are worked out from changes — see `utils/sharedBalloons`. Synchronous,
+ * so a frame is never drawn or fitted from the bands before.
+ */
+function keepBands () {
+  const { pages } = useComic()
+
+  watch(
+    () => pages.value.map((page) => page.blocks.map((block) => [
+      block.id, block.type, block.hidden, Boolean(block.letter), block.translation.trim().length,
+      block.room ? `${block.room.x},${block.room.y},${block.room.w},${block.room.h}` : '',
+    ].join(':')).join('|')).join('\n'),
+    () => {
+      for (const page of pages.value) layBands(page.blocks)
+    },
+    { immediate: true, flush: 'sync' },
+  )
+}
+
+/**
+ * Desktop: each block's own fit, before its balloon's group evened it out, with
+ * the key it was measured under and how to fit it at the group's size.
+ */
+const naturals = new Map<string, { key: string, fit: LetterFit, at: (size: number) => LetterFit }>()
+
 /** What a block is fitted from — one place, so a fit and a capacity (`capacityOf`) measure the same thing. */
 function inputOf (
   block: Block,
@@ -222,7 +249,10 @@ export function useLetteringFit () {
   // per caller: the board, the Lettering panel and the export all call this.
   if (import.meta.client && !upkeep) {
     upkeep = effectScope(true)
-    upkeep.run(() => pruneFits(fits, keys))
+    upkeep.run(() => {
+      pruneFits(fits, keys)
+      keepBands()
+    })
   }
 
   /**
@@ -291,7 +321,7 @@ export function useLetteringFit () {
 
     for (const block of page.blocks) {
       const style = styleOf(block)
-      const shape = shapeFor(style, block)
+      const shape = shapeFor(style, block, Boolean(bandOf(block)))
 
       // A size written down is not being fitted — unless the lines wrap into a
       // shape, which needs its words walked into place at whatever size, and
@@ -321,7 +351,7 @@ export function useLetteringFit () {
       const plan = { shape: shape === 'custom' ? `custom:${style.points?.join(',')}` : shape, standard: aim, lang, breaks }
       const key = keyOf(block, box, style, family, vertical, size, plan)
 
-      if (measured[block.id] === key && fitted[block.id] !== undefined) continue
+      if (measured[block.id] === key && fitted[block.id] !== undefined && naturals.get(block.id)?.key === key) continue
 
       let fit = remembered.get(key)
 
@@ -335,6 +365,23 @@ export function useLetteringFit () {
 
         remember(key, fit)
       }
+
+      // Desktop: its own fit, kept for its balloon's group — see `together` below.
+      naturals.set(block.id, {
+        key,
+        fit,
+        at: (to: number) => {
+          const shared = `${key}|group:${to}`
+          let held = remembered.get(shared)
+
+          if (held === undefined) {
+            held = fitStandard(inputOf(block, box, style, size, vertical, family, shape, lang), to, letteringRange(size.w).size)
+            remember(shared, held)
+          }
+
+          return held
+        },
+      })
 
       /*
        * Written in place, a block at a time, and only where the size moved.
@@ -355,6 +402,36 @@ export function useLetteringFit () {
       measured[block.id] = key
 
       if (fitted[block.id] !== fit) fitted[block.id] = fit
+    }
+
+    together(page, styleOf, fitted)
+  }
+
+  /**
+   * Desktop: lines sharing one balloon set at one size — the smallest any of
+   * them fits at alone. See `utils/sharedBalloons`, "One size for the balloon".
+   * A line with a size of its own keeps it, and is not counted.
+   */
+  function together (page: ComicPage, styleOf: (block: Block) => Lettering, fitted: Record<string, LetterFit>) {
+    const groups = new Map<string, Block[]>()
+
+    for (const block of page.blocks) {
+      const group = groupOf(block)
+
+      if (group && styleOf(block).size === null && naturals.has(block.id)) groups.set(group, [...(groups.get(group) ?? []), block])
+    }
+
+    for (const members of groups.values()) {
+      if (members.length < 2) continue
+
+      const least = Math.min(...members.map((block) => naturals.get(block.id)!.fit.size))
+
+      for (const block of members) {
+        const own = naturals.get(block.id)!
+        const fit = own.fit.size > least ? own.at(least) : own.fit
+
+        if (fitted[block.id] !== fit) fitted[block.id] = fit
+      }
     }
   }
 
@@ -424,7 +501,7 @@ export function useLetteringFit () {
     if (!loadFace(family, style.bold, style.italic, () => { faces.value += 1 })) return null
 
     const size = { w: scan.width, h: scan.height }
-    const input = inputOf(block, letterBoxOf(block), style, size, vertical, family, shapeFor(style, block), target.value)
+    const input = inputOf(block, letterBoxOf(block), style, size, vertical, family, shapeFor(style, block, Boolean(bandOf(block))), target.value)
 
     return fitSize(input, letteringRange(size.w).size).size
   }
@@ -446,7 +523,7 @@ export function useLetteringFit () {
 
     const size = { w: scan.width, h: scan.height }
 
-    return drawnLines(inputOf(block, letterBoxOf(block), style, size, vertical, family, shapeFor(style, block), target.value), fit)
+    return drawnLines(inputOf(block, letterBoxOf(block), style, size, vertical, family, shapeFor(style, block, Boolean(bandOf(block))), target.value), fit)
   }
 
   return { fits, faces, ready, refit, fitOf, faceReady, autoSize, capacityOf, emphasisFor, linesOf }

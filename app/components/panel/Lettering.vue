@@ -241,7 +241,7 @@ function inputOf (block: Block) {
     italic: own.italic,
     vertical: setDown(block),
     family: fontStack(faceOf(own.font, block.type)),
-    shape: shapeOutline(shapeFor(own, block), own.points),
+    shape: shapeOutline(shapeFor(own, block, Boolean(bandOf(block))), own.points),
     anchor: own.anchor,
     lang: target.value,
   }
@@ -512,7 +512,7 @@ const AUTO_SHAPE = 'auto'
 const autoShape = computed(() => {
   const first = selected.value[0]
 
-  return first ? shapeFor({ shape: null, points: null }, { type: first.type, translation: 'x', room: first.room, letter: first.letter }) : 'box'
+  return first ? shapeFor({ shape: null, points: null }, { type: first.type, translation: 'x', room: first.room, letter: first.letter }, Boolean(bandOf(first))) : 'box'
 })
 
 function setShape (next: string) {
@@ -1028,6 +1028,10 @@ async function shorten () {
             <template v-else-if="emphasised.measured > 1">
               The original is lettered {{ emphasised.measured }}× the chapter's usual size — a raised voice, set that much
               over the standard. 1× sets it like the rest.
+            </template>
+            <template v-else-if="emphasised.measured < 1">
+              The original is lettered {{ emphasised.measured }}× the chapter's usual size — a murmur or an aside, set
+              that much under the standard. 1× sets it like the rest.
             </template>
             <template v-else>
               The original is lettered at the chapter's usual size, however big its balloon. Raise this for a line

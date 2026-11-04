@@ -109,3 +109,77 @@ describe('align', () => {
     expect(find('framed').letter?.x).toBe(60)
   })
 })
+
+/**
+ * Columns — desktop. Several lines in one balloon, kept separate blocks, laid
+ * side by side: three staggered lines whose lettering frames overlap, on the
+ * same 1000 × 1000 page, so a percentage is ten pixels.
+ */
+describe('columns', () => {
+  const staggered = () => [
+    // In reading order: the first line top right, each next one lower and further left.
+    block('first', 55, { y: 10, h: 20, translation: 'We received a tip.', letter: { x: 55, y: 10, w: 12, h: 20 } }),
+    block('second', 45, { y: 15, h: 20, translation: 'Your rank is stripped.', letter: { x: 44, y: 15, w: 12, h: 20 } }),
+    block('third', 35, { y: 20, h: 20, translation: 'Come quietly.', letter: { x: 35, y: 20, w: 12, h: 20 } }),
+  ]
+
+  beforeEach(() => {
+    const { pages, at, selection, keyed, framing } = useComic()
+
+    pages.value = [{
+      id: 'scan:1.jpg',
+      name: '1.jpg',
+      blocks: staggered(),
+      scan: { url: 'blob:page', file: new File([], '1.jpg'), width: 1000, height: 1000, hash: 'h' },
+    }] as ComicPage[]
+    at.value = 0
+    // Picked in another order than they read — the page's order is the one that counts.
+    selection.value = ['third', 'first', 'second']
+    keyed.value = null
+    framing.value = 'lettering'
+    useState('workspace-direction').value = 'rtl'
+  })
+
+  const find = (id: string) => useComic().page.value!.blocks.find((candidate) => candidate.id === id)!
+
+  it('sets them side by side in equal widths with the gap between, the first line rightmost', () => {
+    useAlign().columns(20)
+
+    const [first, second, third] = ['first', 'second', 'third'].map((id) => find(id).letter!)
+
+    // The space they covered: 35 % to 67 %, so 320 px, less two 20 px gaps, in three.
+    for (const column of [first, second, third]) expect(column!.w).toBeCloseTo((320 - 40) / 3 / 10)
+
+    expect(third!.x).toBeCloseTo(35)
+    expect(second!.x).toBeCloseTo(third!.x + third!.w + 2)
+    expect(first!.x).toBeCloseTo(second!.x + second!.w + 2)
+    expect(first!.x + first!.w).toBeCloseTo(67)
+  })
+
+  it('runs each column as high and low as its original, so the stagger stays — not as its frame', () => {
+    // Its frame squeezed to a band of the balloon; the column still runs where the original did.
+    useComic().update('second', { letter: { x: 35, y: 30, w: 32, h: 4 } })
+    useAlign().columns(20)
+
+    expect(['first', 'second', 'third'].map((id) => find(id).letter!.y)).toEqual([10, 15, 20])
+    expect(find('second').letter!.h).toBeCloseTo(20)
+  })
+
+  it('puts the first line leftmost on a page read left to right', () => {
+    useState('workspace-direction').value = 'ltr'
+    useAlign().columns(0)
+
+    expect(find('first').letter!.x).toBeCloseTo(35)
+    expect(find('third').letter!.x + find('third').letter!.w).toBeCloseTo(67)
+  })
+
+  it('needs two — one block is already a column of itself', () => {
+    const { selection } = useComic()
+
+    selection.value = ['first']
+    expect(useAlign().columnable.value).toBe(false)
+
+    selection.value = ['first', 'second']
+    expect(useAlign().columnable.value).toBe(true)
+  })
+})

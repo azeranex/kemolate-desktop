@@ -49,6 +49,8 @@ export interface LineFit {
   byHand?: boolean
   /** Broken by hand, and wrapped again because no size kept those breaks. */
   rewrapped?: boolean
+  /** Other lines (by block row) whose drawn ink runs into this one's. */
+  collides?: number[]
 }
 
 /** What the window says about a page. */

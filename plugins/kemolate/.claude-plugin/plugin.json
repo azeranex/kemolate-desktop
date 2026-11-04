@@ -1,7 +1,7 @@
 {
   "name": "kemolate",
   "description": "Work on Kemolate comic translation chapters from Claude Code: the app's MCP server (read pages with its own OCR, check and correct the reading, translate, letter) and the skill that says how to use it well.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": {
     "name": "Azeranex",
     "url": "https://github.com/azeranex"

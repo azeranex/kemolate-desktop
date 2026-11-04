@@ -182,6 +182,8 @@ const roomSchema = z.object({
   h: z.number().min(0).max(10),
   // Desktop: the room is the balloon's oval, not a rectangle in it — see `RoomBox`.
   round: z.boolean().optional(),
+  // Desktop: shared by several lines in one balloon — see `sharedRooms` in `app/utils/ocr/rooms.ts`.
+  shared: z.boolean().optional(),
 })
 
 /**

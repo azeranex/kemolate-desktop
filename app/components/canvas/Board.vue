@@ -1088,7 +1088,7 @@ const blockChrome = computed(() => (page.value?.blocks ?? []).flatMap((block) =>
 
   // As faint as the chip it stands for: locked away entirely, or merely kept
   // out of the render, the chrome dims the way the block does.
-  const dim = (blockPickable(block) ? 1 : 0.25) * (block.hidden ? 0.4 : 1)
+  const dim = (blockPickable(block) ? 1 : 0.25) * (block.hidden || block.type === 'garbage' ? 0.4 : 1)
 
   return [{
     id: block.id,
@@ -1102,8 +1102,8 @@ const blockChrome = computed(() => (page.value?.blocks ?? []).flatMap((block) =>
     // on what kind of block it is, and a second meaning on the same channel
     // would make a caption and a key indistinguishable from each other.
     width: keyed.value === block.id ? 3 : 1.5,
-    // A hidden block keeps saying so in the one way a line can.
-    dashed: block.hidden,
+    // A hidden block keeps saying so in the one way a line can, and so does garbage, which is drawn no more than it.
+    dashed: block.hidden || block.type === 'garbage',
   }]
 }))
 

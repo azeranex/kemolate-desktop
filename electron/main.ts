@@ -28,6 +28,7 @@ import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
 import { opened, projectsIn, serveOpening } from './opening'
 import { APP_ORIGIN, serveApp } from './protocol'
+import { closeLaunchSplash, splashAfterUpdate } from './splash'
 import { serveUpdates } from './updates'
 import { keepWindowPlace, windowPlace } from './windowState'
 
@@ -130,6 +131,8 @@ function createWindow () {
     if (place.maximized) win.maximize()
     if (place.fullScreen) win.setFullScreen(true)
     win.show()
+    // The end of an update: the splash it was installed behind goes now — see `splash.ts`.
+    closeLaunchSplash()
     if (smoke) {
       setTimeout(async () => {
         const image = await win.webContents.capturePage()
@@ -245,7 +248,17 @@ async function oneWindow (): Promise<boolean> {
   return false
 }
 
-if (!await oneWindow()) app.exit(0)
+/*
+ * And stop here. `app.exit` does not end this module: the rest of it can go
+ * on running, and in development — ready by then, after the retries — the
+ * `whenReady` below would fire at once, and a refused second process would
+ * check, migrate and back up the database the first one has open (found
+ * 2026-10-28, chasing a damaged database). Nothing past this line may run in it.
+ */
+if (!await oneWindow()) {
+  app.exit(0)
+  await new Promise(() => {})
+}
 
 app.on('second-instance', (_event, argv) => {
   for (const file of projectsIn(argv)) opened(file)
@@ -308,6 +321,8 @@ Nothing has been deleted.`)
 app.on('will-quit', closeDatabase)
 
 app.whenReady().then(async () => {
+  // Straight after an update, the splash it was installed behind stays up until the window is ready.
+  await splashAfterUpdate()
   await startDatabase()
   keepFolderAccess()
   askWhereToSave()

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Block, ComicPage } from '~/composables/useComic'
 
-import { EMPHASIS_MAX, measuredEmphasis, ordinaryPitch, pitchOf } from '~/utils/emphasis'
+import { EMPHASIS_MAX, EMPHASIS_MIN, measuredEmphasis, ordinaryPitch, pitchOf } from '~/utils/emphasis'
 
 /**
  * How loud the original lettered a line — desktop.
@@ -103,5 +103,22 @@ describe('a line\'s emphasis', () => {
   it('is none for a sound effect, or with no usual to measure against', () => {
     expect(measuredEmphasis(column(4, 80, 'sfx'), PAGE, usual)).toBe(1)
     expect(measuredEmphasis(column(4, 80), PAGE, null)).toBe(1)
+    expect(measuredEmphasis(column(4, 20, 'sfx'), PAGE, usual)).toBe(1)
+  })
+
+  it('is under one for a murmur lettered clearly smaller than the rest', () => {
+    expect(measuredEmphasis(column(4, 28), PAGE, usual)).toBe(0.7)
+  })
+
+  it('stops at the least a measure may lower a line', () => {
+    expect(measuredEmphasis(column(6, 12), PAGE, usual)).toBe(EMPHASIS_MIN)
+  })
+
+  it('is none for a line only a little smaller — ordinary lines read 0.87–1.02', () => {
+    expect(measuredEmphasis(column(6, 34), PAGE, usual)).toBe(1)
+  })
+
+  it('is none for a short line, however small its box — "…" and "えっ" measure worst', () => {
+    expect(measuredEmphasis(column(3, 20), PAGE, usual)).toBe(1)
   })
 })

@@ -58,6 +58,16 @@ const where = computed(() => {
 
 const { pages } = useComic()
 
+const { settings: cleanSettings, running: cleaning } = useClean()
+const { target, languages, set: setTarget } = useTargetLanguage()
+
+/** As the Translate panel's: a select hands its value back on opening too. */
+function onTarget (next: unknown) {
+  const value = String(next ?? '')
+
+  if (value && value !== target.value) setTarget(value)
+}
+
 /** See the popover's opening focus. */
 function focusScope (event: Event) {
   event.preventDefault()
@@ -267,7 +277,7 @@ watch(outcome, (done) => {
               </div>
 
               <UFieldGroup class="gap-2.5">
-                <UField v-for="step in AUTO_STEPS" :key="step" orientation="horizontal" class="items-center">
+                <UField v-for="step in AUTO_STEPS" :key="step" orientation="horizontal" class="flex-wrap items-center">
                   <UFieldContent class="flex-row items-center gap-1.5">
                     <UFieldLabel :for="`auto-${step}`">{{ AUTO_STEP_LABELS[step] }}</UFieldLabel>
                     <InfoTip :label="`About ${AUTO_STEP_LABELS[step]}`">
@@ -293,6 +303,42 @@ watch(outcome, (done) => {
                     :aria-label="AUTO_STEP_LABELS[step]"
                     @update:model-value="setStep(step)"
                   />
+                  <!--
+                    Desktop (2026-10-28): the two choices a run most often
+                    needs changed before it starts — which cleaner, which
+                    language — under their stops, so a press does not begin
+                    with a trip to two panels. The same settings as the Detect
+                    and Translate panels', not copies: changed here, changed there.
+                  -->
+                  <USelect
+                    v-if="step === 'clean' && settings.steps.clean"
+                    :model-value="cleanSettings.model"
+                    :disabled="cleaning"
+                    @update:model-value="cleanSettings.model = pick($event, cleanSettings.model)"
+                  >
+                    <USelectTrigger size="sm" class="basis-full" aria-label="Cleaner">
+                      <USelectValue />
+                    </USelectTrigger>
+                    <USelectContent position="popper" class="w-(--reka-select-trigger-width)">
+                      <USelectItem v-for="item in CLEANERS" :key="item.id" :value="item.id">
+                        {{ item.label }}
+                      </USelectItem>
+                    </USelectContent>
+                  </USelect>
+                  <USelect
+                    v-if="step === 'translate' && settings.steps.translate"
+                    :model-value="target"
+                    @update:model-value="onTarget"
+                  >
+                    <USelectTrigger size="sm" class="basis-full" aria-label="Target language">
+                      <USelectValue />
+                    </USelectTrigger>
+                    <USelectContent position="popper" class="w-(--reka-select-trigger-width)">
+                      <USelectItem v-for="lang in languages" :key="lang.value" :value="lang.value">
+                        {{ lang.label }}
+                      </USelectItem>
+                    </USelectContent>
+                  </USelect>
                 </UField>
               </UFieldGroup>
             </UFieldSet>

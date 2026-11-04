@@ -29,6 +29,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import updater from 'electron-updater'
 
+import { leaveForNext, showSplash } from './splash'
+
 import type { UpdateState } from './preload'
 
 const { autoUpdater } = updater
@@ -73,9 +75,20 @@ export function serveUpdates (trusted: (event: Electron.IpcMainInvokeEvent) => b
 
     return state
   }))
-  // Only once one is downloaded; the window offers it only then.
-  ipcMain.handle('updates:install', only(() => {
-    if (state.status === 'ready') autoUpdater.quitAndInstall()
+  // Only once one is downloaded; the window offers it only then. Silent, and
+  // opened again after: the default showed the installer's own wizard — the
+  // folder, the next buttons — for an update the reader had already said yes to
+  // (2026-10-28). An install on quit was always silent. Behind a splash, which
+  // the new version picks up again at launch — see `splash.ts`.
+  ipcMain.handle('updates:install', only(async () => {
+    if (state.status !== 'ready') return
+
+    const splash = await showSplash('Installing update', `Kemolate ${state.next ?? ''}`.trim())
+
+    for (const win of BrowserWindow.getAllWindows()) if (win !== splash.window) win.hide()
+
+    leaveForNext(state.next ?? '')
+    autoUpdater.quitAndInstall(true, true)
   }))
 
   if (!updates()) return

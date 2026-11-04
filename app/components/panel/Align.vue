@@ -12,6 +12,7 @@ import {
   AlignVerticalDistributeCenterIcon,
   AlignVerticalDistributeEndIcon,
   AlignVerticalDistributeStartIcon,
+  Columns3Icon,
 } from '@lucide/vue'
 
 /**
@@ -25,7 +26,10 @@ import {
  * block they are lined up *on*.
  */
 const { page, selected, keyBlock } = useComic()
-const { alignTo, alignable, distributable, measured, align, distribute } = useAlign()
+const { alignTo, alignable, distributable, columnable, measured, align, distribute, columns } = useAlign()
+
+/** Desktop: the gap between columns, in the scan's own pixels — kept while the panel moves docks. See `columns`. */
+const columnGap = useState('align-column-gap', () => 12)
 
 /**
  * The key by the number the page calls it — the same number the badge above its
@@ -230,6 +234,40 @@ const hint = computed(() => {
             <AlignVerticalDistributeEndIcon />
           </UButton>
         </UButtonGroup>
+      </div>
+    </div>
+
+    <!--
+      Desktop: several lines in one balloon, kept separate blocks, laid side by
+      side as columns — equal widths across the space they cover, the first line
+      rightmost on a right-to-left page, each keeping its own top. See `columns`.
+    -->
+    <div class="grid gap-1.5">
+      <UFieldLabel>Columns</UFieldLabel>
+      <div class="flex items-center gap-2">
+        <UButton
+          variant="outline"
+          size="sm"
+          :disabled="!columnable"
+          title="Set the selected lines side by side as columns of equal width, in reading order"
+          @click="columns(columnGap)"
+        >
+          <Columns3Icon class="size-4" /> Make columns
+        </UButton>
+        <PanelNumberField
+          class="min-w-0 flex-1"
+          label-class="w-10 text-[11px]"
+          label="Gap"
+          :value="columnGap"
+          :from="columnGap"
+          suffix="px"
+          :precision="0"
+          :step="0.5"
+          :nudge="1"
+          :min="0"
+          :max="400"
+          @set="columnGap = Math.round($event)"
+        />
       </div>
     </div>
 

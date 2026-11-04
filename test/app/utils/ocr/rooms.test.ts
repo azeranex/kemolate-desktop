@@ -203,12 +203,16 @@ describe('roomsFor', () => {
     }
   })
 
-  it('declines both blocks when two share one balloon', () => {
-    // Two translations handed the same room would be lettered over each other.
+  it('gives two blocks in one balloon the balloon, measured once and shared', () => {
+    // Desktop: once declined, since two translations handed one room were lettered over
+    // each other; now the lines are set in bands of it (`app/utils/sharedBalloons.ts`).
     const left = { ...column, cx: px(180) }
     const right = { ...column, cx: px(220) }
+    const [one, other] = roomsFor(balloonPage(), [left, right], [fence], W)
 
-    expect(roomsFor(balloonPage(), [left, right], [fence], W)).toEqual([null, null])
+    expect(one).not.toBeNull()
+    expect(one?.shared).toBe(true)
+    expect(other).toEqual(one)
   })
 
   it('still measures a block alone in its balloon beside a pair that share one', () => {
@@ -217,7 +221,10 @@ describe('roomsFor', () => {
     const [room, ...rest] = roomsFor(balloonPage(), [column, inOther, { ...inOther, cx: px(335) }], [fence, other], W)
 
     expect(room).not.toBeNull()
-    expect(rest).toEqual([null, null])
+    expect(room?.shared).toBeUndefined()
+    // Desktop: the pair shares its balloon's room — see the test above.
+    expect(rest[0]?.shared).toBe(true)
+    expect(rest[1]).toEqual(rest[0])
   })
 })
 

@@ -22,6 +22,7 @@ import type { EffectScope, ShallowRef } from 'vue'
 // By hand, so a dev server already running picks up an export it has not seen.
 import { isFreeModel, modelFamilyOf, successorOf } from '#shared/utils/models'
 import { pickedName } from '~/utils/images'
+import { bandOf } from '~/utils/sharedBalloons'
 
 /** What a block turned out to be, once someone or something had read it. */
 export type BlockType = 'bubble' | 'caption' | 'sfx' | 'garbage'
@@ -151,7 +152,7 @@ export interface Block extends PageBox {
    *
    * Desktop: `round` is a room that is the balloon's own oval — see `RoomBox`.
    */
-  room?: PageBox & { round?: boolean }
+  room?: PageBox & { round?: boolean, shared?: boolean }
 }
 
 /**
@@ -192,7 +193,10 @@ export interface LetterBox extends PageBox {
  * the note on `Block.letter`.
  */
 export function letterBoxOf (block: Block): LetterBox {
-  return block.letter ?? (block.room && block.translation ? { ...block.room } : blockBoxOf(block))
+  // Desktop: a band of a balloon it shares with other lines, before its own room — see `utils/sharedBalloons`.
+  const band = block.letter ? undefined : bandOf(block)
+
+  return block.letter ?? (band ? { ...band } : block.room && block.translation ? { ...block.room } : blockBoxOf(block))
 }
 
 /**

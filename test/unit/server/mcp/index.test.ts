@@ -87,6 +87,7 @@ describe('the MCP server', () => {
     const names = (await client.listTools()).tools.map((tool) => tool.name).sort()
 
     expect(names).toEqual([
+      'clean_page',
       'correct_blocks',
       'get_active_workspace',
       'get_cast',
@@ -138,6 +139,19 @@ describe('the MCP server', () => {
     const unknown = [...named].filter((name) => /^(get|list|read|request|review|correct|save|sort|prepare|update|set)_/.test(name) && !offered.has(name))
 
     expect(unknown).toEqual([])
+  })
+
+  it('names only tools it has in the plugin\'s translate and review commands', async () => {
+    const client = await connect(true)
+    const offered = new Set((await client.listTools()).tools.map((tool) => tool.name))
+
+    for (const command of ['translate', 'review']) {
+      const skill = readFileSync(fileURLToPath(new URL(`../../../../plugins/kemolate/skills/${command}/SKILL.md`, import.meta.url)), 'utf8')
+      const named = new Set([...skill.matchAll(/`([a-z]+(?:_[a-z]+)+)`/g)].map((match) => match[1]!))
+      const unknown = [...named].filter((name) => /^(get|list|read|request|review|correct|save|sort|prepare|update|set|clean|join|split)_/.test(name) && !offered.has(name))
+
+      expect(unknown).toEqual([])
+    }
   })
 
   it('lists the workspaces in the database, with their page counts', async () => {
@@ -452,7 +466,7 @@ describe('set_lettering_style with a frame', () => {
 
 describe('review_lettering', () => {
   /** A page of four translated balloons, open in a stand-in window that answers as the real one would. */
-  async function lettered (lines: { size: number, set: 'auto' | 'standard' | 'chosen', capacity: number | null, over?: boolean, tight?: boolean, hyphens?: boolean, measuredEmphasis?: number, drawn?: string[], rewrapped?: boolean }[], standard: number | null = null) {
+  async function lettered (lines: { size: number, set: 'auto' | 'standard' | 'chosen', capacity: number | null, over?: boolean, tight?: boolean, hyphens?: boolean, measuredEmphasis?: number, drawn?: string[], rewrapped?: boolean, collides?: number[] }[], standard: number | null = null) {
     const context = await aWorkspace()
     const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
     const rows = await replace(context, page!.id, lines.map((_, at) =>
@@ -473,7 +487,8 @@ describe('review_lettering', () => {
           finish(ask.request, publicId, {
             ok: true,
             standard,
-            lines: lines.map((line, at) => ({ blockId: rows[at]!.id, over: false, tight: false, hyphens: false, ...line })),
+            // `collides` is given by position in `lines`, and named here by the rows that position became.
+            lines: lines.map((line, at) => ({ blockId: rows[at]!.id, over: false, tight: false, hyphens: false, ...line, ...(line.collides ? { collides: line.collides.map((other) => rows[other]!.id) } : {}) })),
           })
         } else if (ask.type === 'render') {
           deliver(ask.request, publicId, Buffer.from([0xFF, 0xD8, 0xFF]), 'image/jpeg')
@@ -571,6 +586,21 @@ describe('review_lettering', () => {
     expect(out.images).toEqual([])
     expect(asked.map((ask) => ask.type)).toEqual(['fits'])
     expect(ids).toHaveLength(4)
+  })
+
+  it('flags lines lettered over each other, names the other, and says how to share the balloon', async () => {
+    const { ids, asked } = await lettered([
+      { size: 20, set: 'auto', capacity: 20, collides: [1] },
+      { size: 20, set: 'auto', capacity: 20, collides: [0] },
+      { size: 20, set: 'auto', capacity: 20 },
+    ])
+    const out = report(await review())
+
+    expect(out.lines.map((line: { flags: string[] }) => line.flags)).toEqual([['collides'], ['collides'], []])
+    expect(out.lines[0].collidesWith).toEqual([ids[1]])
+    expect(out.next).toContain('Several lines in one balloon')
+    // Two lines over each other is a thing to see: both get a crop.
+    expect(asked.filter((ask) => ask.type === 'render')).toHaveLength(2)
   })
 
   it('says why when the window cannot measure', async () => {

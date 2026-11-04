@@ -238,6 +238,8 @@ export interface DrawnLines {
   broken: number
   /** Whether the text carries breaks somebody typed. */
   byHand: boolean
+  /** Where the words' ink is, in the frame's own pixels — see `collisions` in `useLetteringErrands`. */
+  ink?: { left: number, top: number, right: number, bottom: number }
 }
 
 /**
@@ -578,8 +580,13 @@ export function inkSize (input: FitInput, size: number, squeeze: Squeeze = {}): 
  * range keeps them (`rewrapped`, which a review reports). Nor is a word in it
  * hyphenated while its breaks hold: whoever broke the lines decided where the
  * words go. Only where they cannot be kept, and nothing else goes, is one broken.
+ *
+ * A *single* newline, though. A blank line between two paragraphs — several
+ * utterances in one balloon, joined (2026-10-23) — says where one ends, not
+ * where each of its lines does, and a paragraph written as one line still
+ * wraps. Text that is all paragraphs is fitted as unbroken text.
  */
-const keepsBreaks = (input: FitInput) => input.text.includes('\n')
+export const keepsBreaks = (input: Pick<FitInput, 'text'>) => /(?<!\n)\n(?!\n)/.test(input.text)
 
 /**
  * The largest size that fits with this squeeze, or the floor flagged `over` —
@@ -750,7 +757,7 @@ export function drawnLines (input: FitInput, fit: LetterFit): DrawnLines | null 
 
   const setup = probeFor(input)
 
-  setup.layout(fit.size, { hyphens: fit.hyphens, tight: fit.tight }, fit.pad ?? 0)
+  const ink = setup.layout(fit.size, { hyphens: fit.hyphens, tight: fit.tight }, fit.pad ?? 0)
 
-  return setup.breaks(fit.size)
+  return { ...setup.breaks(fit.size), ...(ink ? { ink } : {}) }
 }

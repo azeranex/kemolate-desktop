@@ -38,12 +38,15 @@
  * components away from here. It is `usePanelDock`'s now — see the note there,
  * which is also the argument for why that is where it belonged anyway.
  */
-import { PanelLeftIcon, PanelRightIcon } from '@lucide/vue'
+import { PanelLeftIcon, PanelRightIcon, SettingsIcon } from '@lucide/vue'
 
 const { tool, setTool } = useTools()
 const { shown, toggle } = usePanelDock()
 
 useToolShortcuts()
+
+/** ⌘ where it is ⌘, Ctrl+ elsewhere — as `AppMenu` says it. */
+const mod = window.kemolate?.platform === 'darwin' ? '⌘' : 'Ctrl+'
 </script>
 
 <template>
@@ -99,6 +102,25 @@ useToolShortcuts()
           </UButton>
         </UTooltipTrigger>
         <UTooltipContent side="right">{{ shown[side] ? 'Hide' : 'Show' }} {{ side }} panel</UTooltipContent>
+      </UTooltip>
+
+      <!--
+        The app's settings, last in the rail — desktop. File › Settings… and
+        Ctrl+, reach it too; this is the one a pointer finds without a menu.
+      -->
+      <UTooltip>
+        <UTooltipTrigger as-child>
+          <UButton
+            variant="ghost"
+            size="icon-sm"
+            class="text-muted-foreground w-8"
+            aria-label="Settings"
+            @click="navigateTo('/settings')"
+          >
+            <SettingsIcon class="size-4.25" />
+          </UButton>
+        </UTooltipTrigger>
+        <UTooltipContent side="right">Settings ({{ mod }},)</UTooltipContent>
       </UTooltip>
     </div>
   </div>

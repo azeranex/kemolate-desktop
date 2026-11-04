@@ -163,6 +163,7 @@ const fitReportSchema = z.object({
     broken: z.number().int().min(0).max(1000).optional(),
     byHand: z.boolean().optional(),
     rewrapped: z.boolean().optional(),
+    collides: z.array(z.number().int().positive()).max(100).optional(),
   })).max(1000).optional(),
   error: z.string().transform((text) => text.slice(0, 400)).optional(),
 })

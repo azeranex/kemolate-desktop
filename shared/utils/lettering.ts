@@ -572,11 +572,13 @@ export const validPoints = (points: number[] | null | undefined): points is numb
 export function shapeFor (
   style: Pick<Lettering, 'shape' | 'points'>,
   block: { type?: string, translation: string, room?: { round?: boolean } | null, letter?: unknown },
+  // Desktop: set in a band of a balloon it shares, not its room — so never its room's oval. See `utils/sharedBalloons`.
+  shared = false,
 ): LetterShape {
   if (!block.translation.trim()) return 'box'
   if (style.shape === 'custom') return validPoints(style.points) ? 'custom' : 'box'
   if (style.shape) return style.shape
-  if (block.room?.round && !block.letter) return 'oval'
+  if (block.room?.round && !block.letter && !shared) return 'oval'
 
   return block.type === 'bubble' ? 'soft' : 'box'
 }

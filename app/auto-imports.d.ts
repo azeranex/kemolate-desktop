@@ -41,8 +41,10 @@ declare global {
   const DOCK_SIDES: typeof import('./composables/usePanelDock').DOCK_SIDES
   const EASE_MS: typeof import('./composables/useComic').EASE_MS
   const EFFORT_ORDER: typeof import('./composables/useComic').EFFORT_ORDER
+  const EMPHASIS_BELOW: typeof import('./utils/emphasis').EMPHASIS_BELOW
   const EMPHASIS_FROM: typeof import('./utils/emphasis').EMPHASIS_FROM
   const EMPHASIS_MAX: typeof import('./utils/emphasis').EMPHASIS_MAX
+  const EMPHASIS_MIN: typeof import('./utils/emphasis').EMPHASIS_MIN
   const EMPHASIS_QUORUM: typeof import('./utils/emphasis').EMPHASIS_QUORUM
   const EXPORT_DEFAULTS: typeof import('./composables/usePageExport').EXPORT_DEFAULTS
   const EffectScope: typeof import('vue').EffectScope
@@ -99,6 +101,7 @@ declare global {
   const PROVIDERS: typeof import('../shared/utils/providers').PROVIDERS
   const PROVIDER_IDS: typeof import('../shared/utils/providers').PROVIDER_IDS
   const PULL: typeof import('../shared/utils/transform').PULL
+  const QUIET_FEWEST: typeof import('./utils/emphasis').QUIET_FEWEST
   const RAIL_WIDTH: typeof import('./composables/usePanelDock').RAIL_WIDTH
   const RANGE_WIDTH: typeof import('../shared/utils/lettering').RANGE_WIDTH
   const READERS: typeof import('./utils/ocr/readers').READERS
@@ -160,6 +163,8 @@ declare global {
   const balloonIn: typeof import('./utils/ocr/balloon').balloonIn
   const balloonJudge: typeof import('./utils/ocr/together').balloonJudge
   const balloonsDrawnOn: typeof import('./composables/useOcr').balloonsDrawnOn
+  const bandOf: typeof import('./utils/sharedBalloons').bandOf
+  const bandsFor: typeof import('./utils/sharedBalloons').bandsFor
   const batchPagePrompt: typeof import('../shared/utils/prompt').batchPagePrompt
   const batchSize: typeof import('./utils/resources').batchSize
   const bentIn: typeof import('./utils/letterCss').bentIn
@@ -176,6 +181,7 @@ declare global {
   const cannotSee: typeof import('./utils/openrouter').cannotSee
   const castKey: typeof import('../shared/utils/cast').castKey
   const castTags: typeof import('../shared/utils/cast').castTags
+  const caughtUp: typeof import('./composables/useLiveSync').caughtUp
   const centreFit: typeof import('./utils/ocr/mask').centreFit
   const centredReadingOrder: typeof import('../shared/utils/ocr').centredReadingOrder
   const claimed: typeof import('./utils/keys').claimed
@@ -192,6 +198,7 @@ declare global {
   const clipBase: typeof import('../shared/utils/layers').clipBase
   const clipEdit: typeof import('./utils/ocr/mask').clipEdit
   const cn: typeof import('./utils/cn').cn
+  const collisions: typeof import('./composables/useLetteringErrands').collisions
   const comparePaths: typeof import('./utils/images').comparePaths
   const computed: typeof import('vue').computed
   const computedAsync: typeof import('@vueuse/core').computedAsync
@@ -293,6 +300,7 @@ declare global {
   const googleTranslate: typeof import('./utils/google').googleTranslate
   const googleTranslateAll: typeof import('./utils/google').googleTranslateAll
   const gridCopy: typeof import('../shared/utils/raster').gridCopy
+  const groupOf: typeof import('./utils/sharedBalloons').groupOf
   const grownBounds: typeof import('../shared/utils/raster').grownBounds
   const guideAt: typeof import('./utils/tree').guideAt
   const h: typeof import('vue').h
@@ -345,8 +353,10 @@ declare global {
   const keepGlossaryLocally: typeof import('./composables/useGlossary').keepGlossaryLocally
   const keepLayersLocally: typeof import('./composables/useLayerCache').keepLayersLocally
   const keepPlaced: typeof import('./utils/placed').keepPlaced
+  const keepsBreaks: typeof import('./utils/lettering').keepsBreaks
   const labEndpoint: typeof import('./utils/ocr/lab').labEndpoint
   const labelFor: typeof import('../shared/utils/models').labelFor
+  const layBands: typeof import('./utils/sharedBalloons').layBands
   const layerDrafts: typeof import('./composables/useLayerSync').layerDrafts
   const layerEditable: typeof import('../shared/utils/layers').layerEditable
   const layerInk: typeof import('../shared/utils/layers').layerInk
@@ -562,6 +572,7 @@ declare global {
   const shapeParts: typeof import('./utils/letterCss').shapeParts
   const shapeSpans: typeof import('../shared/utils/lettering').shapeSpans
   const shareInFlight: typeof import('./composables/useMaskEdits').shareInFlight
+  const sharedRooms: typeof import('./utils/ocr/rooms').sharedRooms
   const sheetCorner: typeof import('./utils/view').sheetCorner
   const sheetInView: typeof import('./utils/view').sheetInView
   const sheetToView: typeof import('./utils/view').sheetToView
@@ -1053,6 +1064,9 @@ declare global {
   export type { Backend } from './utils/resources'
   import('./utils/resources')
   // @ts-ignore
+  export type { Band } from './utils/sharedBalloons'
+  import('./utils/sharedBalloons')
+  // @ts-ignore
   export type { StrokeDraft, StrokeLayer } from './utils/strokes'
   import('./utils/strokes')
   // @ts-ignore
@@ -1206,8 +1220,10 @@ declare module 'vue' {
     readonly DOCK_SIDES: UnwrapRef<typeof import('./composables/usePanelDock')['DOCK_SIDES']>
     readonly EASE_MS: UnwrapRef<typeof import('./composables/useComic')['EASE_MS']>
     readonly EFFORT_ORDER: UnwrapRef<typeof import('./composables/useComic')['EFFORT_ORDER']>
+    readonly EMPHASIS_BELOW: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_BELOW']>
     readonly EMPHASIS_FROM: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_FROM']>
     readonly EMPHASIS_MAX: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_MAX']>
+    readonly EMPHASIS_MIN: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_MIN']>
     readonly EMPHASIS_QUORUM: UnwrapRef<typeof import('./utils/emphasis')['EMPHASIS_QUORUM']>
     readonly EXPORT_DEFAULTS: UnwrapRef<typeof import('./composables/usePageExport')['EXPORT_DEFAULTS']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
@@ -1264,6 +1280,7 @@ declare module 'vue' {
     readonly PROVIDERS: UnwrapRef<typeof import('../shared/utils/providers')['PROVIDERS']>
     readonly PROVIDER_IDS: UnwrapRef<typeof import('../shared/utils/providers')['PROVIDER_IDS']>
     readonly PULL: UnwrapRef<typeof import('../shared/utils/transform')['PULL']>
+    readonly QUIET_FEWEST: UnwrapRef<typeof import('./utils/emphasis')['QUIET_FEWEST']>
     readonly RAIL_WIDTH: UnwrapRef<typeof import('./composables/usePanelDock')['RAIL_WIDTH']>
     readonly RANGE_WIDTH: UnwrapRef<typeof import('../shared/utils/lettering')['RANGE_WIDTH']>
     readonly READERS: UnwrapRef<typeof import('./utils/ocr/readers')['READERS']>
@@ -1325,6 +1342,8 @@ declare module 'vue' {
     readonly balloonIn: UnwrapRef<typeof import('./utils/ocr/balloon')['balloonIn']>
     readonly balloonJudge: UnwrapRef<typeof import('./utils/ocr/together')['balloonJudge']>
     readonly balloonsDrawnOn: UnwrapRef<typeof import('./composables/useOcr')['balloonsDrawnOn']>
+    readonly bandOf: UnwrapRef<typeof import('./utils/sharedBalloons')['bandOf']>
+    readonly bandsFor: UnwrapRef<typeof import('./utils/sharedBalloons')['bandsFor']>
     readonly batchPagePrompt: UnwrapRef<typeof import('../shared/utils/prompt')['batchPagePrompt']>
     readonly batchSize: UnwrapRef<typeof import('./utils/resources')['batchSize']>
     readonly bentIn: UnwrapRef<typeof import('./utils/letterCss')['bentIn']>
@@ -1341,6 +1360,7 @@ declare module 'vue' {
     readonly cannotSee: UnwrapRef<typeof import('./utils/openrouter')['cannotSee']>
     readonly castKey: UnwrapRef<typeof import('../shared/utils/cast')['castKey']>
     readonly castTags: UnwrapRef<typeof import('../shared/utils/cast')['castTags']>
+    readonly caughtUp: UnwrapRef<typeof import('./composables/useLiveSync')['caughtUp']>
     readonly centreFit: UnwrapRef<typeof import('./utils/ocr/mask')['centreFit']>
     readonly centredReadingOrder: UnwrapRef<typeof import('../shared/utils/ocr')['centredReadingOrder']>
     readonly claimed: UnwrapRef<typeof import('./utils/keys')['claimed']>
@@ -1357,6 +1377,7 @@ declare module 'vue' {
     readonly clipBase: UnwrapRef<typeof import('../shared/utils/layers')['clipBase']>
     readonly clipEdit: UnwrapRef<typeof import('./utils/ocr/mask')['clipEdit']>
     readonly cn: UnwrapRef<typeof import('./utils/cn')['cn']>
+    readonly collisions: UnwrapRef<typeof import('./composables/useLetteringErrands')['collisions']>
     readonly comparePaths: UnwrapRef<typeof import('./utils/images')['comparePaths']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
@@ -1458,6 +1479,7 @@ declare module 'vue' {
     readonly googleTranslate: UnwrapRef<typeof import('./utils/google')['googleTranslate']>
     readonly googleTranslateAll: UnwrapRef<typeof import('./utils/google')['googleTranslateAll']>
     readonly gridCopy: UnwrapRef<typeof import('../shared/utils/raster')['gridCopy']>
+    readonly groupOf: UnwrapRef<typeof import('./utils/sharedBalloons')['groupOf']>
     readonly grownBounds: UnwrapRef<typeof import('../shared/utils/raster')['grownBounds']>
     readonly guideAt: UnwrapRef<typeof import('./utils/tree')['guideAt']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
@@ -1510,8 +1532,10 @@ declare module 'vue' {
     readonly keepGlossaryLocally: UnwrapRef<typeof import('./composables/useGlossary')['keepGlossaryLocally']>
     readonly keepLayersLocally: UnwrapRef<typeof import('./composables/useLayerCache')['keepLayersLocally']>
     readonly keepPlaced: UnwrapRef<typeof import('./utils/placed')['keepPlaced']>
+    readonly keepsBreaks: UnwrapRef<typeof import('./utils/lettering')['keepsBreaks']>
     readonly labEndpoint: UnwrapRef<typeof import('./utils/ocr/lab')['labEndpoint']>
     readonly labelFor: UnwrapRef<typeof import('../shared/utils/models')['labelFor']>
+    readonly layBands: UnwrapRef<typeof import('./utils/sharedBalloons')['layBands']>
     readonly layerDrafts: UnwrapRef<typeof import('./composables/useLayerSync')['layerDrafts']>
     readonly layerEditable: UnwrapRef<typeof import('../shared/utils/layers')['layerEditable']>
     readonly layerInk: UnwrapRef<typeof import('../shared/utils/layers')['layerInk']>
@@ -1727,6 +1751,7 @@ declare module 'vue' {
     readonly shapeParts: UnwrapRef<typeof import('./utils/letterCss')['shapeParts']>
     readonly shapeSpans: UnwrapRef<typeof import('../shared/utils/lettering')['shapeSpans']>
     readonly shareInFlight: UnwrapRef<typeof import('./composables/useMaskEdits')['shareInFlight']>
+    readonly sharedRooms: UnwrapRef<typeof import('./utils/ocr/rooms')['sharedRooms']>
     readonly sheetCorner: UnwrapRef<typeof import('./utils/view')['sheetCorner']>
     readonly sheetInView: UnwrapRef<typeof import('./utils/view')['sheetInView']>
     readonly sheetToView: UnwrapRef<typeof import('./utils/view')['sheetToView']>

@@ -34,15 +34,20 @@ export type Cleaning =
   | { cleaned: number[], skipped?: { blockId: number, why: string }[] }
   | { cleaned: false, why: string }
 
-/** How long the asker waits: the window waits for the new blocks to arrive, and a cold cleaner loads its model. */
+/**
+ * How long the asker waits: the window waits for the new blocks to arrive, and a
+ * cold cleaner loads its model — and a whole page (`clean_page`) is cleaned a
+ * block at a time, so more blocks are given longer.
+ */
 const TIMEOUT = 120_000
+const PER_BLOCK = 15_000
 
 export async function requestClean (publicId: string, hash: string, blockIds: number[]): Promise<CleanReport> {
   const [peer] = holders(publicId, hash)
 
   if (!peer) return { ok: false, error: 'Kemolate does not have this chapter open.' }
 
-  const { request, waiting } = begin<CleanReport>(publicId, TIMEOUT, () => createError({
+  const { request, waiting } = begin<CleanReport>(publicId, Math.max(TIMEOUT, blockIds.length * PER_BLOCK), () => createError({
     statusCode: 504,
     statusMessage: 'Kemolate did not finish cleaning in time.',
   }))
@@ -52,7 +57,7 @@ export async function requestClean (publicId: string, hash: string, blockIds: nu
   return waiting
 }
 
-/** Clean what a join or a cut made, and say how it went — see the header. */
+/** Clean what a join or a cut made, or what `clean_page` was asked to, and say how it went — see the header. */
 export async function cleanAfter (publicId: string, hash: string | null, blockIds: number[]): Promise<Cleaning> {
   const later = 'Ask the user to open the chapter in Kemolate and press Clean page (Detect panel) on this page.'
 

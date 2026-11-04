@@ -203,7 +203,7 @@ export function usePageExport () {
     return {
       pages: picked.length,
       noScan: picked.filter(({ page }) => !page.scan).length,
-      untranslated: picked.reduce((n, { page }) => n + page.blocks.filter((block) => !block.hidden && !block.translation.trim()).length, 0),
+      untranslated: picked.reduce((n, { page }) => n + page.blocks.filter((block) => !block.hidden && block.type !== 'garbage' && !block.translation.trim()).length, 0),
     }
   }
 
@@ -232,7 +232,8 @@ export function usePageExport () {
 
   /** A page's lettering plates, as the board would set them at one pixel to the scan pixel. */
   async function letteringOf (page: ComicPage, size: { width: number, height: number }) {
-    const shown = page.blocks.filter((block) => !block.hidden && block.translation.trim())
+    // Garbage is not lettering, as on the board — see `lettered` in `Sheet.vue`.
+    const shown = page.blocks.filter((block) => !block.hidden && block.type !== 'garbage' && block.translation.trim())
 
     if (!shown.length) return { dialogue: [], sfx: [] }
 
@@ -267,7 +268,7 @@ export function usePageExport () {
         const paper = sheet ? paperAt(sheet, blockBoxOf(block), page.scan) : null
         const down = setDownIn(block, size)
         // A line that does not fit is set in its box, as on the board — see `partsOf` there.
-        const outline = fit?.over ? null : shapeOutline(shapeFor(style, block), style.points)
+        const outline = fit?.over ? null : shapeOutline(shapeFor(style, block, Boolean(bandOf(block))), style.points)
 
         return [{
           place: letterPlaced(frame, space),

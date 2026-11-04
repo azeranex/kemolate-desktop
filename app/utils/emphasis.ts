@@ -23,6 +23,18 @@
  *
  * A big *balloon* is not evidence of anything. The artist leaves room; the
  * room is not the voice. That is the case this exists to tell apart.
+ *
+ * **Quieter too** (2026-10-23). A murmur lettered small beside a face, floating
+ * outside any balloon (かぁぁ…), or an aside under the dialogue, was set at the
+ * full standard, as loud as everything round it. A line measured clearly under
+ * the chapter's ordinary size is now set under the standard, by the same
+ * reading. The bar is nearer one on this side (`EMPHASIS_BELOW`) because the
+ * measure leans *towards* one for small lettering: a detector pads its boxes by
+ * about the same pixels whatever the text's size, so a small line's box is
+ * looser and its pitch reads bigger than it is. What reads small is small. It
+ * still needs `QUIET_FEWEST` characters — two or three, often "…" or "えっ",
+ * are the least reliable boxes of all — and ordinary blocks were seen reading
+ * 0.87–1.02 on one page, so the bar sits clear of that.
  */
 import type { Block, ComicPage } from '~/composables/useComic'
 
@@ -33,6 +45,15 @@ export const EMPHASIS_FROM = 1.3
 
 /** The most a measured emphasis sets a line over the standard — past this it is a title, set by hand. */
 export const EMPHASIS_MAX = 1.8
+
+/** A line's characters must be at most this share of ordinary to count as quieter. */
+export const EMPHASIS_BELOW = 0.8
+
+/** The least a measured emphasis sets a line under the standard. */
+export const EMPHASIS_MIN = 0.6
+
+/** The fewest characters a block needs to be measured as quieter than ordinary — see the header. */
+export const QUIET_FEWEST = 4
 
 /** How many blocks a chapter needs before its ordinary size means anything. */
 export const EMPHASIS_QUORUM = 4
@@ -99,8 +120,9 @@ export function ordinaryPitch (pages: readonly ComicPage[], sizeOf: (page: Comic
 /**
  * How much over the standard the original says a line is, to a tenth: 1 for an
  * ordinary line, or one whose size cannot be told; up to `EMPHASIS_MAX` for one
- * lettered clearly bigger than the chapter's usual. Sound effects are not held
- * to the standard and have no emphasis to take.
+ * lettered clearly bigger than the chapter's usual, and down to `EMPHASIS_MIN`
+ * for one lettered clearly smaller. Sound effects are not held to the standard
+ * and have no emphasis to take.
  */
 export function measuredEmphasis (block: Block, page: { width: number, height: number }, usual: number | null): number {
   if (usual === null || !ordinary(block)) return 1
@@ -111,7 +133,10 @@ export function measuredEmphasis (block: Block, page: { width: number, height: n
 
   const ratio = pitch / usual
 
-  return ratio < EMPHASIS_FROM ? 1 : Math.min(EMPHASIS_MAX, Math.round(ratio * 10) / 10)
+  if (ratio >= EMPHASIS_FROM) return Math.min(EMPHASIS_MAX, Math.round(ratio * 10) / 10)
+  if (ratio <= EMPHASIS_BELOW && charactersIn(block.source) >= QUIET_FEWEST) return Math.max(EMPHASIS_MIN, Math.round(ratio * 10) / 10)
+
+  return 1
 }
 
 /** What a line is set at over the standard: the multiple somebody chose, or the measured one. */

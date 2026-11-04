@@ -11,7 +11,7 @@
  * build's, verbatim but for `list_workspaces` and `read_page` (which shows a
  * line's style) — a tool added there is a file copied to the same path here
  * and a line added below — beside the desktop's own:
- * `get_active_workspace` (see `defaulted`), `join_blocks`, `split_block`, `set_lettering_style`, `set_lettering_standard`, `review_lettering` and `get_guide`.
+ * `get_active_workspace` (see `defaulted`), `join_blocks`, `split_block`, `clean_page`, `set_lettering_style`, `set_lettering_standard`, `review_lettering` and `get_guide`.
  *
  * `serverFor` builds one per request, which is the toolkit's stateless mode
  * and the web build's choice (`sessions` off): every tool is a question
@@ -27,6 +27,7 @@ import { z } from 'zod'
 
 import { INSTRUCTIONS } from './instructions'
 import translateChapter from './prompts/translate-chapter'
+import cleanPage from './tools/clean-page'
 import correctBlocks from './tools/correct-blocks'
 import getActiveWorkspace from './tools/get-active-workspace'
 import getCast from './tools/get-cast'
@@ -70,6 +71,7 @@ const TOOLS = [
   correctBlocks,
   joinBlocks,
   splitBlock,
+  cleanPage,
   savePageBlocks,
   sortPageBlocks,
   preparePageTranslation,
