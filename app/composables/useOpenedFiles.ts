@@ -60,10 +60,7 @@ export function useOpenedFiles () {
     return true
   }
 
-  /** Open each file the OS hands over from now on. Returns the unsubscribe. */
-  function listen (): () => void {
-    return window.kemolate?.files.onOpened(() => { openWaiting() }) ?? (() => {})
-  }
-
-  return { openWaiting, listen }
+  // No listening for files that arrive later: each opens a tab of its own,
+  // which asks on the way in — see `electron/opening.ts`.
+  return { openWaiting }
 }

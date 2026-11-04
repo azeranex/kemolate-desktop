@@ -71,11 +71,13 @@ import { zipOf } from './zip'
 import type { McpStatus } from './preload'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
+import type { Opener } from '~~/server/utils/swarm'
 
 import skill from '~~/plugins/kemolate/skills/kemolate/SKILL.md?raw'
 import { serverFor } from '~~/server/mcp'
+import { departed } from '~~/server/utils/errand'
 import { MCP_ACTOR } from '~~/server/utils/mcp'
-import { hold } from '~~/server/utils/swarm'
+import { focusTab, holdIn, peerOf, swarmState } from '~~/server/utils/swarm'
 
 /**
  * Where it listens unless told otherwise. Unassigned, high enough to need no
@@ -304,14 +306,6 @@ const patchSchema = z.object({
  * only. Called once the database is open: the tools reach the services.
  */
 export async function serveMcp (trusted: (event: IpcMainInvokeEvent) => boolean, window: () => BrowserWindow | null): Promise<void> {
-  // A tool's ask for a page goes to the window, tagged with the workspace it was
-  // for, so a window that has just left that chapter can refuse it.
-  const send = (publicId: string, frame: string) => {
-    const win = window()
-
-    if (win && !win.isDestroyed()) win.webContents.send('mcp:frame', publicId, frame)
-  }
-
   const only = <A extends unknown[], R>(handler: (...args: A) => R) => (event: IpcMainInvokeEvent, ...args: A) => {
     if (!trusted(event)) throw new Error('Not the app.')
 
@@ -324,11 +318,23 @@ export async function serveMcp (trusted: (event: IpcMainInvokeEvent) => boolean,
     pageId: z.number().int().positive().nullable().default(null),
   })
 
-  ipcMain.handle('mcp:have', only((given: unknown) => {
-    const { workspace, hashes, pageId } = haveSchema.parse(given)
+  // Said by each tab of what it holds, so a tool's ask for a page goes to the tab
+  // holding it — tagged with the workspace it was for, so a tab that has just
+  // left that chapter can refuse it. A tab is its page's webContents.
+  ipcMain.handle('mcp:have', (event, given: unknown) => {
+    if (!trusted(event)) throw new Error('Not the app.')
 
-    hold(workspace, hashes, send, pageId)
-  }))
+    const { workspace, hashes, pageId } = haveSchema.parse(given)
+    const contents = event.sender
+    const tab = String(contents.id)
+
+    // A tab that has left its chapter will answer nothing it was asked there.
+    if (swarmState.tabs.get(tab)?.publicId !== (workspace ?? undefined)) departed(peerOf(tab))
+
+    holdIn(tab, workspace, hashes, (publicId, frame) => {
+      if (!contents.isDestroyed()) contents.send('mcp:frame', publicId, frame)
+    }, pageId)
+  })
 
   ipcMain.handle('mcp:status', only(() => status()))
 
@@ -380,9 +386,20 @@ export async function serveMcp (trusted: (event: IpcMainInvokeEvent) => boolean,
   await apply()
 }
 
-/** The window is gone or going: it holds nothing, so nothing can be asked of it. */
-export function windowLeft (): void {
-  hold(null, [], () => {})
+/** A tab's page is gone or going: it holds nothing, so nothing can be asked of it. */
+export function tabLeft (tab: number): void {
+  departed(peerOf(String(tab)))
+  holdIn(String(tab), null, [], () => {})
+}
+
+/** The tab now on screen, whose chapter an agent's "this chapter" means — see `SwarmState.active`. */
+export function tabFocused (tab: number | null): void {
+  focusTab(tab === null ? null : String(tab))
+}
+
+/** How `open_workspace` opens a chapter in a tab — the window's `Tabs`, or null without a window. */
+export function opensTabs (open: Opener): void {
+  swarmState.opener = open
 }
 
 export function closeMcp (): Promise<void> {

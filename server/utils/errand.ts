@@ -39,11 +39,75 @@ interface Pending {
 
 interface ErrandState {
   pending: Map<string, Pending>
+  /** Desktop: the heavy errand being worked on, and those waiting for it — see `heavy`. */
+  working: { request: string, peer: string, timer: ReturnType<typeof setTimeout> } | null
+  queue: { request: string, peer: string, start: () => void }[]
 }
 
-const errandState = ((globalThis as { __kemolateErrands?: ErrandState }).__kemolateErrands ??= {
+const errandState: ErrandState = ((globalThis as { __kemolateErrands?: ErrandState }).__kemolateErrands ??= {
   pending: new Map(),
+  working: null,
+  queue: [],
 })
+
+/**
+ * The longest a heavy errand keeps the next one waiting when its tab never
+ * answers — a tab closed mid-reading, say. A cold first read downloads its
+ * models, so this is minutes, not the asker's leash.
+ */
+const HEAVY_LIMIT = 10 * 60_000
+
+/** The next heavy errand, if the last one is done. */
+function next (): void {
+  if (errandState.working) return
+
+  const up = errandState.queue.shift()
+
+  if (!up) return
+
+  const timer = setTimeout(() => done(up.request), HEAVY_LIMIT)
+
+  timer.unref?.()
+  errandState.working = { request: up.request, peer: up.peer, timer }
+  up.start()
+}
+
+/**
+ * A peer gone — a tab closed, or moved to another chapter. Nothing it was asked
+ * will be answered, so it keeps nobody waiting for the limit.
+ */
+export function departed (peer: string): void {
+  errandState.queue = errandState.queue.filter((entry) => entry.peer !== peer)
+
+  if (errandState.working?.peer === peer) done(errandState.working.request)
+}
+
+/** A heavy errand answered, or given up on: the next may go. */
+export function done (request: string): void {
+  errandState.queue = errandState.queue.filter((entry) => entry.request !== request)
+
+  if (errandState.working?.request !== request) return
+
+  clearTimeout(errandState.working.timer)
+  errandState.working = null
+  next()
+}
+
+/**
+ * Desktop: send a reading or a cleaning once no other is under way, in any tab.
+ *
+ * Each tab is a page of its own with its own models, all on the one GPU. Two
+ * tabs reading at once each get half of it and run out of memory sooner, and an
+ * agent working through three chapters asks for exactly that. So the heavy
+ * errands take turns: `start` sends this one once the last has been answered —
+ * whether or not anybody is still waiting for that answer, since a reading goes
+ * on after its asker's leash runs out (`reading.ts`). Time spent in the queue is
+ * the asker's own: its leash started at `begin`.
+ */
+export function heavy (request: string, peer: string, start: () => void): void {
+  errandState.queue.push({ request, peer, start })
+  next()
+}
 
 /** Peers in this workspace that say they are holding this scan. */
 export function holders (publicId: string, hash: string): string[] {
@@ -113,6 +177,9 @@ export type Refusal = 'unknown' | 'foreign'
 
 /** Hand an answer to whoever is waiting for it. */
 export function finish<T> (request: string, publicId: string, value: T): Refusal | null {
+  // The work is over whoever is still listening — the next heavy errand may go.
+  done(request)
+
   const pending = errandState.pending.get(request)
 
   if (!pending) return 'unknown'
@@ -134,6 +201,8 @@ export function finish<T> (request: string, publicId: string, value: T): Refusal
  * way to deliver it.
  */
 export function abort (request: string, publicId: string, error: Error): Refusal | null {
+  done(request)
+
   const pending = errandState.pending.get(request)
 
   if (!pending) return 'unknown'
@@ -184,8 +253,8 @@ export function noHolder (chapter: string): never {
   throw createError({
     statusCode: 409,
     statusMessage: `Kemolate does not have “${chapter}” open, so its pages cannot be shown or read. ` +
-      'The scans are the reader\'s own files and are kept nowhere else — pages come from the chapter open in the Kemolate window. ' +
-      'Ask the user to open it in Kemolate and try again, or use the tools that need no image.',
+      'The scans are the reader\'s own files and are kept nowhere else — pages come from the chapters open in the Kemolate window\'s tabs. ' +
+      'Open it with `open_workspace` and try again, or use the tools that need no image.',
   })
 }
 

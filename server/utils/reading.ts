@@ -30,7 +30,7 @@
  * still going, and the browser saves what it finds regardless. The next
  * `read_page` picks it up.
  */
-import { begin, forget, holders, noHolder, tell } from './errand'
+import { begin, forget, heavy, holders, noHolder, tell } from './errand'
 
 import type { SwarmServerMessage } from './swarm'
 
@@ -86,12 +86,13 @@ export async function requestRead (
     () => new Error('still working'),
   )
 
-  tell([peer], JSON.stringify({
+  // Desktop: after any reading or cleaning another tab is doing — see `heavy`.
+  heavy(request, peer, () => tell([peer], JSON.stringify({
     type: 'read',
     request,
     hashes: pages.map((page) => page.hash),
     pageIds: pages.map((page) => page.pageId),
-  } satisfies SwarmServerMessage))
+  } satisfies SwarmServerMessage)))
 
   try {
     const report = await waiting

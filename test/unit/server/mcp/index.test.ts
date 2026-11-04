@@ -15,7 +15,7 @@ import { finish } from '~~/server/utils/errand'
 import { MCP_ACTOR } from '~~/server/utils/mcp'
 import { installMcpGlobals } from '~~/server/utils/mcpToolkit'
 import { deliver } from '~~/server/utils/relay'
-import { hold, swarmState } from '~~/server/utils/swarm'
+import { focusTab, hold, holdIn, swarmState } from '~~/server/utils/swarm'
 
 /**
  * The MCP server as a client meets it — desktop.
@@ -46,6 +46,9 @@ beforeEach(() => {
   reset()
   swarmState.swarms.clear()
   swarmState.sockets.clear()
+  swarmState.tabs.clear()
+  swarmState.focused = null
+  swarmState.opener = null
   swarmState.active = null
   globals.useEvent = () => event
 })
@@ -97,6 +100,7 @@ describe('the MCP server', () => {
       'join_blocks',
       'list_pages',
       'list_workspaces',
+      'open_workspace',
       'prepare_page_translation',
       'read_page',
       'request_page_read',
@@ -288,6 +292,152 @@ describe('the open chapter', () => {
 
     expect(result.isError).toBe(true)
     expect(textOf(result)).toMatch(/^\[409\] No chapter is open in Kemolate/)
+  })
+})
+
+describe('chapters open in tabs', () => {
+  /** Two chapters, each in a tab of its own, the second on screen. */
+  async function twoTabs () {
+    const behind = await aWorkspace({ name: 'Behind' })
+    const front = await aWorkspace({ name: 'In front' })
+    const [hidden] = await syncPages(behind, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-behind' }])
+    const [shown] = await syncPages(front, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-front' }])
+    const asked: { tab: string, type: string }[] = []
+
+    // Each tab answers a picture of what it holds, as `holdScans` and `render` do.
+    const tab = (id: string) => (publicId: string, frame: string) => {
+      const ask = JSON.parse(frame) as { type: string, request: string }
+
+      asked.push({ tab: id, type: ask.type })
+
+      if (ask.type === 'render') queueMicrotask(() => deliver(ask.request, publicId, Buffer.from([0xFF, 0xD8, 0xFF]), 'image/jpeg'))
+    }
+
+    holdIn('1', behind.workspace.publicId, ['sha-behind'], tab('1'), hidden!.id)
+    holdIn('2', front.workspace.publicId, ['sha-front'], tab('2'), shown!.id)
+    focusTab('2')
+
+    return { behind, front, hidden: hidden!, shown: shown!, asked }
+  }
+
+  it('lists every chapter open in a tab, and which is on screen', async () => {
+    const { behind, front } = await twoTabs()
+    const client = await connect(true)
+    const open = JSON.parse(textOf(await client.callTool({ name: 'get_active_workspace', arguments: {} })))
+
+    expect(open).toMatchObject({ open: true, workspaceId: front.workspace.publicId })
+    expect(open.openTabs).toEqual([
+      { workspaceId: behind.workspace.publicId, name: 'Behind', onScreen: false },
+      { workspaceId: front.workspace.publicId, name: 'In front', onScreen: true },
+    ])
+
+    const listed = JSON.parse(textOf(await client.callTool({ name: 'list_workspaces', arguments: {} })))
+    const openness = Object.fromEntries(listed.workspaces.map((row: { name: string, open?: string }) => [row.name, row.open]))
+
+    expect(openness).toEqual({ Behind: 'in a tab', 'In front': 'on screen' })
+  })
+
+  it('shows a page of a chapter in a tab behind the one on screen, asked of that tab', async () => {
+    const { behind, hidden, asked } = await twoTabs()
+    const client = await connect(true)
+    const result = await client.callTool({
+      name: 'get_page_image',
+      arguments: { workspaceId: behind.workspace.publicId, pageId: hidden.id },
+    })
+
+    expect(result.isError).toBeFalsy()
+    expect(asked).toEqual([{ tab: '1', type: 'render' }])
+  })
+
+  it('takes the chapter on screen for a tool given no id, and follows the reader to another tab', async () => {
+    const { behind, front } = await twoTabs()
+    const client = await connect(true)
+    const named = async () => JSON.parse(textOf(await client.callTool({ name: 'get_workspace', arguments: {} }))).workspaceId
+
+    expect(await named()).toBe(front.workspace.publicId)
+
+    focusTab('1')
+
+    expect(await named()).toBe(behind.workspace.publicId)
+  })
+})
+
+describe('open_workspace', () => {
+  const call = async (args: Record<string, unknown>) => (await connect(true)).callTool({ name: 'open_workspace', arguments: args })
+
+  /**
+   * The window's tabs, standing in for `Tabs.reveal`: a chapter not yet in a
+   * tab gets one, which says what it holds a moment later, as a page opening
+   * its chapter does through `mcp:have`.
+   */
+  function window (holds: string[]) {
+    const asked: { publicId: string, show: boolean }[] = []
+    let next = 1
+
+    swarmState.opener = (publicId, show) => {
+      asked.push({ publicId, show })
+
+      if ([...swarmState.tabs.values()].some((record) => record.publicId === publicId)) {
+        if (show) focusTab([...swarmState.tabs].find(([, record]) => record.publicId === publicId)![0])
+
+        return { already: true }
+      }
+
+      const tab = String(next++)
+
+      setTimeout(() => {
+        holdIn(tab, publicId, holds, () => {})
+        if (show) focusTab(tab)
+      }, 50)
+
+      return { already: false }
+    }
+
+    return asked
+  }
+
+  it('opens a chapter in a tab behind the reader\'s, and answers once the tab holds its pages', async () => {
+    const context = await aWorkspace({ name: 'Chapter 3' })
+    const asked = window(['sha-01', 'sha-02'])
+    const out = JSON.parse(textOf(await call({ workspaceId: context.workspace.publicId })))
+
+    expect(asked).toEqual([{ publicId: context.workspace.publicId, show: false }])
+    expect(out).toMatchObject({ workspaceId: context.workspace.publicId, name: 'Chapter 3', opened: true, onScreen: false, held: 2 })
+
+    // And the other tools now see it open.
+    const listed = JSON.parse(textOf(await (await connect(true)).callTool({ name: 'list_workspaces', arguments: {} })))
+
+    expect(listed.workspaces[0].open).toBe('in a tab')
+  })
+
+  it('puts it on screen only when asked', async () => {
+    const context = await aWorkspace()
+
+    window(['sha-01'])
+
+    expect(JSON.parse(textOf(await call({ workspaceId: context.workspace.publicId, show: true })))).toMatchObject({ opened: true, onScreen: true })
+  })
+
+  it('does not open a chapter twice', async () => {
+    const context = await aWorkspace()
+
+    window(['sha-01'])
+    holdIn('7', context.workspace.publicId, ['sha-01'], () => {})
+
+    const out = JSON.parse(textOf(await call({ workspaceId: context.workspace.publicId })))
+
+    expect(out).toMatchObject({ opened: false, held: 1 })
+    expect(swarmState.tabs.size).toBe(1)
+  })
+
+  it('says so when there is no window to open a tab in, or no such chapter', async () => {
+    const context = await aWorkspace()
+
+    expect(textOf(await call({ workspaceId: context.workspace.publicId }))).toMatch(/^\[503\] Kemolate has no window/)
+
+    window([])
+
+    expect(textOf(await call({ workspaceId: 'no-such-chapter' }))).toMatch(/^\[404\]/)
   })
 })
 

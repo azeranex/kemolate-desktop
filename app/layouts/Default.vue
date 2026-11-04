@@ -13,7 +13,7 @@
 </script>
 
 <template>
-  <div class="bg-background text-foreground flex h-svh flex-col">
+  <div class="app-shell bg-background text-foreground flex h-svh flex-col">
     <TitleBar />
 
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">

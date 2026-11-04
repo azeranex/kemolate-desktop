@@ -243,7 +243,7 @@ watch(dragging, (id) => {
 
 <template>
   <UTooltipProvider :delay-duration="350">
-    <div class="bg-background text-foreground flex h-screen flex-col overflow-hidden text-sm">
+    <div class="app-shell bg-background text-foreground flex h-screen flex-col overflow-hidden text-sm">
       <!--
         The brand bar, which is the window's title bar here — see `TitleBar`.
         The page's toolbar and actions pass straight through, as they did into

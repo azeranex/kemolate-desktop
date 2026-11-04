@@ -26,7 +26,7 @@
  * warned about. macOS would need signing and notarisation before this works.
  */
 
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, ipcMain, webContents } from 'electron'
 import updater from 'electron-updater'
 
 import type { UpdateState } from './preload'
@@ -44,7 +44,8 @@ let state: UpdateState = { status: 'off', version: app.getVersion() }
 function set (next: Partial<UpdateState>) {
   state = { ...state, ...next, version: app.getVersion() }
 
-  for (const win of BrowserWindow.getAllWindows()) win.webContents.send('updates:changed', state)
+  // Every page, which is every tab — a tab is a view, not a window of its own.
+  for (const contents of webContents.getAllWebContents()) contents.send('updates:changed', state)
 }
 
 /** Whether this copy of the app updates itself at all — see the header. */

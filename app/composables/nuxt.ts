@@ -93,13 +93,23 @@ export async function navigateTo (to: string | { path?: string, query?: Record<s
     return
   }
 
+  // A chapter open in another tab is gone to there, not opened twice — see
+  // `electron/tabs.ts`, which puts that tab on screen. This one stays put.
+  const chapter = workspace ? decodeURIComponent(workspace[1]!) : null
+
+  if (chapter && chapter !== route.params.workspaceId && typeof window !== 'undefined') {
+    const elsewhere = await window.kemolate?.tabs?.claim(chapter).catch(() => null)
+
+    if (elsewhere !== null && elsewhere !== undefined) return
+  }
+
   route.path = path
   route.fullPath = target
   // Settings is drawn *over* the open workspace (see `App.vue`), so the
   // workspace it covers is still the one open: its id stays on the route. Taken
   // off, every composable that watches `route.params.workspaceId` would read a
   // look at Settings as the workspace closing — and resetting.
-  if (!OVER.has(path)) route.params = workspace ? { workspaceId: decodeURIComponent(workspace[1]!) } : {}
+  if (!OVER.has(path)) route.params = chapter ? { workspaceId: chapter } : {}
   route.query = typeof to === 'string'
     ? Object.fromEntries(new URLSearchParams(search))
     : { ...(to.query ?? {}) }

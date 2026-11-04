@@ -12,15 +12,28 @@
  * (a chapter still being opened), or when nothing is open at all, which is said
  * as such rather than refused — it is an answer, not a failure.
  */
-import { blocks } from '~~/server/services'
+import { blocks, contextFor } from '~~/server/services'
 import { activeChapter, mcpEnabled, requireMcpActor } from '~~/server/utils/mcp'
+import { openChapters } from '~~/server/utils/swarm'
+
+/** Every chapter open in a tab, by name — the ones whose pages can be shown and read. */
+async function tabbed () {
+  const named = await Promise.all(openChapters().map(async (chapter) => {
+    const context = await contextFor(chapter.publicId)
+
+    return context ? { workspaceId: chapter.publicId, name: context.workspace.name, onScreen: chapter.focused } : null
+  }))
+
+  return named.filter((chapter) => chapter !== null)
+}
 
 export default defineMcpTool({
   name: 'get_active_workspace',
   description: [
-    'What is open in the Kemolate window right now: the chapter, and the page on screen with its blocks.',
+    'What is open in the Kemolate window right now: the chapter on screen, and the page on screen with its blocks —',
+    'and `openTabs`, every chapter open in a tab, on screen or behind it, all of which can have their pages shown and read.',
     'Start here when the user talks about "this chapter" or "this page".',
-    'Every other tool works on the open chapter, and a tool that takes one `pageId` on the page on screen,',
+    'Every other tool works on the chapter on screen, and a tool that takes one `pageId` on the page on screen,',
     'when you leave the id out.',
   ].join(' '),
   annotations: { readOnlyHint: true },
@@ -29,11 +42,15 @@ export default defineMcpTool({
     requireMcpActor(useEvent()!)
 
     const open = await activeChapter()
+    const openTabs = await tabbed()
 
     if (!open) {
       return mcpJson({
         open: false,
-        note: 'No chapter is open in Kemolate. Ask the user to open one, or pick one with `list_workspaces`.',
+        openTabs,
+        note: openTabs.length
+          ? 'No chapter is on screen in Kemolate, but the chapters in `openTabs` are open in its tabs — name one by `workspaceId`.'
+          : 'No chapter is open in Kemolate. Ask the user to open one, or pick one with `list_workspaces`.',
       })
     }
 
@@ -42,6 +59,7 @@ export default defineMcpTool({
 
     return mcpJson({
       open: true,
+      openTabs,
       workspaceId: workspace.publicId,
       name: workspace.name,
       direction: workspace.direction,

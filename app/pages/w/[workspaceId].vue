@@ -470,6 +470,14 @@ const heading = computed(() => {
   return pending.value?.title ?? shared.value?.workspace.name ?? 'No comic open'
 })
 
+// Desktop: the tab this page is in is called what the page is — see `TabStrip`.
+// The id taken once: the page is made again for every workspace.
+const tabChapter = String(route.params.workspaceId ?? '')
+
+watch(heading, (named) => {
+  window.kemolate?.tabs.at(tabChapter, named).catch(() => {})
+}, { immediate: true })
+
 const dimensions = computed(() => {
   const scan = page.value?.scan
 

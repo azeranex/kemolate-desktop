@@ -309,22 +309,37 @@ by the main process on the loopback, for an MCP client on this machine. Read the
   that comes in passes them. `serverFor` still answers `tools/list` and `tools/call` itself
   for a caller offered nothing, since the SDK says "Method not found" then — the bridge once
   read that as Kemolate not running.
-- **The window is the swarm's one peer.** `server/utils/swarm.ts` keeps the web build's
-  `swarmState` shape so `errand`, `relay` and `reading` stay verbatim: the workspace page
-  says which scans it holds (`useHolding` → `mcp:have`), a frame for it goes over IPC
-  (`mcp:frame`, with the workspace it was asked under), and `useSwarm` handles `render` and
-  `read` as the web build's `handle` does — answering through `/relay/:request` and
-  `/reading/:request`, rows in `electron/data.ts` (a rendition's type as `?type=`; `$fetch`
-  carries no headers). The window holds one workspace or none; a navigation or reload forgets
-  it (`leaving` in `main.ts`). The scans never leave the reader's files but as these
+- **Each tab is a peer of the swarm** (one window, one peer, until tabs — 2026-11-04).
+  `server/utils/swarm.ts` keeps the web build's `swarmState` shape so `errand`, `relay` and
+  `reading` stay verbatim: each tab's workspace page says which scans it holds (`useHolding`
+  → `mcp:have`, keyed by the sender's webContents id: `holdIn`), a frame for it goes over that
+  tab's IPC (`mcp:frame`, with the workspace it was asked under), and `useSwarm` handles
+  `render` and `read` as the web build's `handle` does — answering through `/relay/:request`
+  and `/reading/:request`, rows in `electron/data.ts` (a rendition's type as `?type=`;
+  `$fetch` carries no headers). A tab holds one workspace or none; a navigation, reload or
+  close forgets it (`leaving` in `main.ts` → `tabLeft`). The rooms are rebuilt from the tabs
+  on every change (`rebuild`), the one place they are written; `hold` is the old one-window
+  form, kept for the tests. **Readings and cleanings take turns across tabs** (`heavy` in
+  `errand.ts`): every tab has its own models on the one GPU, so the next is sent when the
+  last is answered — late answers count — or its tab has gone (`departed`), with a ten-minute
+  limit for a tab that never says. The scans never leave the reader's files but as these
   renditions, as the web build's invariant says.
-- **The open chapter is the default** (added 2026-10-22, the desktop's own). The window also
-  says which page is on screen, by its row (`useHolding`, `rowOfPage`), kept as
-  `swarmState.active`. `get_active_workspace` answers what is open, and `defaulted` in
-  `server/mcp/index.ts` makes every tool's `workspaceId`, and a one-page tool's `pageId`,
-  optional at registration — an id given is used as given; a missing one is the open chapter, and
-  the page on screen only within it. The tool files stay the web build's. Nothing open is a 409
-  that says to name one, never a guess.
+- **The chapter on screen is the default** (added 2026-10-22, the desktop's own). Each tab
+  also says which page is on screen, by its row (`useHolding`, `rowOfPage`); the tab on
+  screen (`focusTab`, from `Tabs.select`) is `swarmState.active`. `get_active_workspace`
+  answers it, plus `openTabs` — every chapter open in a tab, which can all be shown and read;
+  `list_workspaces` marks them `open`. `defaulted` in `server/mcp/index.ts` makes every
+  tool's `workspaceId`, and a one-page tool's `pageId`, optional at registration — an id given
+  is used as given; a missing one is the chapter on screen, and the page on screen only within
+  it. Because the reader can switch tabs mid-job, the instructions tell an agent to take the
+  id once and pass it. The tool files stay the web build's. Nothing open is a 409 that says to
+  name one, never a guess.
+- **An agent can open a chapter in a tab** (added 2026-11-04, the desktop's own):
+  `open_workspace` asks `swarmState.opener` — `Tabs.reveal`, set by `opensTabs` once the
+  window exists — for the chapter's tab, opened **behind** the reader's unless `show`, since
+  an agent's errand must not take the screen. A chapter already in a tab is that tab. It
+  waits up to 20 s for the tab to say what it holds, so the image call after it does not
+  fail; a chapter whose scans are not here holds nothing and is said as such.
 - **An agent can letter, not only translate** (added 2026-10-22, the desktop's own):
   `set_lettering_style` sets lines' `style` — face, size, line, spacing, stroke, weight,
   alignment, anchor, vertical, ink, outline, shape — merged field by field (null is automatic,
@@ -655,11 +670,33 @@ standard size the automatic wrap packs lines mid-phrase: "FIRST, LET / ME SHOW /
     to exit before restarting it, so this is only slack) and then says in the terminal that
     the profile is taken. `pnpm dev` and the installed app on the same profile cannot both
     run; give one of them `KEMOLATE_PROFILE`.
+  - **Tabs** (2026-11-04, `electron/tabs.ts`). Each tab is a `WebContentsView` loading the
+    whole app — its own collection, workspace and Settings — because the app is built round
+    "the chapter open here" and one page holding several would mean keying every `useState`
+    by chapter. The cost is memory: each tab loads its own models. Only the tab on screen is
+    visible; the rest are `setVisible(false)` with `backgroundThrottling: false`, which the
+    hidden-tab probe (2026-10-30) measured answering every errand as fast as a visible tab.
+    **A chapter is open in one tab at most**: `navigateTo` asks `tabs:claim` first, and a
+    chapter open elsewhere puts that tab on screen instead — two tabs on one chapter would be
+    the two-windows problem above. A tab lands from `TabHello` (`App.vue`): a kept tab on its
+    chapter, a new one on the list, the first of a launch with nothing kept where a launch
+    lands. `tabs.json` in the profile keeps them for the next launch. The keys (⌘/Ctrl+T, W,
+    1–9, Ctrl+Tab, Ctrl+PageUp/Down) are heard in `before-input-event`, before the page and
+    the menu; Ctrl+W never closes the last tab. The strip (`TabStrip`, inside `TitleBar`) is
+    always drawn, one tab or many (a strip that came and went moved the app down and up), and
+    holds the window controls and the traffic lights. A tab's right-click menu is native
+    (`Tabs.menu`), since a menu the page drew could not reach past its own view. Anything sent "to the window" goes to every
+    tab's page (`Tabs.pages()`; `updates.ts` uses `getAllWebContents`), and the database
+    notice is said to the first tab that asks. Testing: DevTools' `Input.dispatchKeyEvent`
+    does not reach `before-input-event`; `webContents.sendInputEvent` from the main process
+    (`--inspect`) does. `Page.captureScreenshot` on a hidden tab waits for a paint that does
+    not come.
   - **A `.kemolate` from the OS** — on the command line, from a second launch (the lock
     above), or macOS's `open-file` — is queued by `electron/opening.ts`, served
     once at `/opened/<token>` on the app's origin, and opened by `useOpenedFiles` in a new
-    workspace, as a project dropped on the workspace list is. The installer registers the file
-    type with the OS (`electron-builder.yml`).
+    workspace, in a tab of its own (`TabHello.files`; no other tab is told), as a project
+    dropped on the workspace list is. The installer registers the file type with the OS
+    (`electron-builder.yml`).
   - Testing these: a picker needs a real user gesture (CDP's `Runtime.evaluate` with
     `userGesture: true`), and Chromium hosts the native dialog in a separate process.
 - Provider keys: `keys.json` in the profile, each key encrypted by `safeStorage` (DPAPI,

@@ -176,6 +176,7 @@ declare global {
   const cannotSee: typeof import('./utils/openrouter').cannotSee
   const castKey: typeof import('../shared/utils/cast').castKey
   const castTags: typeof import('../shared/utils/cast').castTags
+  const caughtUp: typeof import('./composables/useLiveSync').caughtUp
   const centreFit: typeof import('./utils/ocr/mask').centreFit
   const centredReadingOrder: typeof import('../shared/utils/ocr').centredReadingOrder
   const claimed: typeof import('./utils/keys').claimed
@@ -836,6 +837,7 @@ declare global {
   const useSupported: typeof import('@vueuse/core').useSupported
   const useSwarm: typeof import('./composables/useSwarm').useSwarm
   const useSwipe: typeof import('@vueuse/core').useSwipe
+  const useTabs: typeof import('./composables/useTabs').useTabs
   const useTargetLanguage: typeof import('./composables/useTargetLanguage').useTargetLanguage
   const useTemplateRef: typeof import('vue').useTemplateRef
   const useTemplateRefsList: typeof import('@vueuse/core').useTemplateRefsList
@@ -1341,6 +1343,7 @@ declare module 'vue' {
     readonly cannotSee: UnwrapRef<typeof import('./utils/openrouter')['cannotSee']>
     readonly castKey: UnwrapRef<typeof import('../shared/utils/cast')['castKey']>
     readonly castTags: UnwrapRef<typeof import('../shared/utils/cast')['castTags']>
+    readonly caughtUp: UnwrapRef<typeof import('./composables/useLiveSync')['caughtUp']>
     readonly centreFit: UnwrapRef<typeof import('./utils/ocr/mask')['centreFit']>
     readonly centredReadingOrder: UnwrapRef<typeof import('../shared/utils/ocr')['centredReadingOrder']>
     readonly claimed: UnwrapRef<typeof import('./utils/keys')['claimed']>
@@ -2000,6 +2003,7 @@ declare module 'vue' {
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
     readonly useSwarm: UnwrapRef<typeof import('./composables/useSwarm')['useSwarm']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>
+    readonly useTabs: UnwrapRef<typeof import('./composables/useTabs')['useTabs']>
     readonly useTargetLanguage: UnwrapRef<typeof import('./composables/useTargetLanguage')['useTargetLanguage']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
     readonly useTemplateRefsList: UnwrapRef<typeof import('@vueuse/core')['useTemplateRefsList']>

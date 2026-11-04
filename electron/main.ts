@@ -1,6 +1,7 @@
 /**
- * The main process: one window with no title bar, and the IPC behind the one
- * the page draws itself (`app/components/TitleBar.vue`).
+ * The main process: one window with no title bar, its tabs (`tabs.ts`), and the
+ * IPC behind the title bar each tab's page draws itself
+ * (`app/components/TitleBar.vue`).
  *
  * `titleBarStyle: 'hidden'` rather than `frame: false`. Both remove the title
  * bar, but a hidden one keeps the native frame around it — resize borders, the
@@ -16,6 +17,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
+import { release } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -26,8 +28,9 @@ import { serveCudaSetup } from './cudaSetup'
 import { closeDatabase, openDatabase } from './database'
 import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
-import { opened, projectsIn, serveOpening } from './opening'
+import { hasWaiting, opened, projectsIn, serveOpening } from './opening'
 import { APP_ORIGIN, serveApp } from './protocol'
+import { serveTabs, Tabs, TRAFFIC_LIGHTS } from './tabs'
 import { serveUpdates } from './updates'
 import { keepWindowPlace, windowPlace } from './windowState'
 
@@ -69,12 +72,36 @@ function stateOf (win: BrowserWindow | null): WindowState {
 }
 
 /**
- * What to forget when the page goes — a reload, a navigation, the window
- * closing. Today the MCP server's note of which scans the window holds
+ * What to forget when a tab's page goes — a reload, a navigation, the tab or
+ * the window closing. Today the MCP server's note of which scans that tab holds
  * (`mcp.ts`): a page that is gone can show nobody anything, and an errand sent
  * to it would only wait out its timeout.
  */
-const leaving: (() => void)[] = []
+const leaving: ((tab: number) => void)[] = []
+
+/** And what to tell when another tab comes on screen — the MCP server's "open chapter". */
+const focusing: ((tab: number | null) => void)[] = []
+
+/** The window's tabs — see `tabs.ts`. Null until the window is made. */
+let tabs: Tabs | null = null
+
+/**
+ * Windows 11's Mica behind the tab rail — from 22H2 (build 22621), the first
+ * whose DWM takes the backdrop Electron asks for; before it the request does
+ * nothing and a transparent window is just black. The window is transparent
+ * under it, and so is every tab's view (`Tabs.open`); the page lets the
+ * backdrop through the rail alone (`html.mica` in `tailwind.css`), told by the
+ * argument below.
+ */
+const mica = process.platform === 'win32' && Number(release().split('.')[2] ?? 0) >= 22621
+
+const webPreferences: Electron.WebPreferences = {
+  preload: path.join(here, 'preload.cjs'),
+  contextIsolation: true,
+  sandbox: true,
+  nodeIntegration: false,
+  additionalArguments: mica ? ['--kemolate-mica'] : [],
+}
 
 function createWindow () {
   // Where it was last time, or 1920 × 1080 the first time — see `windowState.ts`.
@@ -86,28 +113,56 @@ function createWindow () {
     minHeight: 480,
     show: false,
     title: 'Kemolate',
-    // Painted before the page is, so opening never flashes the wrong colour.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0a0a0a' : '#ffffff',
+    // Painted before the page is, so opening never flashes the wrong colour —
+    // or nothing, over Mica, which the window is not shown before a page paints over.
+    backgroundColor: mica ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#0a0a0a' : '#ffffff',
+    ...(mica ? { backgroundMaterial: 'mica' as const } : {}),
     titleBarStyle: 'hidden',
-    // Centred in the 56px header the page draws (`TitleBar`), at the left where macOS keeps them.
-    trafficLightPosition: { x: 18, y: 21 },
-    webPreferences: {
-      preload: path.join(here, 'preload.cjs'),
-      contextIsolation: true,
-      sandbox: true,
-      nodeIntegration: false,
-    },
+    // Centred in the tab strip the page draws (`TabStrip`), at the left where macOS keeps them.
+    trafficLightPosition: TRAFFIC_LIGHTS,
+    webPreferences,
   })
 
-  const send = () => win.webContents.send('window:state', stateOf(win))
+  const send = () => {
+    for (const contents of tabs?.pages() ?? []) contents.send('window:state', stateOf(win))
+  }
   for (const event of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'focus', 'blur'] as const) {
     win.on(event as 'maximize', send)
   }
 
-  // Links leave the app for the browser; the app never opens a second window by accident.
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) shell.openExternal(url)
-    return { action: 'deny' }
+  tabs = new Tabs(win, {
+    webPreferences,
+    trusted,
+    load: (contents) => {
+      if (devUrl) contents.loadURL(devUrl)
+      else contents.loadURL(`${APP_ORIGIN}/index.html`)
+    },
+    // Links leave the app for the browser; the app never opens a second window by accident.
+    // A link to the app's own page is not a link out: a workspace middle-clicked
+    // (or ctrl-clicked) in the list went to the browser, which cannot open it.
+    // It opens in a tab, as a browser opens a link in one — behind, unless the
+    // gesture asked for the foreground — and a chapter already in a tab is that tab.
+    dress: (contents) => {
+      contents.setWindowOpenHandler(({ url, disposition }) => {
+        const own = URL.parse(url)
+
+        if (own?.origin === appOrigin) {
+          const chapter = /^\/w\/([^/]+)$/.exec(own.pathname)?.[1]
+
+          if (chapter) tabs?.reveal(decodeURIComponent(chapter), disposition === 'foreground-tab')
+        } else if (/^https?:\/\//.test(url)) {
+          shell.openExternal(url)
+        }
+
+        return { action: 'deny' }
+      })
+    },
+    leaving: (tab) => {
+      for (const forget of leaving) forget(tab)
+    },
+    focused: (tab) => {
+      for (const tell of focusing) tell(tab)
+    },
   })
 
   // Set again rather than trusted to the constructor: with a hidden title bar
@@ -118,32 +173,42 @@ function createWindow () {
 
   keepWindowPlace(win, place.bounds)
 
-  win.webContents.on('did-start-navigation', (event) => {
-    if (event.isMainFrame && !event.isSameDocument) for (const forget of leaving) forget()
-  })
   win.on('closed', () => {
-    for (const forget of leaving) forget()
+    tabs = null
+    for (const tell of focusing) tell(null)
   })
 
-  win.once('ready-to-show', () => {
+  // The tabs that were open, and one for any project file handed over on the way in.
+  tabs.begin(hasWaiting())
+
+  // Shown once the tab on screen has loaded, so opening never flashes an empty
+  // window — or after a few seconds regardless, so a page that will not load is
+  // a window that says so rather than none at all.
+  let shown = false
+  const show = () => {
+    if (shown || win.isDestroyed()) return
+    shown = true
     // Maximised before it is shown, so it does not open small and then jump.
     if (place.maximized) win.maximize()
     if (place.fullScreen) win.setFullScreen(true)
     win.show()
+    tabs?.current()?.view.webContents.focus()
     if (smoke) {
       setTimeout(async () => {
-        const image = await win.webContents.capturePage()
+        const image = await tabs!.current()!.view.webContents.capturePage()
         writeFileSync(smoke, image.toPNG())
         app.quit()
-      }, 800)
+      }, 1500)
     }
-  })
+  }
 
-  if (devUrl) win.loadURL(devUrl)
-  else win.loadURL(`${APP_ORIGIN}/index.html`)
+  tabs.current()?.view.webContents.once('did-finish-load', show)
+  setTimeout(show, 5000)
 }
 
-const owner = (sender: Electron.WebContents) => BrowserWindow.fromWebContents(sender)
+/** The window a page's call is about: its own, or — for a tab, which is a view in it — the one window. */
+const owner = (sender: Electron.WebContents) =>
+  BrowserWindow.fromWebContents(sender) ?? (tabs?.owns(sender) ? mainWindow() : null)
 
 ipcMain.handle('window:state', (event) => stateOf(owner(event.sender)))
 ipcMain.on('window:minimize', (event) => owner(event.sender)?.minimize())
@@ -266,7 +331,10 @@ for (const file of projectsIn(process.argv)) opened(file)
 
 const mainWindow = () => BrowserWindow.getAllWindows()[0] ?? null
 
-serveOpening(trusted, mainWindow)
+// A project file handed over later opens in a tab of its own — see `opening.ts`.
+serveOpening(trusted, mainWindow, () => { tabs?.open({ start: null, files: true }) })
+
+serveTabs(() => tabs, trusted)
 
 /**
  * The workspace database, before the window that reads it — see `database.ts`.
@@ -289,10 +357,12 @@ async function startDatabase () {
 
     installMcpGlobals()
 
-    const { closeMcp, serveMcp, windowLeft } = await import('./mcp')
+    const { closeMcp, opensTabs, serveMcp, tabFocused, tabLeft } = await import('./mcp')
 
     await serveMcp(trusted, mainWindow)
-    leaving.push(windowLeft)
+    leaving.push(tabLeft)
+    focusing.push(tabFocused)
+    opensTabs((publicId, show) => tabs?.reveal(publicId, show) ?? null)
     app.on('will-quit', () => {
       closeMcp().catch(() => {})
     })
