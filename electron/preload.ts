@@ -142,8 +142,36 @@ export interface DataNotice {
   startedEmpty?: boolean
 }
 
+/** One tab, as the strip draws it — see `tabs.ts`. */
+export interface TabInfo {
+  id: number
+  title: string
+  /** The chapter open in it, or null for the list of workspaces. */
+  workspace: string | null
+}
+
+/** Every tab, in order, and the one on screen. */
+export interface TabsState {
+  tabs: TabInfo[]
+  active: number | null
+}
+
+/**
+ * What a tab is told when it starts. `open` is where it lands: a chapter, the
+ * list (`null`), or — for the first tab of a launch with nothing kept — where a
+ * launch lands (`undefined`, see `App.vue`). `files` is whether it is the tab
+ * opened for project files the operating system handed over.
+ */
+export interface TabHello {
+  id: number
+  open: string | null | undefined
+  files: boolean
+}
+
 const api = {
   platform: process.platform,
+  /** Whether the window has Mica behind the tab rail — see `mica` in `main.ts`. */
+  mica: process.argv.includes('--kemolate-mica'),
   theme: {
     /** The page's colour-scheme choice, for the parts of the window Electron draws itself. */
     set: (source: ThemeSource) => ipcRenderer.send('theme:set', source),
@@ -184,7 +212,7 @@ const api = {
   data: {
     call: (request: DataRequest): Promise<DataAnswer> => ipcRenderer.invoke('data:call', request),
     /** What opening the database found — a damaged file moved aside, a backup restored. */
-    notice: (): Promise<DataNotice> => ipcRenderer.invoke('data:notice'),
+    notice: (): Promise<DataNotice | null> => ipcRenderer.invoke('data:notice'),
     about: (): Promise<{ file: string, folder: string, backups: Backup[] }> => ipcRenderer.invoke('data:about'),
     backup: (): Promise<Backup> => ipcRenderer.invoke('data:backup'),
     openBackups: (): Promise<void> => ipcRenderer.invoke('data:open-backups'),
@@ -193,17 +221,11 @@ const api = {
   /**
    * Project files the operating system handed the app — see `opening.ts`.
    * `pending` takes what is waiting (each fetched from the app's origin at
-   * `/opened/<token>`); `onOpened` says when more arrives. Returns the unsubscribe.
+   * `/opened/<token>`). Asked by the tab opened for them, the only one told
+   * (`TabHello.files`); a file arriving later opens a tab of its own.
    */
   files: {
     pending: (): Promise<{ token: string, name: string }[]> => ipcRenderer.invoke('files:pending'),
-    onOpened: (listener: () => void) => {
-      const forward = () => listener()
-      ipcRenderer.on('files:opened', forward)
-      return () => {
-        ipcRenderer.off('files:opened', forward)
-      }
-    },
   },
   /**
    * Models on an NVIDIA GPU, through the reader's own Python — opt-in; see
@@ -257,6 +279,29 @@ const api = {
       ipcRenderer.on('mcp:frame', forward)
       return () => {
         ipcRenderer.off('mcp:frame', forward)
+      }
+    },
+  },
+  /**
+   * The window's tabs — see `tabs.ts`. `hello` is this tab's id and where it
+   * should land; `at` says what it is showing, for the strip; `claim` asks
+   * before opening a chapter, and answers the tab that already has it open
+   * (now put on screen) or null to go ahead. Returns the unsubscribe.
+   */
+  tabs: {
+    hello: (): Promise<TabHello | null> => ipcRenderer.invoke('tabs:hello'),
+    state: (): Promise<TabsState> => ipcRenderer.invoke('tabs:state'),
+    open: (): Promise<void> => ipcRenderer.invoke('tabs:new'),
+    select: (id: number): Promise<void> => ipcRenderer.invoke('tabs:select', id),
+    close: (id: number): Promise<void> => ipcRenderer.invoke('tabs:close', id),
+    menu: (id: number, x: number, y: number): Promise<void> => ipcRenderer.invoke('tabs:menu', id, x, y),
+    at: (workspace: string | null, title: string): Promise<void> => ipcRenderer.invoke('tabs:at', workspace, title),
+    claim: (workspace: string): Promise<number | null> => ipcRenderer.invoke('tabs:claim', workspace),
+    onChanged: (listener: (state: TabsState) => void) => {
+      const forward = (_event: IpcRendererEvent, state: TabsState) => listener(state)
+      ipcRenderer.on('tabs:changed', forward)
+      return () => {
+        ipcRenderer.off('tabs:changed', forward)
       }
     },
   },

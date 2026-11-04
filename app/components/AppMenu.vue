@@ -30,6 +30,7 @@ import {
   FolderOpenIcon,
   FullscreenIcon,
   PackageOpenIcon,
+  PlusIcon,
   Redo2Icon,
   SaveIcon,
   SettingsIcon,
@@ -96,6 +97,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
   }
 })
 
+const { tabbed, open: openTab } = useTabs()
+
 function deleteSelection () {
   // A copy, because `removeBlock` prunes the selection as it goes.
   for (const id of [...selection.value]) removeBlock(id)
@@ -109,6 +112,14 @@ function deleteSelection () {
         File
       </UMenubarTrigger>
       <UMenubarContent align="start" class="min-w-56">
+        <!-- Desktop: another chapter beside this one — see `electron/tabs.ts`, which binds the key. -->
+        <template v-if="tabbed">
+          <UMenubarItem @select="openTab">
+            <PlusIcon /> New tab
+            <UMenubarShortcut>{{ mod }}T</UMenubarShortcut>
+          </UMenubarItem>
+          <UMenubarSeparator />
+        </template>
         <UMenubarItem @select="openFolder">
           <FolderOpenIcon /> Open folder…
         </UMenubarItem>

@@ -14,7 +14,7 @@
  * way; whether they could be cleaned — no chapter open, no cleaner chosen, a
  * block the cleaner found nothing in — is said beside the answer, with what to do.
  */
-import { begin, holders, tell } from './errand'
+import { begin, heavy, holders, tell } from './errand'
 import { createError, HttpError } from './errors'
 
 import type { SwarmServerMessage } from './swarm'
@@ -52,7 +52,8 @@ export async function requestClean (publicId: string, hash: string, blockIds: nu
     statusMessage: 'Kemolate did not finish cleaning in time.',
   }))
 
-  tell([peer], JSON.stringify({ type: 'clean', request, hash, blockIds } satisfies SwarmServerMessage))
+  // After any reading or cleaning another tab is doing — see `heavy`.
+  heavy(request, peer, () => tell([peer], JSON.stringify({ type: 'clean', request, hash, blockIds } satisfies SwarmServerMessage)))
 
   return waiting
 }

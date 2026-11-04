@@ -22,9 +22,11 @@
  *
  * A file can arrive before the page exists (the launch that opened it) or long
  * after (a second launch, which the single-instance lock turns into a message
- * to this one). Both are queued here: the page asks for what is waiting once it
- * is up (`files:pending`), and is told about anything that arrives later
- * (`files:opened`).
+ * to this one). Both are queued here, and both open in a **tab of their own**
+ * (`tabs.ts`): the launch's among the tabs it opens, a later one in a new tab
+ * (`arrived`). That tab asks for what is waiting once it is up
+ * (`files:pending`). No other tab is told: a project dropped into the chapter
+ * on screen would be the replacement the header says a double-click is not.
  */
 
 import { randomUUID } from 'node:crypto'
@@ -52,6 +54,12 @@ const served = new Map<string, string>()
 
 let window: () => BrowserWindow | null = () => null
 
+/** What a file arriving after the launch sets off — a tab opened for it. */
+let arrived: () => void = () => {}
+
+/** Whether anything is waiting to be opened — so a launch opens a tab for it. */
+export const hasWaiting = () => waiting.length > 0
+
 /** The project files named in a command line — a launch's, or a second launch's. */
 export function projectsIn (argv: readonly string[]): string[] {
   return argv.filter((arg) => !arg.startsWith('-')
@@ -59,7 +67,7 @@ export function projectsIn (argv: readonly string[]): string[] {
     && existsSync(arg) && statSync(arg).isFile())
 }
 
-/** Queue a file the OS handed over, and tell the page if it is up. */
+/** Queue a file the OS handed over, and open a tab for it if the window is up. */
 export function opened (file: string) {
   const entry = { token: randomUUID(), name: path.basename(file) }
 
@@ -70,7 +78,7 @@ export function opened (file: string) {
 
   if (!win || win.isDestroyed()) return
 
-  win.webContents.send('files:opened')
+  arrived()
 
   // Brought forward, as any program does when it is asked to open something.
   if (win.isMinimized()) win.restore()
@@ -79,10 +87,16 @@ export function opened (file: string) {
 
 /**
  * Wire up the page's half. `trusted` says whether a call came from the app's
- * own page; `current` finds the window to tell.
+ * own page; `current` finds the window to bring forward; `open` makes the tab
+ * a later file opens in.
  */
-export function serveOpening (trusted: (event: Electron.IpcMainInvokeEvent) => boolean, current: () => BrowserWindow | null) {
+export function serveOpening (
+  trusted: (event: Electron.IpcMainInvokeEvent) => boolean,
+  current: () => BrowserWindow | null,
+  open: () => void,
+) {
   window = current
+  arrived = open
 
   ipcMain.handle('files:pending', (event) => {
     if (!trusted(event)) throw new Error('Not the app.')

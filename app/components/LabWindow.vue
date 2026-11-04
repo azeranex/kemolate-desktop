@@ -52,7 +52,7 @@ useEventListener(document, 'focusin', (event: FocusEvent) => {
     aria-modal="true"
     aria-label="OCR lab"
     tabindex="-1"
-    class="bg-background text-foreground flex h-svh flex-col outline-none"
+    class="app-shell bg-background text-foreground flex h-svh flex-col outline-none"
     @keydown="onKeys"
   >
     <TitleBar>

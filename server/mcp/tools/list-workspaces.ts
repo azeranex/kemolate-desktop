@@ -13,12 +13,14 @@ import { count, inArray } from 'drizzle-orm'
 import { db, pages } from '~~/server/database'
 import { workspaces } from '~~/server/services'
 import { mcpEnabled, requireMcpActor } from '~~/server/utils/mcp'
+import { openChapters } from '~~/server/utils/swarm'
 
 export default defineMcpTool({
   name: 'list_workspaces',
   description: [
     'List the comic chapters this machine has, most recently touched first.',
     'Every other tool takes the `workspaceId` from here.',
+    '`open` says which are open in Kemolate — "on screen", or "in a tab" behind it — and so can have their pages shown and read.',
   ].join(' '),
   annotations: { readOnlyHint: true },
   enabled: mcpEnabled,
@@ -39,6 +41,9 @@ export default defineMcpTool({
 
     const counted = new Map(tally.map((row) => [row.workspaceId, row.pages]))
 
+    // Desktop: which are open in a tab, so their images can be asked for — see `openChapters`.
+    const open = new Map(openChapters().map((chapter) => [chapter.publicId, chapter]))
+
     return mcpJson({
       workspaces: rows.map((row) => ({
         workspaceId: row.publicId,
@@ -49,6 +54,7 @@ export default defineMcpTool({
         targetLocale: row.targetLocale,
         pages: counted.get(row.id) ?? 0,
         updatedAt: row.updatedAt,
+        ...(open.has(row.publicId) ? { open: open.get(row.publicId)!.focused ? 'on screen' : 'in a tab' } : {}),
       })),
     })
   },

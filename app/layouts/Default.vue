@@ -13,7 +13,7 @@
 </script>
 
 <template>
-  <div class="bg-background text-foreground flex h-svh flex-col">
+  <div class="app-shell bg-background text-foreground flex h-svh flex-col">
     <!-- A page's own way back, beside the menus — Settings' "Back to the chapter". -->
     <TitleBar>
       <template #toolbar>

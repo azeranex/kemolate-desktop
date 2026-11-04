@@ -847,6 +847,7 @@ declare global {
   const useSupported: typeof import('@vueuse/core').useSupported
   const useSwarm: typeof import('./composables/useSwarm').useSwarm
   const useSwipe: typeof import('@vueuse/core').useSwipe
+  const useTabs: typeof import('./composables/useTabs').useTabs
   const useTargetLanguage: typeof import('./composables/useTargetLanguage').useTargetLanguage
   const useTemplateRef: typeof import('vue').useTemplateRef
   const useTemplateRefsList: typeof import('@vueuse/core').useTemplateRefsList
@@ -2025,6 +2026,7 @@ declare module 'vue' {
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
     readonly useSwarm: UnwrapRef<typeof import('./composables/useSwarm')['useSwarm']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>
+    readonly useTabs: UnwrapRef<typeof import('./composables/useTabs')['useTabs']>
     readonly useTargetLanguage: UnwrapRef<typeof import('./composables/useTargetLanguage')['useTargetLanguage']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
     readonly useTemplateRefsList: UnwrapRef<typeof import('@vueuse/core')['useTemplateRefsList']>

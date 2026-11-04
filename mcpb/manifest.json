@@ -50,6 +50,10 @@
       "description": "List the comic chapters, most recently touched first."
     },
     {
+      "name": "open_workspace",
+      "description": "Open a chapter in a tab of the Kemolate window, so its pages can be shown and read."
+    },
+    {
       "name": "get_workspace",
       "description": "A chapter's languages, reading direction and translator's note."
     },

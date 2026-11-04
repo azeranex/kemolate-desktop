@@ -39,6 +39,12 @@ function joins (workspace: string, id: string, have: string[], sent: string[]) {
 const asked = (frame: string) => JSON.parse(frame) as { type: string, request: string, pageIds: number[] }
 
 beforeEach(() => {
+  // Desktop: readings take turns across tabs (`heavy`), and a test that left one
+  // unanswered would hold every later one back — so each starts with none under way.
+  const errands = (globalThis as { __kemolateErrands?: { working: unknown, queue: unknown[] } }).__kemolateErrands!
+
+  errands.working = null
+  errands.queue = []
   swarmState.swarms.clear()
   swarmState.sockets.clear()
 })

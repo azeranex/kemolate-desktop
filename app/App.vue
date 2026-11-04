@@ -16,6 +16,11 @@
  * chapter is reached or a new one started. A first launch with nothing to come
  * back to lands in the list, whose empty state says what to do.
  *
+ * That is the first tab of a launch with no tabs kept. Every other tab is told
+ * where it lands by the main process (`TabHello`, `electron/tabs.ts`): a tab
+ * kept from last time on its chapter, a new tab on the list, the tab opened for
+ * a handed-over project file on that file.
+ *
  * ## Settings is drawn over the workspace, not instead of it
  *
  * In the web build moving to `/settings` unmounts the workspace page, and coming
@@ -39,6 +44,9 @@ import WorkspacePage from './pages/w/[workspaceId].vue'
 
 useHead({ title: 'Kemolate' })
 
+// Desktop, Windows 11: the rail shows the window's Mica through it — see `html.mica` in `tailwind.css`.
+if (window.kemolate?.mica) document.documentElement.classList.add('mica')
+
 const route = useRoute()
 const { latest } = useWorkspaces()
 
@@ -55,12 +63,10 @@ const arrived = ref(false)
 
 /*
  * A project file the operating system handed over — double-clicked, or named
- * on the command line — opens in a workspace of its own, ahead of the last
- * workspace a launch would otherwise land in. See `useOpenedFiles`.
+ * on the command line — opens in a workspace of its own, in a tab of its own.
+ * See `useOpenedFiles`.
  */
-const { openWaiting, listen } = useOpenedFiles()
-
-onBeforeUnmount(listen())
+const { openWaiting } = useOpenedFiles()
 
 /**
  * The workspace a launch lands in: the last one this window opened, or — where
@@ -110,16 +116,27 @@ onMounted(async () => {
   sayHowDataOpened()
   hearUpdates()
 
-  const handed = await openWaiting().catch(() => false)
+  // Where this tab lands — see `TabHello`: the tab opened for handed-over files
+  // opens them; a tab kept from last time, its chapter or the list; a new tab,
+  // the list; and the first tab of a launch with nothing kept, where a launch
+  // lands. A plain browser has no tabs, and lands as a launch does.
+  const hello = await window.kemolate?.tabs.hello().catch(() => null) ?? null
+  const handed = hello?.files ? await openWaiting().catch(() => false) : false
 
   if (!handed && route.path === '/') {
-    const last = await landing()
+    const last = hello && hello.open !== undefined ? hello.open : await landing()
 
     if (last) await navigateTo(`/w/${last}`)
   }
 
   arrived.value = true
 })
+
+// Desktop: what this tab is showing, for the strip — the workspace page says its own name.
+// Only once it has landed: before that, "the list" is only where it starts out.
+watch([workspace, arrived], ([id, landed]) => {
+  if (landed && !id) window.kemolate?.tabs.at(null, 'Workspaces').catch(() => {})
+}, { immediate: true })
 
 const settings = computed(() => route.path === '/settings')
 const lab = computed(() => route.path === '/ocr-lab')

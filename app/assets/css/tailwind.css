@@ -354,3 +354,34 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+/*
+ * Desktop, Windows 11: Mica behind the tab rail (`html.mica`, set from the
+ * bridge in `App.vue`; the window asks for it in `electron/main.ts`).
+ *
+ * The backdrop is behind the page, so everything the page paints over the rail
+ * has to let it through — the body, the layout's root (`.app-shell`) and the
+ * rail's own fill — while the rest of the app stays exactly as opaque as it
+ * was. So the root's background starts below the rail rather than at the top:
+ * one rule, rather than every layout and page learning where the rail is.
+ * `--rail` is its height wherever it is drawn, which is everywhere but a page
+ * opened outside the app.
+ *
+ * Unlayered on purpose, so these win over the `bg-*` utilities they undo.
+ */
+html.mica,
+html.mica body {
+  background: transparent;
+}
+
+html.mica:has(.app-rail) {
+  --rail: --spacing(10);
+}
+
+html.mica .app-shell {
+  background: linear-gradient(var(--background), var(--background)) 0 var(--rail, 0) / 100% 100% no-repeat;
+}
+
+html.mica .app-rail {
+  background: transparent;
+}

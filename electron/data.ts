@@ -535,7 +535,17 @@ export function serveData (trusted: (event: Electron.IpcMainInvokeEvent) => bool
   }
 
   ipcMain.handle('data:call', only((request: DataRequest) => answer(request)))
-  ipcMain.handle('data:notice', only(() => openingNotice()))
+  // Said to the first tab that asks and no other: every tab of a launch asks,
+  // and a damaged database is one thing to be told about, not one per tab.
+  let told = false
+
+  ipcMain.handle('data:notice', only(() => {
+    if (told) return null
+
+    told = true
+
+    return openingNotice()
+  }))
   ipcMain.handle('data:about', only(() => ({ file: databaseFile(), backups: listBackups(), folder: backupsFolder() })))
   ipcMain.handle('data:backup', only(() => backup()))
   ipcMain.handle('data:open-backups', only(async () => {

@@ -18,10 +18,18 @@
  * ## Window controls
  *
  * Windows and Linux: minimise, maximise and close, drawn here at the right, the
- * full height of the bar so the corner is the close button the way the system's
- * own is. macOS: the system's traffic lights stay, at the left, centred in this
- * bar by `trafficLightPosition`; the bar leaves them their room unless the
- * window is full screen, where macOS hides them.
+ * full height of the top row so the corner is the close button the way the
+ * system's own is (`WindowControls`). macOS: the system's traffic lights stay,
+ * at the left, centred in the top row by the main process; that row leaves them
+ * their room unless the window is full screen, where macOS hides them.
+ *
+ * ## Tabs
+ *
+ * In the app the strip (`TabStrip`) is a row of its own above the bar, one tab
+ * or many, and the top row is the strip: the window controls and the traffic
+ * lights are in it, as a browser keeps them. It was drawn only from two tabs on
+ * and asked for always (2026-11-04): a strip that comes and goes moves the whole
+ * app down and up as a second chapter is opened and closed.
  *
  * Opened outside Electron — the dev server in a plain browser — there is no
  * `window.kemolate`, and the bar is the web build's header and nothing more.
@@ -37,6 +45,11 @@ const mac = api?.platform === 'darwin'
 const controls = Boolean(api) && !mac
 const state = ref<WindowState>({ maximized: false, fullScreen: false, focused: true })
 
+const { tabbed: strip } = useTabs()
+
+/** Whether the macOS traffic lights sit at the left of the top row, which then leaves them room. */
+const lights = computed(() => mac && !state.value.fullScreen)
+
 let unsubscribe: (() => void) | undefined
 
 onMounted(async () => {
@@ -51,85 +64,61 @@ onBeforeUnmount(() => unsubscribe?.())
 </script>
 
 <template>
-  <!--
-    `gap-2` and nothing else spaces this row, as in the web build: one value on
-    the row and the same value inside the slots, so every neighbour is 8px from
-    the next whatever wrapper it is in.
-
-    The padding is the one place the window shows through. On macOS the left
-    edge belongs to the traffic lights; on Windows the right edge belongs to the
-    window controls, which sit flush against it as the system's would.
-  -->
-  <header
-    class="app-titlebar border-border bg-card @container flex h-14 flex-none items-center gap-2 overflow-hidden border-b whitespace-nowrap select-none [-webkit-app-region:drag]"
-    :class="[
-      mac && !state.fullScreen ? 'pl-21' : 'pl-3',
-      controls ? 'pr-0' : 'pr-3',
-    ]"
-  >
-    <!-- The mark, which goes to the list of workspaces — as in the web build. -->
-    <NuxtLink to="/" aria-label="Workspaces" title="Workspaces" class="flex-none">
-      <Logo :size="32" />
-    </NuxtLink>
+  <div class="app-titlebar flex flex-none flex-col select-none">
+    <!-- The tabs, once there are two — and then the window's own corner. -->
+    <div
+      v-if="strip"
+      class="app-rail bg-muted flex h-10 flex-none items-stretch gap-2 overflow-hidden [-webkit-app-region:drag]"
+      :class="[lights ? 'pl-21' : 'pl-2', controls ? 'pr-0' : 'pr-3']"
+    >
+      <TabStrip />
+      <WindowControls v-if="controls" :state="state" />
+    </div>
 
     <!--
-      File, Edit and View, beside the mark — where a desktop program keeps its
-      menus. In the web build they sat inside the page's toolbar, behind a
-      chevron that made the mark the root of a breadcrumb; here the menus are
-      the app's own rather than the page's, so they are part of the bar, and the
-      chevron went with the breadcrumb reading. See `AppMenu`.
+      `gap-2` and nothing else spaces this row, as in the web build: one value on
+      the row and the same value inside the slots, so every neighbour is 8px from
+      the next whatever wrapper it is in.
+
+      The padding is the one place the window shows through. On macOS the left
+      edge belongs to the traffic lights; on Windows the right edge belongs to the
+      window controls, which sit flush against it as the system's would — unless
+      the strip above has taken both.
     -->
-    <AppMenu />
+    <header
+      class="border-border bg-card @container flex h-14 flex-none items-center gap-2 overflow-hidden border-b whitespace-nowrap [-webkit-app-region:drag]"
+      :class="[
+        lights && !strip ? 'pl-21' : 'pl-3',
+        controls && !strip ? 'pr-0' : 'pr-3',
+      ]"
+    >
+      <!-- The mark, which goes to the list of workspaces — as in the web build. -->
+      <NuxtLink to="/" aria-label="Workspaces" title="Workspaces" class="flex-none">
+        <Logo :size="32" />
+      </NuxtLink>
 
-    <!-- What the page is working on: where you are, undo, pagination … -->
-    <slot name="toolbar" />
+      <!--
+        File, Edit and View, beside the mark — where a desktop program keeps its
+        menus. In the web build they sat inside the page's toolbar, behind a
+        chevron that made the mark the root of a breadcrumb; here the menus are
+        the app's own rather than the page's, so they are part of the bar, and the
+        chevron went with the breadcrumb reading. See `AppMenu`.
+      -->
+      <AppMenu />
 
-    <div class="min-w-2 flex-1" />
+      <!-- What the page is working on: where you are, undo, pagination … -->
+      <slot name="toolbar" />
 
-    <!-- what it can do to that: run, export, settings … -->
-    <slot name="actions" />
+      <div class="min-w-2 flex-1" />
 
-    <!-- what has been said, and how it looks, at the far edge -->
-    <Notifications />
-    <ColorScheme />
+      <!-- what it can do to that: run, export, settings … -->
+      <slot name="actions" />
 
-    <div v-if="controls" class="ml-1 flex h-full flex-none" :class="!state.focused && 'text-muted-foreground'">
-      <button
-        type="button"
-        class="hover:bg-muted grid h-full w-11.5 place-items-center"
-        aria-label="Minimise"
-        title="Minimise"
-        @click="api!.window.minimize()"
-      >
-        <svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true">
-          <path d="M0 5.5h10" stroke="currentColor" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="hover:bg-muted grid h-full w-11.5 place-items-center"
-        :aria-label="state.maximized ? 'Restore' : 'Maximise'"
-        :title="state.maximized ? 'Restore' : 'Maximise'"
-        @click="api!.window.toggleMaximize()"
-      >
-        <svg v-if="state.maximized" class="size-2.5" viewBox="0 0 10 10" aria-hidden="true">
-          <path d="M2.5 2.5V.5h7v7h-2M.5 2.5h7v7h-7z" fill="none" stroke="currentColor" />
-        </svg>
-        <svg v-else class="size-2.5" viewBox="0 0 10 10" aria-hidden="true">
-          <path d="M.5.5h9v9h-9z" fill="none" stroke="currentColor" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="grid h-full w-11.5 place-items-center hover:bg-[#c42b1c] hover:text-white"
-        aria-label="Close"
-        title="Close"
-        @click="api!.window.close()"
-      >
-        <svg class="size-2.5" viewBox="0 0 10 10" aria-hidden="true">
-          <path d="M.5.5l9 9M9.5.5l-9 9" stroke="currentColor" />
-        </svg>
-      </button>
-    </div>
-  </header>
+      <!-- what has been said, and how it looks, at the far edge -->
+      <Notifications />
+      <ColorScheme />
+
+      <WindowControls v-if="controls && !strip" :state="state" />
+    </header>
+  </div>
 </template>
