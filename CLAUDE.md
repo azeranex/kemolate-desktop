@@ -447,6 +447,45 @@ by the main process on the loopback, for an MCP client on this machine. Read the
   **`request_page_read` was not run end to end** — its two halves are tested
   (`reading.test.ts`, `useReadErrands.test.ts`), the pass through the window was not.
 
+### The in-app assistant
+
+Added 2026-11-05: the Assistant panel (`panel/Assistant.vue`, `useAssistant`) — a model on the
+reader's own key that works on the chapter through **the MCP server's own tools**, so the app's
+AI can check a reading against its crops, fix blocks and lettering, and copyfit, as an agent
+over MCP can, without an outside client.
+
+- **No copy of any tool.** `electron/assistant.ts` connects an SDK `Client` to `serverFor` over
+  `InMemoryTransport` per call (IPC `assistant:tools` / `assistant:call`), inside the same
+  `AsyncLocalStorage` event as the loopback (`electron/mcpEvent.ts` — one store, or one door's
+  tools could not find their caller). **No port**: it works with Settings › Agents off. A tool
+  added under `server/mcp/tools/` is the assistant's as soon as it is registered.
+- **"The open chapter" is the asking tab's** (`serverFor(event, { tab })`, `openIn`), not the
+  tab on screen, so a run keeps to its chapter while the reader turns to another tab. The tab is
+  the IPC sender, never a value the page names.
+- **The loop is in the window** (`app/utils/agent/`), because keys and provider calls are:
+  `messages.ts` is a provider-neutral transcript, `anthropic.ts` / `openai.ts` the two wires
+  (pictures inside `tool_result` on Anthropic; after the `tool` messages in OpenAI's format,
+  which takes only text there), `loop.ts` the run. A model's turn is also kept **as its provider
+  sent it** (`raw`) and sent back so — Anthropic's signed thinking and DeepSeek's
+  `reasoning_content` must come back within a tool loop and cannot be rebuilt. Transport is
+  `send` in `openrouter.ts`, extracted from `ask`, so retries, the rate gate, the timeout and
+  usage are the same errand as a page's; `signal` is the panel's Stop and is never retried.
+- **The system prompt is the playbook** (`agent/prompt.ts`: a short preface, `INSTRUCTIONS`, and
+  `GUIDE` from `server/mcp/guide.ts`, the same text `get_guide` serves), so `get_guide` is not
+  offered. Anthropic caches it with the tool list (`cache_control`).
+- **Asking the reader is by annotations**: `destructiveHint` tools wait for Allow / Allow for this
+  conversation / Deny; a deny is that call's answer. Reads and undoable writes run. 40 calls a
+  message at most; pictures kept only in the last two tool answers; a model that cannot see gets
+  a sentence for each and is not offered `get_page_image`. Only models that can call tools are
+  offered (`AiModel.tools` — unknown is yes for the curated list; the catalogue's free models
+  are asked).
+- Each provider round is an AI-ledger row, `what: 'assistant'`. The conversation is per tab, in
+  memory, gone on reload — said in the panel.
+- Verified 2026-11-05 in the built app on a test profile, with Anthropic stubbed in the page:
+  23 tools offered, `list_pages`, `get_page_image` (a JPEG relayed from the window while its own
+  call was out) and `save_page_blocks` after Allow, the block on the board and in Blocks, the
+  ledger's page total matching the panel's. **No real provider has been asked yet.**
+
 ## Releases and updates
 
 Decided 2026-10-21: the repository is public on GitHub (`azeranex/kemolate-desktop`), and
