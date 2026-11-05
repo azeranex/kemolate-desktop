@@ -145,7 +145,9 @@ and the line is wrapped into it.
   (fitted automatically) unless the user asks for a size, or you are making
   lines match.
 - `frame` — where the lines are set, upright, in the width-normalised units
-  above; one block per call. `frame: null` hands the line back to its room.
+  above, for one block. For several balloons send `frames` —
+  `[{ blockId, frame }, …]` — in one call instead of a call each.
+  `frame: null` hands the line back to its room.
 
 ### One size for the voice, not the balloon
 

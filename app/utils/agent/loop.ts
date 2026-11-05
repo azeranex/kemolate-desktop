@@ -27,6 +27,23 @@
  * the last `KEEP_PICTURES` tool answers; older ones become a line saying one
  * was there. The model saw them when they mattered, and the words it wrote
  * about them are still in the conversation.
+ *
+ * Answers a later call has made out of date go the same way (`SUPERSEDED`):
+ * the review of a page that has been reviewed again since, a brief whose
+ * translations have been saved. They were most of what a lettering run sent
+ * again, and nothing in them was still true.
+ *
+ * Both rewrite an earlier turn, which the provider's cache then misses from
+ * that turn on. That is paid once, when the newer answer arrives; resending the
+ * stale one was paid on every turn after it.
+ *
+ * ## What is offered
+ *
+ * The server's tools, less those with nothing to do in a window that is already
+ * on its chapter (`NEVER`), and with their schemas shed of what the tab makes
+ * true (`compact`) — the tool list is sent on every turn, and at ~36k
+ * characters it was bigger than the playbook. Plus the window's own tools
+ * (`LoopInput.local`), answered here rather than by the server.
  */
 
 import { anthropicBody, anthropicReply } from './anthropic'
@@ -45,18 +62,51 @@ export const MAX_CALLS = 40
 
 /**
  * Tools the assistant is not offered. `get_guide` is already its system
- * prompt. Anything that answers only with a picture is left out for a model
- * that cannot see, which would otherwise call it and be told nothing.
+ * prompt (and `read_playbook`). The workspace tools choose, list, open and
+ * rename chapters, and the assistant works on the one in its tab. Anything that
+ * answers only with a picture is left out for a model that cannot see, which
+ * would otherwise call it and be told nothing.
  */
-const NEVER = new Set(['get_guide'])
+const NEVER = new Set(['get_guide', 'list_workspaces', 'open_workspace', 'get_workspace', 'update_workspace'])
 const PICTURE_ONLY = new Set(['get_page_image'])
 
 export interface Tool extends OfferedTool {
   annotations?: { readOnlyHint?: boolean, destructiveHint?: boolean }
 }
 
+/**
+ * A schema without what is true of every call from a tab: no `workspaceId`
+ * (the tab's chapter is filled in — see `defaulted` on the server), no
+ * `$schema`, no integer bound nobody will reach, and `pageId` said once.
+ */
+export function compact (schema: unknown, top = true): unknown {
+  if (Array.isArray(schema)) return schema.map((item) => compact(item, false))
+  if (!schema || typeof schema !== 'object') return schema
+
+  const out: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === '$schema' || (key === 'maximum' && value === Number.MAX_SAFE_INTEGER)) continue
+
+    if (top && key === 'properties' && value && typeof value === 'object') {
+      out[key] = Object.fromEntries(Object.entries(value).filter(([name]) => name !== 'workspaceId').map(([name, field]) => [
+        name,
+        name === 'pageId' ? { ...(compact(field, false) as object), description: 'Leave out for the page on screen.' } : compact(field, false),
+      ]))
+    } else if (top && key === 'required' && Array.isArray(value)) {
+      out[key] = value.filter((name) => name !== 'workspaceId')
+    } else {
+      out[key] = compact(value, false)
+    }
+  }
+
+  return out
+}
+
 export function offered (tools: Tool[], model: AiModel): Tool[] {
-  return tools.filter((tool) => !NEVER.has(tool.name) && (model.vision || !PICTURE_ONLY.has(tool.name)))
+  return tools
+    .filter((tool) => !NEVER.has(tool.name) && (model.vision || !PICTURE_ONLY.has(tool.name)))
+    .map((tool) => ({ ...tool, inputSchema: compact(tool.inputSchema) as Record<string, unknown> }))
 }
 
 /** Whether a call waits for the reader — see "Asking the reader". */
@@ -65,11 +115,58 @@ export const asksFirst = (tool: Tool | undefined) => Boolean(tool && !tool.annot
 const NO_SIGHT: Part = { type: 'text', text: '[A picture was returned here, but this model cannot see pictures.]' }
 const SEEN: Part = { type: 'text', text: '[A picture was shown here earlier.]' }
 
-/** The turns as they are sent: older pictures dropped, and every picture for a model that cannot see. */
+/**
+ * Which later calls make an answer out of date — see the header. A review once
+ * the same page is reviewed again; a page read once it is read again; a brief
+ * once that page's translations are saved, or it is briefed again.
+ */
+const SUPERSEDED: Record<string, string[]> = {
+  review_lettering: ['review_lettering'],
+  review_page_reading: ['review_page_reading'],
+  read_page: ['read_page'],
+  prepare_page_translation: ['save_page_translations', 'prepare_page_translation'],
+}
+
+/** The pages a call is about, each as a comparable key: the page on screen when it names none. */
+function pagesOf (call: ToolCall): string[] {
+  const args = call.arguments
+  const named = Array.isArray(args.pageIds)
+    ? args.pageIds
+    : Array.isArray(args.pages) ? (args.pages as { pageId?: unknown }[]).map((page) => page?.pageId) : [args.pageId]
+
+  return named.map((id) => String(id ?? 'screen'))
+}
+
+const stale = (name: string): Part => ({ type: 'text', text: `[Out of date: a later call replaced what ${name} answered here, so it is no longer sent.]` })
+
+/** The ids of answers a later, successful call has made out of date. */
+function staleIn (turns: Turn[]): Set<string> {
+  const calls = turns.flatMap((turn) => (turn.role === 'assistant' ? turn.calls : []))
+  const failed = new Set(turns.flatMap((turn) => (turn.role === 'tool' ? turn.results.filter((result) => result.isError).map((result) => result.callId) : [])))
+  const out = new Set<string>()
+
+  calls.forEach((call, at) => {
+    const by = SUPERSEDED[call.name]
+
+    if (!by || failed.has(call.id)) return
+
+    const later = calls.slice(at + 1).filter((next) => by.includes(next.name) && !failed.has(next.id))
+
+    // Only once every page the answer was about has been dealt with since.
+    if (pagesOf(call).every((page) => later.some((next) => pagesOf(next).includes(page)))) out.add(call.id)
+  })
+
+  return out
+}
+
+/** The turns as they are sent: out-of-date answers and older pictures dropped, and every picture for a model that cannot see. */
 export function forSending (turns: Turn[], model: AiModel, keep = KEEP_PICTURES): Turn[] {
+  const replaced = staleIn(turns)
   let kept = 0
 
-  return [...turns].reverse().map((turn) => {
+  return turns.map((turn) => (turn.role === 'tool' && turn.results.some((result) => replaced.has(result.callId))
+    ? { ...turn, results: turn.results.map((result) => (replaced.has(result.callId) ? { ...result, content: [stale(result.name)] } : result)) }
+    : turn)).reverse().map((turn) => {
     if (turn.role !== 'tool') return turn
 
     const pictured = turn.results.some((result) => result.content.some((part) => part.type === 'image'))
@@ -97,12 +194,22 @@ export interface LoopInput {
   tools: Tool[]
   /** The conversation so far, ending with the reader's message. Turns are pushed onto it as they happen. */
   turns: Turn[]
+  /**
+   * Where in `turns` what the model is sent begins. A chapter run is a fresh
+   * conversation per page, shown in the panel one after the other; sending
+   * each the pages before it would make a chapter cost the square of its length.
+   */
+  since?: number
   effort: ReasoningEffort
   signal: AbortSignal
   ask: Asker
   call: (name: string, args: Record<string, unknown>) => Promise<{ content: Part[], isError?: boolean }>
   /** Whether the reader lets this call run — asked only where `asksFirst`. */
   approve: (call: ToolCall, tool: Tool) => Promise<boolean>
+  /** Tools not offered yet in a conversation of these turns — see `TOOLS_OF` in `prompt.ts`. Asked every turn. */
+  withheld?: (turns: Turn[]) => Set<string>
+  /** Tools answered in the window rather than by the server — `read_playbook`. */
+  local?: { tool: Tool, run: (args: Record<string, unknown>) => string }[]
   /** Each provider round's cost, for the ledger. */
   spent?: (usage: AiUsage) => void
   retrying?: (wait: number) => void
@@ -129,6 +236,10 @@ async function answer (input: LoopInput, call: ToolCall, tool: Tool | undefined)
   input.running?.(call)
 
   try {
+    const own = input.local?.find((local) => local.tool.name === call.name)
+
+    if (own) return { callId: call.id, name: call.name, content: [{ type: 'text', text: own.run(call.arguments) }], isError: false }
+
     const result = await input.call(call.name, call.arguments)
 
     return { callId: call.id, name: call.name, content: result.content, isError: Boolean(result.isError) }
@@ -140,13 +251,16 @@ async function answer (input: LoopInput, call: ToolCall, tool: Tool | undefined)
 }
 
 export async function runLoop (input: LoopInput): Promise<Ending> {
-  const tools = offered(input.tools, input.model)
-  const byName = new Map(tools.map((tool) => [tool.name, tool]))
+  const all = [...offered(input.tools, input.model), ...(input.local ?? []).map((local) => local.tool)]
   const most = input.maxCalls ?? MAX_CALLS
   let calls = 0
 
   for (;;) {
-    const turns = forSending(input.turns, input.model)
+    const conversation = input.turns.slice(input.since ?? 0)
+    const held = input.withheld?.(conversation) ?? new Set<string>()
+    const tools = all.filter((tool) => !held.has(tool.name))
+    const byName = new Map(tools.map((tool) => [tool.name, tool]))
+    const turns = forSending(conversation, input.model)
     const sent = await input.ask((service, effort) => service === 'Anthropic'
       ? anthropicBody({ model: input.model, system: input.system, tools, turns }, effort)
       : openAiBody(service, { model: input.model, system: input.system, tools, turns }, effort), {
@@ -170,7 +284,11 @@ export async function runLoop (input: LoopInput): Promise<Ending> {
     try {
       for (const call of reply.calls) {
         // Out of calls: every call this turn still gets an answer, which both formats insist on.
-        results.push(calls >= most ? unrun(call, 'Not run: this message has used all its tool calls.') : await answer(input, call, byName.get(call.name)))
+        results.push(calls >= most
+          ? unrun(call, 'Not run: this message has used all its tool calls.')
+          : held.has(call.name)
+            ? unrun(call, `Not offered yet: ${call.name} comes with its playbook topic. Read it with read_playbook, then call it.`)
+            : await answer(input, call, byName.get(call.name)))
         calls += 1
       }
     } finally {

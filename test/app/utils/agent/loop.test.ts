@@ -71,6 +71,49 @@ describe('the assistant\'s loop', () => {
     expect(offered(tools, blind).map((tool) => tool.name)).toEqual(['list_pages', 'join_blocks'])
   })
 
+  it('offers schemas without the chapter, which the tab fills in', () => {
+    const [tool] = offered([{
+      name: 'read_page',
+      inputSchema: {
+        $schema: 'x',
+        type: 'object',
+        properties: { workspaceId: { type: 'string' }, pageId: { type: 'integer', maximum: Number.MAX_SAFE_INTEGER, description: 'long' } },
+        required: ['workspaceId'],
+      },
+    }], seeing)
+
+    expect(tool!.inputSchema).toEqual({ type: 'object', properties: { pageId: { type: 'integer', description: 'Leave out for the page on screen.' } }, required: [] })
+  })
+
+  it('answers a window tool itself, and sends only the turns since its conversation began', async () => {
+    const { ask, bodies } = scripted(calling({ id: 'p', name: 'read_playbook', input: { topic: 'lettering' } }), saying('Read.'))
+    const run = input({
+      ask,
+      turns: [{ role: 'user', text: 'An earlier page.' }, { role: 'assistant', text: 'Done.', calls: [] }, { role: 'user', text: 'Go.' }],
+      since: 2,
+      local: [{ tool: { name: 'read_playbook', inputSchema: { type: 'object' } }, run: () => 'the chapter' }],
+    })
+
+    await runLoop(run)
+
+    expect(run.call).not.toHaveBeenCalled()
+    expect(run.turns[4]).toMatchObject({ results: [{ content: [{ text: 'the chapter' }] }] })
+    expect((bodies[0]!.messages as unknown[])).toHaveLength(1)
+    expect((bodies[0]!.tools as { name: string }[]).map((tool) => tool.name)).toContain('read_playbook')
+  })
+
+  it('holds a tool back while it is withheld, and offers it once it is not', async () => {
+    const { ask, bodies } = scripted(calling({ id: 'j', name: 'join_blocks' }), calling({ id: 'k', name: 'join_blocks' }), saying('Joined.'))
+    const run = input({ ask, withheld: (turns) => new Set(turns.length > 2 ? [] : ['join_blocks']) })
+
+    await runLoop(run)
+
+    expect((bodies[0]!.tools as { name: string }[]).map((tool) => tool.name)).not.toContain('join_blocks')
+    expect(run.turns[2]).toMatchObject({ results: [{ isError: true, content: [{ text: expect.stringContaining('Not offered yet') }] }] })
+    expect((bodies[1]!.tools as { name: string }[]).map((tool) => tool.name)).toContain('join_blocks')
+    expect(run.call).toHaveBeenCalledTimes(1)
+  })
+
   it('asks the reader before a destructive call, and a no goes back as its answer', async () => {
     const { ask } = scripted(calling({ id: 'j', name: 'join_blocks' }), saying('Left them apart.'))
     const run = input({ ask, approve: vi.fn(async () => false) })
@@ -143,6 +186,30 @@ describe('what is sent again', () => {
 
   it('keeps pictures only in the newest answers', () => {
     expect(pictures(forSending([pictured('1'), pictured('2'), pictured('3')], seeing, 2))).toEqual(['2', '3'])
+  })
+
+  const asked = (id: string, name: string, args: Record<string, unknown> = {}): Turn => ({ role: 'assistant', text: '', calls: [{ id, name, arguments: args }] })
+  const answered = (id: string, name: string, text: string, isError = false): Turn => ({ role: 'tool', results: [{ callId: id, name, isError, content: [{ type: 'text', text }] }] })
+  const textOf = (turns: Turn[], id: string) => turns.flatMap((turn) => (turn.role === 'tool' ? turn.results : [])).find((result) => result.callId === id)?.content.map((part) => (part.type === 'text' ? part.text : '')).join('')
+
+  it('drops a page\'s review once the page is reviewed again, and keeps another page\'s', () => {
+    const sent = forSending([
+      asked('r1', 'review_lettering', { pageId: 4 }), answered('r1', 'review_lettering', 'first review'),
+      asked('r2', 'review_lettering', { pageId: 5 }), answered('r2', 'review_lettering', 'other page'),
+      asked('r3', 'review_lettering', { pageId: 4 }), answered('r3', 'review_lettering', 'second review'),
+    ], seeing)
+
+    expect(textOf(sent, 'r1')).toContain('Out of date')
+    expect(textOf(sent, 'r2')).toBe('other page')
+    expect(textOf(sent, 'r3')).toBe('second review')
+  })
+
+  it('drops a brief once its pages are saved, but not when the save failed or covered fewer pages', () => {
+    const brief = [asked('b', 'prepare_page_translation', { pageIds: [1, 2] }), answered('b', 'prepare_page_translation', 'the brief')]
+
+    expect(textOf(forSending([...brief, asked('s', 'save_page_translations', { pages: [{ pageId: 1 }, { pageId: 2 }] }), answered('s', 'save_page_translations', 'ok')], seeing), 'b')).toContain('Out of date')
+    expect(textOf(forSending([...brief, asked('s', 'save_page_translations', { pages: [{ pageId: 1 }, { pageId: 2 }] }), answered('s', 'save_page_translations', '409', true)], seeing), 'b')).toBe('the brief')
+    expect(textOf(forSending([...brief, asked('s', 'save_page_translations', { pages: [{ pageId: 1 }] }), answered('s', 'save_page_translations', 'ok')], seeing), 'b')).toBe('the brief')
   })
 
   it('keeps none for a model that cannot see, and says so', () => {

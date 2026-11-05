@@ -190,6 +190,8 @@ export interface AiUsage {
   reasoning: number
   /** Null where the provider bills the account rather than reporting per call. */
   cost: number | null
+  /** Part of `input` read from the provider's prompt cache, billed at a tenth. Absent where none was. */
+  cached?: number
 }
 
 export interface TranslateInput extends PromptInput {
@@ -407,35 +409,62 @@ function endpointOf (service: Service, key: string): { url: string, headers: Rec
 }
 
 /** The usage block of a reply, in any of the three services' shapes. */
+/** What a cached prompt token costs next to a fresh one: Anthropic's read and five-minute write, and DeepSeek's hit. */
+const CACHE_READ = 0.1
+const CACHE_WRITE = 1.25
+
 function usageOf (service: Service, model: AiModel, data: unknown): AiUsage | null {
   if (service === 'Anthropic') {
     const usage = (data as { usage?: { input_tokens?: number, output_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number } }).usage
 
     if (!usage) return null
 
-    // A prompt read from the cache is still a prompt the model read: counted in,
-    // and estimated at the full price, so the figure errs high as the rest do.
-    const input = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
+    // A prompt read from the cache is still a prompt the model read, so it is
+    // counted in — but priced as Anthropic bills it: a read at a tenth, a write
+    // at a quarter over. Counted at the full price, a long assistant run read as
+    // several times its bill, which is the question that had this changed.
+    const read = usage.cache_read_input_tokens ?? 0
+    const wrote = usage.cache_creation_input_tokens ?? 0
+    const fresh = usage.input_tokens ?? 0
     const output = usage.output_tokens ?? 0
 
-    return { input, output, reasoning: 0, cost: estimateCost(model, { in: input, out: output }) }
+    return {
+      input: fresh + read + wrote,
+      output,
+      reasoning: 0,
+      cost: estimateCost(model, { in: fresh + read * CACHE_READ + wrote * CACHE_WRITE, out: output }),
+      ...(read ? { cached: read } : {}),
+    }
   }
 
   const usage = (data as {
-    usage?: { prompt_tokens?: number, completion_tokens?: number, cost?: number, completion_tokens_details?: { reasoning_tokens?: number } }
+    usage?: {
+      prompt_tokens?: number
+      completion_tokens?: number
+      cost?: number
+      completion_tokens_details?: { reasoning_tokens?: number }
+      prompt_tokens_details?: { cached_tokens?: number }
+      /** DeepSeek's own name for a cache read. */
+      prompt_cache_hit_tokens?: number
+    }
   }).usage
 
   if (!usage) return null
 
+  const prompt = usage.prompt_tokens ?? 0
+  const cached = usage.prompt_cache_hit_tokens ?? usage.prompt_tokens_details?.cached_tokens ?? 0
+
   return {
-    input: usage.prompt_tokens ?? 0,
+    input: prompt,
     output: usage.completion_tokens ?? 0,
     reasoning: usage.completion_tokens_details?.reasoning_tokens ?? 0,
-    // Desktop: DeepSeek reports tokens and no dollars — estimated as
-    // Anthropic's are, at the cache-miss price, so it errs high.
+    // OpenRouter's `cost` is its bill, cache and all. Desktop: DeepSeek reports
+    // tokens and no dollars — estimated, its cache hits at a tenth and the rest
+    // at the cache-miss price, so it errs high.
     cost: usage.cost ?? (service === 'DeepSeek'
-      ? estimateCost(model, { in: usage.prompt_tokens ?? 0, out: usage.completion_tokens ?? 0 })
+      ? estimateCost(model, { in: prompt - cached + cached * CACHE_READ, out: usage.completion_tokens ?? 0 })
       : null),
+    ...(cached ? { cached } : {}),
   }
 }
 

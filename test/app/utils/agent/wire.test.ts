@@ -50,8 +50,20 @@ describe('Anthropic', () => {
         type: 'tool_result',
         tool_use_id: 't1',
         content: [{ type: 'text', text: 'two blocks' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } }],
+        cache_control: { type: 'ephemeral' },
       }],
     })
+  })
+
+  it('moves a cache breakpoint to the last block of the conversation', () => {
+    const body = anthropicBody({ model, system: 'You help.', tools, turns }, 'auto')
+    const last = body.messages.at(-1)!.content as Record<string, unknown>[]
+
+    expect(last.at(-1)).toMatchObject({ type: 'tool_result', cache_control: { type: 'ephemeral' } })
+    expect(anthropicBody({ model, system: '', tools, turns: [turns[0]!] }, 'auto').messages[0]!.content).toEqual([
+      { type: 'text', text: 'Check this page.', cache_control: { type: 'ephemeral' } },
+    ])
+    expect(JSON.stringify(body.messages.slice(0, -1))).not.toContain('cache_control')
   })
 
   it('sends its own turn back as it came, thinking and all', () => {
@@ -86,6 +98,11 @@ describe('OpenAI\'s format', () => {
         { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
       ],
     })
+  })
+
+  it('asks OpenRouter to cache a Claude conversation, and nobody else', () => {
+    expect(openAiBody('OpenRouter', { model, system: '', tools, turns }, 'auto').cache_control).toEqual({ type: 'ephemeral' })
+    expect(openAiBody('OpenRouter', { model: { ...model, id: 'openai/gpt-5' }, system: '', tools, turns }, 'auto')).not.toHaveProperty('cache_control')
   })
 
   it('names DeepSeek\'s own model', () => {

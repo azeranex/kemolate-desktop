@@ -612,6 +612,30 @@ describe('set_lettering_style with a frame', () => {
     expect(result.isError).toBe(true)
     expect(textOf(result)).toMatch(/^\[400\] A frame is one balloon/)
   })
+
+  it('sets a frame for each of several balloons in one call, the style applying to each', async () => {
+    const { context, page, ids } = await lettered()
+
+    await call({
+      workspaceId: context.workspace.publicId,
+      pageId: page.id,
+      frames: [{ blockId: ids[0], frame: { cx: 0.2, cy: 0.5, w: 0.13, h: 0.22 } }, { blockId: ids[1], frame: { cx: 0.7, cy: 0.5, w: 0.2, h: 0.3 } }],
+      style: { shape: 'oval' },
+    })
+
+    const [first, second] = await blocksOf(context.workspace.publicId, page.id)
+
+    expect(first.translations.en).toMatchObject({ style: { italic: true, shape: 'oval' }, frame: { cx: 0.2, cy: 0.5, w: 0.13, h: 0.22 } })
+    expect(second.translations.en).toMatchObject({ style: { shape: 'oval' }, frame: { cx: 0.7, cy: 0.5, w: 0.2, h: 0.3 } })
+  })
+
+  it('refuses `frames` beside `frame` or `blockIds`', async () => {
+    const { context, page, ids } = await lettered()
+    const result = await call({ workspaceId: context.workspace.publicId, pageId: page.id, blockIds: ids, frames: [{ blockId: ids[0], frame: null }] })
+
+    expect(result.isError).toBe(true)
+    expect(textOf(result)).toMatch(/^\[400\] Send `frames` on its own/)
+  })
 })
 
 describe('review_lettering', () => {

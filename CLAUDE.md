@@ -472,7 +472,26 @@ over MCP can, without an outside client.
   usage are the same errand as a page's; `signal` is the panel's Stop and is never retried.
 - **The system prompt is the playbook** (`agent/prompt.ts`: a short preface, `INSTRUCTIONS`, and
   `GUIDE` from `server/mcp/guide.ts`, the same text `get_guide` serves), so `get_guide` is not
-  offered. Anthropic caches it with the tool list (`cache_control`).
+  offered.
+- **Tokens are the design constraint** (2026-11-06). One page's "translate and fix lettering" was
+  ~490k input tokens over 19 turns: every turn resends the tools (~37k chars), the prompt (~24k)
+  and the whole transcript. What now keeps it down, and must not be undone casually:
+  - **Caching everywhere**: system, tools and a breakpoint on the last block that moves with the
+    conversation (`marked` in `anthropic.ts`); OpenRouter's top-level `cache_control` for Claude
+    (`openai.ts`). `usageOf` prices cache reads at 0.1 and writes at 1.25 and reports `cached`,
+    which the panel shows — the tally used to count reads at full price.
+  - **The playbook by chapter**: the prompt carries its standing half; `reading`, `translating`
+    and `lettering` are `read_playbook`, answered in the window, and **each topic's tools are
+    offered only after it is read** (`TOOLS_OF`, `withheld`). Base list ~5k chars.
+  - **`compact`** strips `workspaceId`, `$schema` and the safe-integer bound from every schema;
+    the workspace tools are not offered (`NEVER`).
+  - **Superseded answers are stubbed** (`SUPERSEDED` in `loop.ts`): a review once the page is
+    reviewed again, a brief once its pages are saved. Rewriting an old turn misses the cache once.
+  - **Fewer turns**: the preface says to batch, and `set_lettering_style` takes `frames` — a frame
+    per balloon in one call, where `frame` is one balloon's.
+  - **A chapter run is a fresh conversation per page** (`useAssistant.chapter`, `since` in
+    `LoopInput`): translation as one conversation in 20-page batches, then each translated page's
+    lettering in its own (`PAGE_CALLS`). One conversation for a chapter costs the square of it.
 - **Asking the reader is by annotations**: `destructiveHint` tools wait for Allow / Allow for this
   conversation / Deny; a deny is that call's answer. Reads and undoable writes run. 40 calls a
   message at most; pictures kept only in the last two tool answers; a model that cannot see gets

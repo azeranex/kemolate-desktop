@@ -13,7 +13,7 @@
  * reach this tab as an agent's always have. So nothing here refreshes
  * anything.
  */
-import { SendIcon, SquareIcon, Trash2Icon } from '@lucide/vue'
+import { BookOpenIcon, SendIcon, SquareIcon, Trash2Icon } from '@lucide/vue'
 
 import type { ToolResult, Turn } from '~/utils/agent/messages'
 
@@ -29,7 +29,9 @@ const {
   model,
   usable,
   unavailable,
+  progress,
   say,
+  chapter,
   stop,
   clear,
 } = useAssistant()
@@ -69,7 +71,9 @@ function keydown (event: KeyboardEvent) {
 const cost = computed(() => {
   if (!spent.value.input && !spent.value.output) return ''
 
-  const tokens = `${(spent.value.input + spent.value.output).toLocaleString('en')} tokens`
+  // Cached tokens said apart: they are most of a long run, and billed at a tenth.
+  const cached = spent.value.cached ? ` (${spent.value.cached.toLocaleString('en')} cached)` : ''
+  const tokens = `${(spent.value.input + spent.value.output).toLocaleString('en')} tokens${cached}`
 
   return spent.value.unknown && !spent.value.cost ? tokens : `${tokens} · $${spent.value.cost.toFixed(spent.value.cost < 0.1 ? 4 : 2)}`
 })
@@ -101,6 +105,24 @@ watch(() => [turns.value.length, asking.value, running.value], async () => {
             </USelectItem>
           </USelectContent>
         </USelect>
+        <UDropdownMenu>
+          <UDropdownMenuTrigger as-child>
+            <UButton variant="ghost" size="icon-sm" :disabled="busy" aria-label="Do the whole chapter" title="Do the whole chapter">
+              <BookOpenIcon class="size-3.5" />
+            </UButton>
+          </UDropdownMenuTrigger>
+          <UDropdownMenuContent align="end">
+            <UDropdownMenuItem @click="chapter('all')">
+              Translate and letter the chapter
+            </UDropdownMenuItem>
+            <UDropdownMenuItem @click="chapter('translate')">
+              Translate the chapter
+            </UDropdownMenuItem>
+            <UDropdownMenuItem @click="chapter('letter')">
+              Review the chapter's lettering
+            </UDropdownMenuItem>
+          </UDropdownMenuContent>
+        </UDropdownMenu>
         <UButton
           variant="ghost"
           size="icon-sm"
@@ -166,6 +188,10 @@ watch(() => [turns.value.length, asking.value, running.value], async () => {
 
         <p v-if="busy && !asking && !running" class="text-muted-foreground text-[11px]">
           {{ waiting ? `${model.label} asked for a wait — trying again in ${Math.ceil(waiting / 1000)} s…` : 'Thinking…' }}
+        </p>
+
+        <p v-if="progress" class="text-muted-foreground text-[11px]">
+          {{ progress }} — each page is a conversation of its own, so one page's work is not sent again with the next.
         </p>
 
         <p v-if="problem" class="text-destructive min-w-0 text-[11px] wrap-break-word">

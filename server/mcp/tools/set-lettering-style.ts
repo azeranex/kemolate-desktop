@@ -19,6 +19,11 @@
  * horizontal translation to tiny type; a frame round the balloon's interior
  * with `shape: oval` sets it as a letterer would. Null hands it back.
  *
+ * `frames` is the same for several balloons at once, each its own. A frame is
+ * one balloon's, so `frame` names one block, and a page of narrow strips took a
+ * call — and, for the in-app assistant, a whole turn of the conversation sent
+ * again — per balloon. With `frames` it is one call, `style` applying to each.
+ *
  * Sizes are the panel's units — the scan's own pixels (see
  * `shared/utils/lettering.ts`) — so "size 40" here is the panel's 40, and the
  * page's width from `read_page` says what that is next to the page.
@@ -53,6 +58,13 @@ const stylePatch = z.object({
   emphasis: field.emphasis.describe('How much louder (or quieter) than the chapter\'s standard size the line is set, e.g. 1.5 for a shout, 0.7 for a murmur; 1 for none. Null reads it off the original\'s lettering. Only a line held to a standard has one.'),
 }).partial()
 
+const frameBox = z.object({
+  cx: z.number().min(-10).max(10).describe('Centre across, as a fraction of the page WIDTH.'),
+  cy: z.number().min(-10).max(10).describe('Centre down, also as a fraction of the page WIDTH — may exceed 1 on a tall page.'),
+  w: z.number().min(0.005).max(10).describe('Width, as a fraction of the page width.'),
+  h: z.number().min(0.005).max(10).describe('Height, as a fraction of the page width.'),
+})
+
 export default defineMcpTool({
   name: 'set_lettering_style',
   description: [
@@ -65,7 +77,7 @@ export default defineMcpTool({
     'TEXT TOO SMALL IN A BIG BALLOON: the line is set in a frame narrower than its balloon (`read_page` gives each block its',
     '`room` and `frame`). Look at the balloon with `get_page_image` and a `region` a little wider than the block, then send',
     '`frame` as the balloon’s inside — a few percent in from its outline — with `style: { shape: "oval", size: null }`;',
-    'the lines are then wrapped into the balloon and sized to fill it. One block per call when frames differ.',
+    'the lines are then wrapped into the balloon and sized to fill it. Several balloons at once: `frames`, one entry each.',
   ].join(' '),
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
   enabled: mcpEnabled,
@@ -77,26 +89,30 @@ export default defineMcpTool({
     locale: z.string().trim().min(2).max(16).optional()
       .describe('Which language\'s lines. Defaults to the chapter\'s target language.'),
     style: stylePatch.default({}).describe('The fields to change.'),
-    frame: z.object({
-      cx: z.number().min(-10).max(10).describe('Centre across, as a fraction of the page WIDTH.'),
-      cy: z.number().min(-10).max(10).describe('Centre down, also as a fraction of the page WIDTH — may exceed 1 on a tall page.'),
-      w: z.number().min(0.005).max(10).describe('Width, as a fraction of the page width.'),
-      h: z.number().min(0.005).max(10).describe('Height, as a fraction of the page width.'),
-    }).nullable().optional()
-      .describe('Where the lines are set, upright. Null puts them back in the balloon’s measured room (or the block). Applied to every block named — give one block per call.'),
+    frame: frameBox.nullable().optional()
+      .describe('Where the lines are set, upright. Null puts them back in the balloon’s measured room (or the block). One balloon’s: name one block, or use `frames`.'),
+    frames: z.array(z.object({ blockId: z.number().int().positive(), frame: frameBox.nullable() })).min(1).max(200).optional()
+      .describe('A frame for each of several balloons, instead of `frame` and `blockIds`: the blocks changed are the ones named here, `style` applying to each.'),
     reset: z.boolean().default(false)
       .describe('Start from automatic before applying `style` — clears every setting the lines had.'),
   },
-  handler: async ({ workspaceId, pageId, blockIds, locale, style, reset, frame }) => {
+  handler: async ({ workspaceId, pageId, blockIds: named, locale, style, reset, frame, frames }) => {
     const context = await mcpContext(workspaceId)
     const page = await mcpPage(context, pageId)
     const target = locale ?? context.workspace.targetLocale
 
     const restyling = reset || Object.keys(style).length > 0
 
-    if (!restyling && frame === undefined) {
-      throw createError({ statusCode: 400, statusMessage: 'Say what to change: `style`, `frame`, or `reset`.' })
+    if (frames && (frame !== undefined || named?.length)) {
+      throw createError({ statusCode: 400, statusMessage: 'Send `frames` on its own — it names its blocks, and each has its own frame.' })
     }
+
+    if (!restyling && frame === undefined && !frames) {
+      throw createError({ statusCode: 400, statusMessage: 'Say what to change: `style`, `frame`, `frames`, or `reset`.' })
+    }
+
+    const blockIds = frames ? frames.map((entry) => entry.blockId) : named
+    const frameOf = (id: number) => (frames ? frames.find((entry) => entry.blockId === id)?.frame : frame)
 
     const onPage = await blocks.onPage(context, page.id)
     // Unnamed, every block with a line to letter — not the rubbish and the
@@ -121,8 +137,10 @@ export default defineMcpTool({
     }
 
     for (const block of wanted) {
+      const placed = frameOf(block.id)
+
       if (!restyling) {
-        entries.push({ blockId: block.id, frame })
+        entries.push({ blockId: block.id, frame: placed })
 
         continue
       }
@@ -144,7 +162,7 @@ export default defineMcpTool({
         })
       }
 
-      entries.push({ blockId: block.id, style: checked.data as TextStyle, frame })
+      entries.push({ blockId: block.id, style: checked.data as TextStyle, frame: placed })
     }
 
     const { restyled, untranslated } = await translations.restyle(context, page.id, target, entries)

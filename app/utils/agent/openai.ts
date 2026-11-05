@@ -14,6 +14,15 @@
  *
  * A model that cannot see never gets this far with a picture: the loop has
  * already put a sentence in its place (`blind` in `loop.ts`).
+ *
+ * ## Caching
+ *
+ * DeepSeek, OpenAI and Google cache a repeated prompt by themselves. Claude
+ * through OpenRouter does not unless asked, and asked nothing a page's
+ * lettering was ~490k tokens all at full price. A top-level `cache_control` is
+ * OpenRouter's automatic mode: it puts the breakpoint on the last cacheable
+ * block and moves it as the conversation grows, which is what `anthropic.ts`
+ * does by hand for a direct key.
  */
 import { argumentsOf } from './messages'
 
@@ -81,6 +90,7 @@ export function openAiBody (service: Service, input: { model: AiModel, system: s
     model: deepseek ? deepseekModel(input.model.id) : input.model.id,
     max_tokens: MAX_TOKENS,
     ...(deepseek ? deepseekThinking(effort) : { usage: { include: true }, ...(effort === 'auto' ? {} : { reasoning: { effort } }) }),
+    ...(!deepseek && input.model.id.startsWith('anthropic/') ? { cache_control: { type: 'ephemeral' } } : {}),
     tools: input.tools.map((tool) => ({
       type: 'function',
       function: { name: tool.name, description: tool.description ?? '', parameters: tool.inputSchema },
