@@ -27,6 +27,7 @@
 import {
   AlignCenterHorizontalIcon,
   BookMarkedIcon,
+  BotIcon,
   CaseSensitiveIcon,
   FilesIcon,
   FlaskConicalIcon,
@@ -43,6 +44,7 @@ import {
 import type { Component, Ref } from 'vue'
 
 import PanelAlign from '~/components/panel/Align.vue'
+import PanelAssistant from '~/components/panel/Assistant.vue'
 import PanelBlockImages from '~/components/panel/BlockImages.vue'
 import PanelBlocks from '~/components/panel/Blocks.vue'
 import PanelCast from '~/components/panel/Cast.vue'
@@ -113,6 +115,9 @@ export const PANEL_SECTIONS: PanelSection[] = [
   { id: 'transform', label: 'Transform', icon: MoveIcon, component: PanelTransform },
   { id: 'layers', label: 'Layers', icon: LayersIcon, component: PanelLayers },
   { id: 'pages', label: 'Pages', icon: FilesIcon, component: PanelPages },
+  // Desktop: last, because it is not a step of the work but somebody to do it
+  // with — it reaches every panel above through the same tools an agent has.
+  { id: 'assistant', label: 'Assistant', icon: BotIcon, component: PanelAssistant },
 
   /**
    * The bench, and only while there is somebody at it.
@@ -175,7 +180,7 @@ const DEFAULT_LAYOUT: PanelLayout = {
       // layout somebody has already arranged, and it works from this list. Left
       // out, the panel would exist and only ever appear for someone who had never
       // touched their docks — which is nobody, after the first drag.
-      sections: ['translate', 'blocks', 'text', 'lettering', 'cast', 'glossary', 'align', 'transform', ...(import.meta.env.DEV ? ['dev', 'block-images'] : [])],
+      sections: ['translate', 'blocks', 'text', 'lettering', 'cast', 'glossary', 'align', 'transform', 'assistant', ...(import.meta.env.DEV ? ['dev', 'block-images'] : [])],
       compact: false,
       width: COLUMN_WIDTH,
     },

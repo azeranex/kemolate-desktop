@@ -82,6 +82,7 @@ declare global {
   const MAX_REPAIR_BYTES: typeof import('../shared/utils/repairs').MAX_REPAIR_BYTES
   const MAX_TERMS: typeof import('../shared/utils/glossary').MAX_TERMS
   const MAX_TERM_LENGTH: typeof import('../shared/utils/glossary').MAX_TERM_LENGTH
+  const MAX_TOKENS: typeof import('./utils/openrouter').MAX_TOKENS
   const MIN_COLUMN_WIDTH: typeof import('./composables/usePanelDock').MIN_COLUMN_WIDTH
   const NO_CAST: typeof import('../shared/utils/prompt').NO_CAST
   const NO_CLEANER: typeof import('./utils/ocr/clean').NO_CLEANER
@@ -118,6 +119,7 @@ declare global {
   const STANDING_IN_TONE: typeof import('./composables/useComic').STANDING_IN_TONE
   const STROKE_TOOLS: typeof import('./composables/useTools').STROKE_TOOLS
   const SUPER: typeof import('./utils/letterCss').SUPER
+  const THINKING: typeof import('./utils/openrouter').THINKING
   const TIGHT_LINE: typeof import('../shared/utils/lettering').TIGHT_LINE
   const TIGHT_SPACING: typeof import('../shared/utils/lettering').TIGHT_SPACING
   const TOOLS: typeof import('./composables/useTools').TOOLS
@@ -144,6 +146,8 @@ declare global {
   const agreedTranslation: typeof import('./composables/useTranslationSync').agreedTranslation
   const angleTo: typeof import('../shared/utils/transform').angleTo
   const announceLocal: typeof import('./composables/useLocalChanges').announceLocal
+  const anthropicContent: typeof import('./utils/openrouter').anthropicContent
+  const anthropicModel: typeof import('./utils/openrouter').anthropicModel
   const appendStroke: typeof import('./utils/strokes').appendStroke
   const applyLut: typeof import('../shared/utils/adjust').applyLut
   const archivePage: typeof import('./utils/images').archivePage
@@ -236,6 +240,8 @@ declare global {
   const dabSpots: typeof import('../shared/utils/raster').dabSpots
   const debouncedRef: typeof import('@vueuse/core').debouncedRef
   const debouncedWatch: typeof import('@vueuse/core').debouncedWatch
+  const deepseekModel: typeof import('./utils/openrouter').deepseekModel
+  const deepseekThinking: typeof import('./utils/openrouter').deepseekThinking
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
   const definePageMeta: typeof import('./composables/nuxt').definePageMeta
@@ -554,6 +560,7 @@ declare global {
   const segmentPage: typeof import('./utils/ocr/segment').segmentPage
   const segmentedAlready: typeof import('./utils/ocr/segment').segmentedAlready
   const segmentedPage: typeof import('./utils/ocr/segment').segmentedPage
+  const send: typeof import('./utils/openrouter').send
   const sendCast: typeof import('./composables/useCast').sendCast
   const sendGlossary: typeof import('./composables/useGlossary').sendGlossary
   const sendLive: typeof import('./composables/useSwarm').sendLive
@@ -662,6 +669,7 @@ declare global {
   const useArrayReduce: typeof import('@vueuse/core').useArrayReduce
   const useArraySome: typeof import('@vueuse/core').useArraySome
   const useArrayUnique: typeof import('@vueuse/core').useArrayUnique
+  const useAssistant: typeof import('./composables/useAssistant').useAssistant
   const useAsyncQueue: typeof import('@vueuse/core').useAsyncQueue
   const useAsyncState: typeof import('@vueuse/core').useAsyncState
   const useAttrs: typeof import('vue').useAttrs
@@ -945,6 +953,9 @@ declare global {
   export type { AlignAxis, AlignEdge, AlignTo } from './composables/useAlign'
   import('./composables/useAlign')
   // @ts-ignore
+  export type { Approval } from './composables/useAssistant'
+  import('./composables/useAssistant')
+  // @ts-ignore
   export type { AutoStep, AutoRange, AutoProgress, AutoOutcome } from './composables/useAutoRun'
   import('./composables/useAutoRun')
   // @ts-ignore
@@ -1050,7 +1061,7 @@ declare global {
   export type { FitInput, DrawnLines } from './utils/lettering'
   import('./utils/lettering')
   // @ts-ignore
-  export type { RateGate, AiUsage, TranslateInput, Translated, RegionInput, RegionRead, ShortenInput, Shortened } from './utils/openrouter'
+  export type { Service, RateGate, AiUsage, TranslateInput, Translated, Sent, SendOptions, RegionInput, RegionRead, ShortenInput, Shortened } from './utils/openrouter'
   import('./utils/openrouter')
   // @ts-ignore
   export type { Sheet } from './utils/paper'
@@ -1262,6 +1273,7 @@ declare module 'vue' {
     readonly MAX_REPAIR_BYTES: UnwrapRef<typeof import('../shared/utils/repairs')['MAX_REPAIR_BYTES']>
     readonly MAX_TERMS: UnwrapRef<typeof import('../shared/utils/glossary')['MAX_TERMS']>
     readonly MAX_TERM_LENGTH: UnwrapRef<typeof import('../shared/utils/glossary')['MAX_TERM_LENGTH']>
+    readonly MAX_TOKENS: UnwrapRef<typeof import('./utils/openrouter')['MAX_TOKENS']>
     readonly MIN_COLUMN_WIDTH: UnwrapRef<typeof import('./composables/usePanelDock')['MIN_COLUMN_WIDTH']>
     readonly NO_CAST: UnwrapRef<typeof import('../shared/utils/prompt')['NO_CAST']>
     readonly NO_CLEANER: UnwrapRef<typeof import('./utils/ocr/clean')['NO_CLEANER']>
@@ -1298,6 +1310,7 @@ declare module 'vue' {
     readonly STANDING_IN_TONE: UnwrapRef<typeof import('./composables/useComic')['STANDING_IN_TONE']>
     readonly STROKE_TOOLS: UnwrapRef<typeof import('./composables/useTools')['STROKE_TOOLS']>
     readonly SUPER: UnwrapRef<typeof import('./utils/letterCss')['SUPER']>
+    readonly THINKING: UnwrapRef<typeof import('./utils/openrouter')['THINKING']>
     readonly TIGHT_LINE: UnwrapRef<typeof import('../shared/utils/lettering')['TIGHT_LINE']>
     readonly TIGHT_SPACING: UnwrapRef<typeof import('../shared/utils/lettering')['TIGHT_SPACING']>
     readonly TOOLS: UnwrapRef<typeof import('./composables/useTools')['TOOLS']>
@@ -1324,6 +1337,8 @@ declare module 'vue' {
     readonly agreedTranslation: UnwrapRef<typeof import('./composables/useTranslationSync')['agreedTranslation']>
     readonly angleTo: UnwrapRef<typeof import('../shared/utils/transform')['angleTo']>
     readonly announceLocal: UnwrapRef<typeof import('./composables/useLocalChanges')['announceLocal']>
+    readonly anthropicContent: UnwrapRef<typeof import('./utils/openrouter')['anthropicContent']>
+    readonly anthropicModel: UnwrapRef<typeof import('./utils/openrouter')['anthropicModel']>
     readonly appendStroke: UnwrapRef<typeof import('./utils/strokes')['appendStroke']>
     readonly applyLut: UnwrapRef<typeof import('../shared/utils/adjust')['applyLut']>
     readonly archivePage: UnwrapRef<typeof import('./utils/images')['archivePage']>
@@ -1416,6 +1431,8 @@ declare module 'vue' {
     readonly dabSpots: UnwrapRef<typeof import('../shared/utils/raster')['dabSpots']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
+    readonly deepseekModel: UnwrapRef<typeof import('./utils/openrouter')['deepseekModel']>
+    readonly deepseekThinking: UnwrapRef<typeof import('./utils/openrouter')['deepseekThinking']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly definePageMeta: UnwrapRef<typeof import('./composables/nuxt')['definePageMeta']>
@@ -1734,6 +1751,7 @@ declare module 'vue' {
     readonly segmentPage: UnwrapRef<typeof import('./utils/ocr/segment')['segmentPage']>
     readonly segmentedAlready: UnwrapRef<typeof import('./utils/ocr/segment')['segmentedAlready']>
     readonly segmentedPage: UnwrapRef<typeof import('./utils/ocr/segment')['segmentedPage']>
+    readonly send: UnwrapRef<typeof import('./utils/openrouter')['send']>
     readonly sendCast: UnwrapRef<typeof import('./composables/useCast')['sendCast']>
     readonly sendGlossary: UnwrapRef<typeof import('./composables/useGlossary')['sendGlossary']>
     readonly sendLive: UnwrapRef<typeof import('./composables/useSwarm')['sendLive']>
@@ -1842,6 +1860,7 @@ declare module 'vue' {
     readonly useArrayReduce: UnwrapRef<typeof import('@vueuse/core')['useArrayReduce']>
     readonly useArraySome: UnwrapRef<typeof import('@vueuse/core')['useArraySome']>
     readonly useArrayUnique: UnwrapRef<typeof import('@vueuse/core')['useArrayUnique']>
+    readonly useAssistant: UnwrapRef<typeof import('./composables/useAssistant')['useAssistant']>
     readonly useAsyncQueue: UnwrapRef<typeof import('@vueuse/core')['useAsyncQueue']>
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>

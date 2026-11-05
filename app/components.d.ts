@@ -41,6 +41,8 @@ declare module 'vue' {
     PagePicker: typeof import('./components/PagePicker.vue')['default']
     PanelAdjust: typeof import('./components/panel/Adjust.vue')['default']
     PanelAlign: typeof import('./components/panel/Align.vue')['default']
+    PanelAssistant: typeof import('./components/panel/Assistant.vue')['default']
+    PanelAssistantToolRow: typeof import('./components/panel/AssistantToolRow.vue')['default']
     PanelBlockImages: typeof import('./components/panel/BlockImages.vue')['default']
     PanelBlockListRow: typeof import('./components/panel/BlockListRow.vue')['default']
     PanelBlockRow: typeof import('./components/panel/BlockRow.vue')['default']
