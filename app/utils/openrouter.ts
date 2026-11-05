@@ -35,7 +35,7 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 const ANTHROPIC = 'https://api.anthropic.com/v1/messages'
 
 /** Anthropic's own name for a model the curated list files under OpenRouter's — `anthropic/claude-sonnet-5.5` is `claude-sonnet-5-5`. */
-const anthropicModel = (id: string) => id.replace(/^anthropic\//, '').replaceAll('.', '-')
+export const anthropicModel = (id: string) => id.replace(/^anthropic\//, '').replaceAll('.', '-')
 
 /*
  * Desktop: DeepSeek straight from DeepSeek, on the reader's DeepSeek key — the
@@ -64,9 +64,9 @@ const DEEPSEEK_MODELS: Record<string, string> = {
   'deepseek/deepseek-v4-pro': 'deepseek-v4-pro',
 }
 
-const deepseekModel = (id: string) => DEEPSEEK_MODELS[id] ?? id.replace(/^deepseek\//, '')
+export const deepseekModel = (id: string) => DEEPSEEK_MODELS[id] ?? id.replace(/^deepseek\//, '')
 
-type Service = 'OpenRouter' | 'Anthropic' | 'DeepSeek'
+export type Service = 'OpenRouter' | 'Anthropic' | 'DeepSeek'
 
 /** Where a key is spent, from the key and the model it is spent on — see `ANTHROPIC` and `DEEPSEEK`. */
 function serviceFor (key: string, model: AiModel): Service {
@@ -81,7 +81,7 @@ function serviceFor (key: string, model: AiModel): Service {
  * `minimal` switch it off (Fast is "one pass"), the rest are its own words —
  * it reads `medium` as `high` itself. `auto` sends nothing, its default.
  */
-function deepseekThinking (effort: ReasoningEffort) {
+export function deepseekThinking (effort: ReasoningEffort) {
   if (effort === 'auto') return {}
   if (effort === 'none' || effort === 'minimal') return { thinking: { type: 'disabled' } }
 
@@ -93,10 +93,10 @@ function deepseekThinking (effort: ReasoningEffort) {
  * Anthropic a number of tokens, and each is well inside `MAX_TOKENS` so the
  * answer keeps room. `none` and `minimal` think not at all; `auto` sends nothing.
  */
-const THINKING: Partial<Record<ReasoningEffort, number>> = { low: 2_000, medium: 6_000, high: 10_000 }
+export const THINKING: Partial<Record<ReasoningEffort, number>> = { low: 2_000, medium: 6_000, high: 10_000 }
 
 /** A message's content as Anthropic takes it: pictures as base64 sources rather than data URLs. */
-function anthropicContent (content: unknown) {
+export function anthropicContent (content: unknown) {
   if (!Array.isArray(content)) return content
 
   return content.map((part: { type?: string, image_url?: { url?: string } }) => {
@@ -112,7 +112,7 @@ function anthropicContent (content: unknown) {
  * Reasoning models spend most of a generous budget before they answer, so a
  * limit sized for the reply alone truncates them mid-thought.
  */
-const MAX_TOKENS = 16_000
+export const MAX_TOKENS = 16_000
 
 /** Long, because a page of reasoning against a slow model genuinely takes minutes. */
 const TIMEOUT = 300_000
@@ -304,15 +304,153 @@ const passing = (status: number) => status === 429 || status >= 500
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 /**
+ * One ask with a single message and a text reply — a page, a region, a line to
+ * shorten — on `send`. What is its own is the body each service is sent, and
+ * the two ways a reply can be no answer: cut off at the limit, or empty.
+ */
+async function ask (
+  key: string,
+  input: { model: AiModel, content: unknown, effort: ReasoningEffort, retrying?: (wait: number) => void, gate?: RateGate },
+): Promise<Answer> {
+  const sent = await send(key, input.model, (service, effort) => {
+    const budget = THINKING[effort]
+
+    if (service === 'Anthropic') {
+      return {
+        model: anthropicModel(input.model.id),
+        max_tokens: MAX_TOKENS,
+        ...(budget ? { thinking: { type: 'enabled', budget_tokens: budget } } : {}),
+        messages: [{ role: 'user', content: anthropicContent(input.content) }],
+      }
+    }
+
+    if (service === 'DeepSeek') {
+      return {
+        model: deepseekModel(input.model.id),
+        max_tokens: MAX_TOKENS,
+        ...deepseekThinking(effort),
+        messages: [{ role: 'user', content: input.content }],
+      }
+    }
+
+    return {
+      model: input.model.id,
+      max_tokens: MAX_TOKENS,
+      usage: { include: true },
+      ...(effort === 'auto' ? {} : { reasoning: { effort } }),
+      messages: [{ role: 'user', content: input.content }],
+    }
+  }, input)
+
+  if (sent.service === 'Anthropic') return anthropicAnswer(sent.data, input.model, sent.usage)
+
+  const data = sent.data as { choices?: { message?: { content?: string }, finish_reason?: string | null }[] }
+  const choice = data.choices?.[0]
+
+  /*
+   * Cut off at the token limit, which is not an answer however it reads.
+   *
+   * It used to be taken for one. A reply stopped mid-sentence is almost always
+   * broken JSON, which surfaced as "not JSON — try again" (and trying again
+   * stops at the same place), while the rare one that happened to parse was a
+   * page with its last lines missing, applied as if whole. Asked before the
+   * text is, because a reasoning model that spent the entire budget thinking
+   * comes back with no text at all, and "no output" is the wrong diagnosis
+   * of that too.
+   */
+  if (choice?.finish_reason === 'length') throw new Error(cutOff(input.model))
+
+  const text = choice?.message?.content
+
+  if (!text) throw new Error('The model returned no output.')
+
+  return { text, usage: sent.usage }
+}
+
+const cutOff = (model: AiModel) =>
+  `${model.label}'s answer was cut off at the ${MAX_TOKENS.toLocaleString('en')}-token limit, so none of it was used. A lower effort setting leaves more of that for the answer itself.`
+
+/** What one `send` came back with: the service it went to, the reply as parsed, and what it cost. */
+export interface Sent {
+  service: Service
+  data: unknown
+  usage: AiUsage | null
+}
+
+export interface SendOptions {
+  effort: ReasoningEffort
+  retrying?: (wait: number) => void
+  gate?: RateGate
+  /** The reader's Stop. Never retried: an ask taken back was meant. */
+  signal?: AbortSignal
+}
+
+/** Where a service is asked, and how it is told whose key this is. */
+function endpointOf (service: Service, key: string): { url: string, headers: Record<string, string> } {
+  if (service === 'Anthropic') {
+    return {
+      url: ANTHROPIC,
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        // Anthropic refuses a browser's request without it: the key is the
+        // reader's own and goes nowhere but here, which is the case it exists for.
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'Content-Type': 'application/json',
+      },
+    }
+  }
+
+  if (service === 'DeepSeek') return { url: DEEPSEEK, headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } }
+
+  return { url: ENDPOINT, headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'kemolate' } }
+}
+
+/** The usage block of a reply, in any of the three services' shapes. */
+function usageOf (service: Service, model: AiModel, data: unknown): AiUsage | null {
+  if (service === 'Anthropic') {
+    const usage = (data as { usage?: { input_tokens?: number, output_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number } }).usage
+
+    if (!usage) return null
+
+    // A prompt read from the cache is still a prompt the model read: counted in,
+    // and estimated at the full price, so the figure errs high as the rest do.
+    const input = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
+    const output = usage.output_tokens ?? 0
+
+    return { input, output, reasoning: 0, cost: estimateCost(model, { in: input, out: output }) }
+  }
+
+  const usage = (data as {
+    usage?: { prompt_tokens?: number, completion_tokens?: number, cost?: number, completion_tokens_details?: { reasoning_tokens?: number } }
+  }).usage
+
+  if (!usage) return null
+
+  return {
+    input: usage.prompt_tokens ?? 0,
+    output: usage.completion_tokens ?? 0,
+    reasoning: usage.completion_tokens_details?.reasoning_tokens ?? 0,
+    // Desktop: DeepSeek reports tokens and no dollars — estimated as
+    // Anthropic's are, at the cache-miss price, so it errs high.
+    cost: usage.cost ?? (service === 'DeepSeek'
+      ? estimateCost(model, { in: usage.prompt_tokens ?? 0, out: usage.completion_tokens ?? 0 })
+      : null),
+  }
+}
+
+/**
  * One request, and everything that can go wrong with one.
  *
- * Both asks here — translate a page, read a region — differ only in what they
- * put in the message and what they make of the reply. The errand between those
- * two is identical, and it is the part with the accumulated knowledge in it: the
- * timeout that has to be minutes rather than seconds, the two status codes worth
- * naming, the usage block, the retries and the fallback below. Written twice it
- * would have been two of each, and the second copy would have been the one
- * missing a retry.
+ * Every ask here — translate a page, read a region, shorten a line, a turn of
+ * the assistant (`app/utils/agent/`) — differs only in what it puts in the body
+ * and what it makes of the reply. The errand between those is identical, and it
+ * is the part with the accumulated knowledge in it: the timeout that has to be
+ * minutes rather than seconds, the two status codes worth naming, the usage
+ * block, the retries and the fallback below. Written twice it would have been
+ * two of each, and the second copy would have been the one missing a retry.
+ * So `body` is asked for the body, for the service the key goes to and the
+ * effort in force, and everything else is here.
  *
  * The fallback: some endpoints refuse a reasoning setting outright — "Reasoning
  * is mandatory for this endpoint" and its opposite both exist — and falling back
@@ -330,16 +468,18 @@ const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  * A rate limit is also said to the rest of the run, through its `gate`, and
  * every send — first or again — waits out whatever hold the gate carries.
  */
-async function ask (
+export async function send (
   key: string,
-  input: { model: AiModel, content: unknown, effort: ReasoningEffort, retrying?: (wait: number) => void, gate?: RateGate },
-): Promise<Answer> {
+  model: AiModel,
+  body: (service: Service, effort: ReasoningEffort) => Record<string, unknown>,
+  input: SendOptions,
+): Promise<Sent> {
   let effort = input.effort
   let retries = 0
 
   // Desktop: which service this key is for — see `ANTHROPIC` and `DEEPSEEK`.
-  const service = serviceFor(key, input.model)
-  const direct = service === 'Anthropic'
+  const service = serviceFor(key, model)
+  const { url, headers } = endpointOf(service, key)
 
   /** Wait before going round again — or false, where the tries are spent. */
   const again = async (asked: number | null, status?: number): Promise<boolean> => {
@@ -372,66 +512,30 @@ async function ask (
       await pause(held)
     }
 
+    input.signal?.throwIfAborted()
+
     let response: Response
 
     try {
-      const budget = THINKING[effort]
+      const timeout = AbortSignal.timeout(TIMEOUT)
 
-      response = direct
-        ? await fetch(ANTHROPIC, {
-            method: 'POST',
-            signal: AbortSignal.timeout(TIMEOUT),
-            headers: {
-              'x-api-key': key,
-              'anthropic-version': '2023-06-01',
-              // Anthropic refuses a browser's request without it: the key is the
-              // reader's own and goes nowhere but here, which is the case it exists for.
-              'anthropic-dangerous-direct-browser-access': 'true',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: anthropicModel(input.model.id),
-              max_tokens: MAX_TOKENS,
-              ...(budget ? { thinking: { type: 'enabled', budget_tokens: budget } } : {}),
-              messages: [{ role: 'user', content: anthropicContent(input.content) }],
-            }),
-          })
-        : service === 'DeepSeek'
-          ? await fetch(DEEPSEEK, {
-              method: 'POST',
-              signal: AbortSignal.timeout(TIMEOUT),
-              headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                model: deepseekModel(input.model.id),
-                max_tokens: MAX_TOKENS,
-                ...deepseekThinking(effort),
-                messages: [{ role: 'user', content: input.content }],
-              }),
-            })
-          : await fetch(ENDPOINT, {
-              method: 'POST',
-              signal: AbortSignal.timeout(TIMEOUT),
-              headers: {
-                Authorization: `Bearer ${key}`,
-                'Content-Type': 'application/json',
-                'X-Title': 'kemolate',
-              },
-              body: JSON.stringify({
-                model: input.model.id,
-                max_tokens: MAX_TOKENS,
-                usage: { include: true },
-                ...(effort === 'auto' ? {} : { reasoning: { effort } }),
-                messages: [{ role: 'user', content: input.content }],
-              }),
-            })
+      response = await fetch(url, {
+        method: 'POST',
+        signal: input.signal ? AbortSignal.any([timeout, input.signal]) : timeout,
+        headers,
+        body: JSON.stringify(body(service, effort)),
+      })
     } catch (error) {
+      // Stopped by the reader: said as it is, and never asked again.
+      if (input.signal?.aborted) throw input.signal.reason
+
       const timedOut = error instanceof DOMException && error.name === 'TimeoutError'
 
       if (!timedOut && await again(null)) continue
 
       throw new Error(
         timedOut
-          ? `${input.model.label} took too long to answer. A smaller effort setting usually helps.`
+          ? `${model.label} took too long to answer. A smaller effort setting usually helps.`
           : `Could not reach ${service}. ${error instanceof Error ? error.message : String(error)}`,
         // The sentence above is for the reader; this keeps the original for
         // whoever has to work out whether it was the network or the provider.
@@ -459,97 +563,33 @@ async function ask (
       throw new Error(`${service} error ${response.status}: ${body.slice(0, 300)}`)
     }
 
-    if (direct) return anthropicAnswer(await response.json(), input.model)
-
-    const data = await response.json() as {
-      choices?: { message?: { content?: string }, finish_reason?: string | null }[]
-      usage?: {
-        prompt_tokens?: number
-        completion_tokens?: number
-        cost?: number
-        completion_tokens_details?: { reasoning_tokens?: number }
-      }
-      error?: { message?: string }
-    }
+    const data = await response.json() as { error?: { message?: string } }
 
     if (data.error) throw new Error(`${service}: ${data.error.message ?? 'unknown error'}`)
 
-    const choice = data.choices?.[0]
-
-    /*
-     * Cut off at the token limit, which is not an answer however it reads.
-     *
-     * It used to be taken for one. A reply stopped mid-sentence is almost always
-     * broken JSON, which surfaced as "not JSON — try again" (and trying again
-     * stops at the same place), while the rare one that happened to parse was a
-     * page with its last lines missing, applied as if whole. Asked before the
-     * text is, because a reasoning model that spent the entire budget thinking
-     * comes back with no text at all, and "no output" is the wrong diagnosis
-     * of that too.
-     */
-    if (choice?.finish_reason === 'length') {
-      throw new Error(
-        `${input.model.label}'s answer was cut off at the ${MAX_TOKENS.toLocaleString('en')}-token limit, so none of it was used. A lower effort setting leaves more of that for the answer itself.`,
-      )
-    }
-
-    const text = choice?.message?.content
-
-    if (!text) throw new Error('The model returned no output.')
-
-    return {
-      text,
-      usage: data.usage
-        ? {
-            input: data.usage.prompt_tokens ?? 0,
-            output: data.usage.completion_tokens ?? 0,
-            reasoning: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
-            // Desktop: DeepSeek reports tokens and no dollars — estimated as
-            // Anthropic's are, at the cache-miss price, so it errs high.
-            cost: data.usage.cost ?? (service === 'DeepSeek'
-              ? estimateCost(input.model, { in: data.usage.prompt_tokens ?? 0, out: data.usage.completion_tokens ?? 0 })
-              : null),
-          }
-        : null,
-    }
+    return { service, data, usage: usageOf(service, model, data) }
   }
 }
 
 /**
  * Desktop: Anthropic's reply, read into what OpenRouter's would have been — the
  * text blocks joined (the thinking ones are not the answer), a reply cut off at
- * the limit refused as `ask` refuses one, and the cost estimated from the model's
- * prices, since Anthropic counts tokens and leaves the dollars to the reader.
- * Thinking is billed as output and already inside `output_tokens`; Anthropic
- * does not say how much of it there was, so `reasoning` is left at nought.
+ * the limit refused as `ask` refuses one. The cost is `usageOf`'s, estimated
+ * from the model's prices, since Anthropic counts tokens and leaves the dollars
+ * to the reader. Thinking is billed as output and already inside
+ * `output_tokens`; Anthropic does not say how much of it there was, so
+ * `reasoning` is left at nought.
  */
-function anthropicAnswer (data: unknown, model: AiModel): Answer {
-  const reply = data as {
-    content?: { type?: string, text?: string }[]
-    stop_reason?: string | null
-    usage?: { input_tokens?: number, output_tokens?: number }
-    error?: { message?: string }
-  }
+function anthropicAnswer (data: unknown, model: AiModel, usage: AiUsage | null): Answer {
+  const reply = data as { content?: { type?: string, text?: string }[], stop_reason?: string | null }
 
-  if (reply.error) throw new Error(`Anthropic: ${reply.error.message ?? 'unknown error'}`)
-
-  if (reply.stop_reason === 'max_tokens') {
-    throw new Error(
-      `${model.label}'s answer was cut off at the ${MAX_TOKENS.toLocaleString('en')}-token limit, so none of it was used. A lower effort setting leaves more of that for the answer itself.`,
-    )
-  }
+  if (reply.stop_reason === 'max_tokens') throw new Error(cutOff(model))
 
   const text = (reply.content ?? []).filter((part) => part.type === 'text').map((part) => part.text ?? '').join('')
 
   if (!text) throw new Error('The model returned no output.')
 
-  const input = reply.usage?.input_tokens ?? 0
-  const output = reply.usage?.output_tokens ?? 0
-
-  return {
-    text,
-    usage: reply.usage ? { input, output, reasoning: 0, cost: estimateCost(model, { in: input, out: output }) } : null,
-  }
+  return { text, usage }
 }
 
 export interface RegionInput extends RegionPromptInput {

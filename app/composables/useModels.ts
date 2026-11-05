@@ -156,6 +156,8 @@ export function useModels () {
           // Whether the effort control is wired to anything real for this
           // model. Unknown until asked, which is why it is optional.
           reasoning: found.supported_parameters?.includes('reasoning') ?? false,
+          // Desktop: whether the assistant can use it — see `AiModel.tools`.
+          tools: found.supported_parameters ? found.supported_parameters.includes('tools') : model.tools,
           // Marked on the entry it is true of, not on the list: an id the
           // endpoint did not answer for stays a placeholder and keeps saying so.
           priced: good,
@@ -182,6 +184,7 @@ export function useModels () {
             name: found.name,
             vision: found.architecture?.input_modalities?.includes('image') ?? false,
             reasoning: found.supported_parameters?.includes('reasoning') ?? false,
+            tools: found.supported_parameters?.includes('tools') ?? false,
           }),
           priced: true,
         }))

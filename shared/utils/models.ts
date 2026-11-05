@@ -56,6 +56,13 @@ export interface AiModel {
    */
   reasoning?: boolean
   /**
+   * Desktop: whether it can call tools, which the assistant needs
+   * (`app/utils/agent/`). Unknown until `useModels` asks, like `reasoning` —
+   * and unknown is taken as yes, because every entry written here can; it is
+   * the free models from the catalogue that cannot, and those are asked.
+   */
+  tools?: boolean
+  /**
    * US dollars per million tokens, in and out.
    *
    * The numbers below are placeholders of the right order of magnitude, so a
@@ -298,7 +305,7 @@ export function newestIn (family: string, ids: Iterable<string>): string | null 
 export const isFreeModel = (id: string | null | undefined): boolean => Boolean(id?.endsWith(':free'))
 
 /** Desktop: an entry for a free model the catalogue has not answered for yet — see `useModels.byId`. */
-export function freeModel (id: string, found?: { name?: string, vision?: boolean, reasoning?: boolean }): AiModel {
+export function freeModel (id: string, found?: { name?: string, vision?: boolean, reasoning?: boolean, tools?: boolean }): AiModel {
   return {
     id,
     label: (found?.name ?? id.replace(/^[^/]+\//, '')).replace(/\s*\(free\)$/i, ''),
@@ -306,6 +313,8 @@ export function freeModel (id: string, found?: { name?: string, vision?: boolean
     free: true,
     vision: found?.vision ?? false,
     reasoning: found?.reasoning ?? false,
+    // Not known until the catalogue answers, and a free model often cannot — see `AiModel.tools`.
+    tools: found?.tools ?? false,
     price: { in: 0, out: 0 },
   }
 }

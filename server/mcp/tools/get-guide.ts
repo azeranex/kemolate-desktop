@@ -12,11 +12,8 @@
  *
  * Read-only and free of the workspace: it needs no chapter open.
  */
-import guide from '~~/plugins/kemolate/skills/kemolate/SKILL.md?raw'
+import { GUIDE } from '~~/server/mcp/guide'
 import { mcpEnabled, requireMcpActor } from '~~/server/utils/mcp'
-
-/** The skill without its front matter — the description is for choosing a skill, not for reading. */
-const body = guide.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim()
 
 export default defineMcpTool({
   name: 'get_guide',
@@ -30,6 +27,6 @@ export default defineMcpTool({
   handler: async () => {
     requireMcpActor(useEvent()!)
 
-    return { content: [{ type: 'text' as const, text: body }] }
+    return { content: [{ type: 'text' as const, text: GUIDE }] }
   },
 })
