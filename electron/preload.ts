@@ -130,6 +130,25 @@ export interface McpStatus {
   bundle: boolean
 }
 
+/** One MCP tool as the assistant is offered it — `tools/list`'s entry, as `assistant.ts` passes it on. */
+export interface AssistantTool {
+  name: string
+  description?: string
+  inputSchema: Record<string, unknown>
+  annotations?: { readOnlyHint?: boolean, destructiveHint?: boolean, idempotentHint?: boolean, openWorldHint?: boolean }
+}
+
+/** One part of a tool's answer: text, or a picture as base64. */
+export type AssistantPart =
+  | { type: 'text', text: string }
+  | { type: 'image', data: string, mimeType: string }
+
+/** A tool's answer, as MCP gives it. */
+export interface AssistantResult {
+  content: AssistantPart[]
+  isError?: boolean
+}
+
 /** What happened while opening, for the window to say. */
 export interface DataNotice {
   /** The damaged file, moved aside. */
@@ -281,6 +300,15 @@ const api = {
         ipcRenderer.off('mcp:frame', forward)
       }
     },
+  },
+  /**
+   * The MCP server's tools for the window's own assistant, in memory — see
+   * `assistant.ts`. Whose chapter a call is about is this tab's, settled by
+   * the main process from the sender rather than named here.
+   */
+  assistant: {
+    tools: (): Promise<AssistantTool[]> => ipcRenderer.invoke('assistant:tools'),
+    call: (name: string, args: Record<string, unknown>): Promise<AssistantResult> => ipcRenderer.invoke('assistant:call', { name, arguments: args }),
   },
   /**
    * The window's tabs — see `tabs.ts`. `hello` is this tab's id and where it

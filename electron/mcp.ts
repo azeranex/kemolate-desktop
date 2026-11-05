@@ -52,11 +52,11 @@
  *
  * Stateless, as the web build's is (`sessions` off): every tool answers in one
  * request, and nothing is pushed. Each request runs inside its own event
- * (`useEvent`, an `AsyncLocalStorage`), which is how a tool finds that its
- * caller came in — the role Nitro's request context plays there.
+ * (`useEvent`, an `AsyncLocalStorage` shared with the in-app assistant — see
+ * `mcpEvent.ts`), which is how a tool finds that its caller came in — the role
+ * Nitro's request context plays there.
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks'
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
@@ -66,6 +66,7 @@ import { app, dialog, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 
 import { written } from './database'
+import { mcpEvents } from './mcpEvent'
 import { zipOf } from './zip'
 
 import type { McpStatus } from './preload'
@@ -156,12 +157,6 @@ const bundleFile = () => app.isPackaged
   ? path.join(process.resourcesPath, 'kemolate.mcpb')
   : path.join(app.getAppPath(), 'out/mcpb/kemolate.mcpb')
 
-const events = new AsyncLocalStorage<{ context: Record<string, unknown> }>()
-
-// The request an MCP call arrived in, where `installServerGlobals` left none:
-// how `mcpContext` finds the caller. Undefined outside a call, as before.
-Object.assign(globalThis, { useEvent: () => events.getStore() })
-
 function refuse (response: ServerResponse, status: number, message: string) {
   response.writeHead(status, { 'Content-Type': 'application/json' })
   response.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message }, id: null }))
@@ -217,7 +212,7 @@ async function serve (request: IncomingMessage, response: ServerResponse, port: 
   // Every caller that got this far is the reader — see the header.
   const event = { context: { [MCP_ACTOR]: { id: null } } }
 
-  await events.run(event, async () => {
+  await mcpEvents.run(event, async () => {
     const mcp = serverFor(event)
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
 

@@ -373,6 +373,11 @@ async function startDatabase () {
     const { closeMcp, opensTabs, serveMcp, tabFocused, tabLeft } = await import('./mcp')
 
     await serveMcp(trusted, mainWindow)
+
+    // The same tools for the window's own assistant, in memory — see `assistant.ts`.
+    const { serveAssistant } = await import('./assistant')
+
+    serveAssistant(trusted)
     leaving.push(tabLeft)
     focusing.push(tabFocused)
     opensTabs((publicId, show) => tabs?.reveal(publicId, show) ?? null)

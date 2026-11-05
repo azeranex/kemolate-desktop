@@ -53,6 +53,7 @@ import splitBlock from './tools/split-block'
 import updateWorkspace from './tools/update-workspace'
 
 import type { McpPromptDefinition, McpToolDefinition, McpToolResult } from '~~/server/utils/mcpToolkit'
+import type { SwarmState } from '~~/server/utils/swarm'
 
 import { HttpError } from '~~/server/utils/errors'
 import { requireMcpActor } from '~~/server/utils/mcp'
@@ -120,8 +121,14 @@ const anyPage = z.number().int().positive().optional()
  * missing one is filled in, and the page only for the open chapter, since the
  * page on screen means nothing about another. Nothing open is said, with what
  * to do instead, rather than guessed at.
+ *
+ * `opened` is what "open" means for this caller. For an agent outside the app
+ * it is the tab on screen. For the window's own assistant it is the tab the
+ * conversation is in (`openIn`): the reader may turn to another tab while a
+ * run is out, and a run that followed them would carry on writing to a
+ * chapter nobody asked it about.
  */
-function defaulted (tool: McpToolDefinition): McpToolDefinition {
+function defaulted (tool: McpToolDefinition, opened: () => SwarmState['active']): McpToolDefinition {
   const shape = tool.inputSchema
 
   if (!shape || !('workspaceId' in shape)) return tool
@@ -132,7 +139,7 @@ function defaulted (tool: McpToolDefinition): McpToolDefinition {
     ...tool,
     inputSchema: { ...shape, workspaceId: anyChapter, ...(onePage ? { pageId: anyPage } : {}) },
     handler: (input: Record<string, unknown>) => {
-      const open = swarmState.active
+      const open = opened()
       const filled = { ...input }
 
       if (filled.workspaceId === undefined) {
@@ -163,14 +170,28 @@ function defaulted (tool: McpToolDefinition): McpToolDefinition {
   }
 }
 
+/** A tab's chapter and page on screen, as `defaulted` takes "the open one" — null where the tab is in none. */
+function openIn (tab: string): SwarmState['active'] {
+  const record = swarmState.tabs.get(tab)
+
+  return record ? { publicId: record.publicId, pageId: record.pageId } : null
+}
+
+export interface ServerOptions {
+  /** The tab a call comes from, whose chapter "the open one" means — the in-app assistant's. Absent: the tab on screen. */
+  tab?: string
+}
+
 /** The server one request is answered by, offering what this caller may see — see `mcpEnabled`. */
-export function serverFor (event: { context: Record<string, unknown> }): McpServer {
+export function serverFor (event: { context: Record<string, unknown> }, options: ServerOptions = {}): McpServer {
   const server = new McpServer(
     { name: 'kemolate', title: 'Kemolate', version: '1.0.0' },
     { instructions: INSTRUCTIONS },
   )
 
-  const tools = TOOLS.filter((tool) => !tool.enabled || tool.enabled(event)).map(defaulted)
+  const { tab } = options
+  const opened = tab === undefined ? () => swarmState.active : () => openIn(tab)
+  const tools = TOOLS.filter((tool) => !tool.enabled || tool.enabled(event)).map((tool) => defaulted(tool, opened))
   const prompts = PROMPTS.filter((prompt) => !prompt.enabled || prompt.enabled(event))
 
   /*
