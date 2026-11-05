@@ -63,11 +63,25 @@ function readIn (turns: Turn[]): Set<string> {
     .map((call) => String(call.arguments.topic)))
 }
 
-/** The tools held back from a conversation of these turns, until it reads their topic. */
+/**
+ * Joining is the reader's to ask for, not the assistant's to decide. The
+ * playbook tells an agent to join a balloon's columns, and asked to fix
+ * lettering the assistant did — merging blocks the reader wanted kept apart,
+ * each of which had its own translation and lettering. So `join_blocks` is
+ * offered only in a conversation where the reader's own words ask to join,
+ * merge or combine; a chapter run's messages never do.
+ */
+const JOINING = 'join_blocks'
+const ASKS_TO_JOIN = /\b(?:join|merge|combine)/i
+
+/** The tools held back from a conversation of these turns: a topic's until it is read, and joining until the reader asks for it. */
 export function withheld (turns: Turn[]): Set<string> {
   const read = readIn(turns)
+  const held = new Set(Object.entries(TOOLS_OF).filter(([topic]) => !read.has(topic)).flatMap(([, names]) => names))
 
-  return new Set(Object.entries(TOOLS_OF).filter(([topic]) => !read.has(topic)).flatMap(([, names]) => names))
+  if (!turns.some((turn) => turn.role === 'user' && ASKS_TO_JOIN.test(turn.text))) held.add(JOINING)
+
+  return held
 }
 
 /** The playbook in `##` sections, keyed by heading; the part before the first is keyed ''. */
@@ -97,6 +111,7 @@ Your tools are Kemolate's own MCP tools; the playbook below is written for an ag
 
 - Before a task, call \`read_playbook\` for each of its topics you have not read in this conversation (${Object.keys(CHAPTERS).join(', ')}), all in your first turn. The playbook below is only its standing half, and a topic's tools are offered only once you have read it: ${Object.entries(TOOLS_OF).map(([topic, names]) => `${topic} brings ${names.map((name) => `\`${name}\``).join(', ')}`).join('; ')}.
 - Spend few turns: every turn sends the whole conversation again. Make every call you can in one turn, and use each tool for many blocks at once — \`review_lettering\` for the whole page, \`set_lettering_style\` with \`frames\` for several balloons' frames together, one \`save_page_translations\` for every line.
+- Keep the blocks as they are. Never join blocks unless the reader asks you to in this conversation — where the playbook says to join a balloon's columns, letter each block on its own instead. \`join_blocks\` is offered only once the reader has asked.
 - Do what the reader asks, the way the playbook says. Where it says something is the user's decision, ask the reader here and wait for the answer.
 - Some tools wait for the reader's approval before they run. If one comes back declined, do not call it again for the same thing; say what you would have done.
 - Be brief. Say what you changed and what is left for the reader's eye. The reader sees each tool call as you make it, so do not narrate them.
