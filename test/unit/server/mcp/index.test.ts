@@ -739,6 +739,28 @@ describe('review_lettering', () => {
     expect((result.content as { type: string }[]).filter((part) => part.type === 'image')).toHaveLength(2)
   })
 
+  it('is what set_lettering_style answers with for the lines it changed — judged against the page, without pictures', async () => {
+    const { context, page, ids, asked } = await lettered([
+      { size: 40, set: 'auto', capacity: 40 },
+      { size: 42, set: 'auto', capacity: 42 },
+      { size: 20, set: 'auto', capacity: 20, over: true },
+      { size: 24, set: 'auto', capacity: 24, drawn: ['Line 4'] },
+    ])
+    const result = JSON.parse(textOf(await (await connect(true)).callTool({
+      name: 'set_lettering_style',
+      arguments: { workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[0], ids[3]], style: { bold: true } },
+    })))
+
+    expect(result.fit.measured).toBe(true)
+    expect(result.fit.lines).toEqual([
+      { blockId: ids[0], size: 40, set: 'auto', capacity: 40, flags: [] },
+      { blockId: ids[3], size: 24, set: 'auto', capacity: 24, flags: ['smaller-than-the-page'], drawn: ['Line 4'] },
+    ])
+    expect(result.fit.next).toContain(`blockIds: [${ids[3]}]`)
+    // The window is told of the write before it is asked to measure, which is what `caughtUp` waits on.
+    expect(asked.map((ask) => ask.type)).toEqual(['changed', 'fits'])
+  })
+
   it('never calls a line held to the standard small, however much room it has', async () => {
     const { asked } = await lettered([
       { size: 30, set: 'standard', capacity: 60 },

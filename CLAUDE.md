@@ -477,12 +477,18 @@ over MCP can, without an outside client.
   ~490k input tokens over 19 turns: every turn resends the tools (~37k chars), the prompt (~24k)
   and the whole transcript. What now keeps it down, and must not be undone casually:
   - **Caching everywhere**: system, tools and a breakpoint on the last block that moves with the
-    conversation (`marked` in `anthropic.ts`); OpenRouter's top-level `cache_control` for Claude
-    (`openai.ts`). `usageOf` prices cache reads at 0.1 and writes at 1.25 and reports `cached`,
+    conversation (`marked` in `anthropic.ts`); for Claude through OpenRouter, the top-level
+    `cache_control` plus explicit breakpoints on the system prompt and the newest user-role
+    message (`marked` in `openai.ts` — a `tool` message is a string there and cannot carry one). `usageOf` prices cache reads at 0.1 and writes at 1.25 and reports `cached`,
     which the panel shows — the tally used to count reads at full price.
   - **The playbook by chapter**: the prompt carries its standing half; `reading`, `translating`
-    and `lettering` are `read_playbook`, answered in the window, and **each topic's tools are
-    offered only after it is read** (`TOOLS_OF`, `withheld`). Base list ~5k chars.
+    and `lettering` are `read_playbook`, answered in the window, and **each topic's tools refuse
+    calls until it is read** (`TOOLS_OF`, `withheld`). They are *listed* from the start: they
+    used to appear only after the read, and **a changed tool list misses the cache whole** —
+    tools come before the system prompt in what a provider caches — so every read rewrote the
+    conversation at cache-write price (2026-11-06). Only `join_blocks` is ever left out of the
+    list (`unlisted`), until the reader's own words ask to join (`asksToJoin`, which ignores
+    "don't join").
   - **`compact`** strips `workspaceId`, `$schema` and the safe-integer bound from every schema;
     the workspace tools are not offered (`NEVER`).
   - **Superseded answers are stubbed** (`SUPERSEDED` in `loop.ts`): a review once the page is
@@ -492,14 +498,28 @@ over MCP can, without an outside client.
   - **A chapter run is a fresh conversation per page** (`useAssistant.chapter`, `since` in
     `LoopInput`): translation as one conversation in 20-page batches, then each translated page's
     lettering in its own (`PAGE_CALLS`). One conversation for a chapter costs the square of it.
+    Each page is **reviewed by the run before a model is asked** (`reviewed`): a page with
+    nothing flagged is passed over, and a flagged one starts with the lettering chapter and its
+    review already in the message (`withTopic`, `Turn.parts`/`topics`) — the first two turns of
+    every page used to be spent fetching exactly those.
+  - **A restyle answers with its fit** (`set_lettering_style` → `fit`, judged by
+    `server/utils/letteringReview.ts`, which `review_lettering` uses too), so changing a frame is
+    not followed by a turn spent reviewing to see the sizes.
 - **Asking the reader is by annotations**: `destructiveHint` tools wait for Allow / Allow for this
   conversation / Deny; a deny is that call's answer. Reads and undoable writes run. 40 calls a
   message at most; pictures kept only in the last two tool answers; a model that cannot see gets
   a sentence for each and is not offered `get_page_image`. Only models that can call tools are
   offered (`AiModel.tools` — unknown is yes for the curated list; the catalogue's free models
   are asked).
-- Each provider round is an AI-ledger row, `what: 'assistant'`. The conversation is per tab, in
-  memory, gone on reload — said in the panel.
+- Each provider round is an AI-ledger row, `what: 'assistant'`. One conversation is open per tab;
+  **New chat** keeps it, and each chapter's conversations are kept in IndexedDB
+  (`assistant:<workspaceId>`, the newest 30) **without their pictures**, to be opened again from
+  the panel. The panel's "Next round" line breaks down what the next request sends (estimated,
+  four characters a token) beside the last round's real and cached counts.
+- **Joining is never the assistant's call.** Asked to fix lettering it joined balloons the reader
+  wanted kept, twice. The playbook, the preface and `review_lettering`'s collision hint all say
+  to band a balloon's lines with frames and to ask before joining. Note that two blocks sharing
+  a balloon *look* joined without being so — `sharedBalloons.ts` sets them as bands of one room.
 - Verified 2026-11-05 in the built app on a test profile, with Anthropic stubbed in the page:
   23 tools offered, `list_pages`, `get_page_image` (a JPEG relayed from the window while its own
   call was out) and `save_page_blocks` after Allow, the block on the board and in Blocks, the

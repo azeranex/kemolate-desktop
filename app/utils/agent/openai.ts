@@ -22,23 +22,68 @@
  * lettering was ~490k tokens all at full price. A top-level `cache_control` is
  * OpenRouter's automatic mode: it puts the breakpoint on the last cacheable
  * block and moves it as the conversation grows, which is what `anthropic.ts`
- * does by hand for a direct key.
+ * does by hand for a direct key. Here it cannot be done by hand: a `tool`
+ * message is a string, with no block to carry one.
+ *
+ * Automatic alone still paid in full every few turns (a 24k-token turn billed
+ * as a cache write, 2026-11-06), so two explicit breakpoints go beside it —
+ * Anthropic counts the automatic one as one of four. One on the system prompt,
+ * which with the tools before it is most of every request and outlives any
+ * change to the messages; and one on the newest message that can carry it (the
+ * reader's, or a tool's pictures), so a lookback from the moving breakpoint
+ * that falls short still lands on a prefix that was written. Explicit
+ * breakpoints are also what keeps OpenRouter on the provider that holds the
+ * cache. What breaks a cache whole is the tool list changing, which is why
+ * `withheld` in `prompt.ts` refuses a call rather than unlisting the tool.
  */
 import { argumentsOf } from './messages'
 
 import type { AiModel } from '#shared/utils/models'
 import type { ReasoningEffort } from '#shared/utils/prompt'
-import type { OfferedTool, Reply, Turn } from './messages'
+import type { OfferedTool, Part, Reply, Turn } from './messages'
 import type { Service } from '~/utils/openrouter'
 
 import { deepseekModel, deepseekThinking, MAX_TOKENS } from '~/utils/openrouter'
+
+const partOf = (part: Part) => part.type === 'text'
+  ? { type: 'text', text: part.text }
+  : { type: 'image_url', image_url: { url: `data:${part.mimeType};base64,${part.data}` } }
+
+const CACHED = { type: 'ephemeral' }
+
+/**
+ * The explicit breakpoints for Claude through OpenRouter — see "Caching": the
+ * system prompt, and the last block of the newest message that has blocks.
+ */
+function marked (messages: Record<string, unknown>[]) {
+  const out = [...messages]
+  const [system] = out
+
+  if (system && typeof system.content === 'string') out[0] = { ...system, content: [{ type: 'text', text: system.content, cache_control: CACHED }] }
+
+  for (let at = out.length - 1; at > 0; at--) {
+    const message = out[at]!
+
+    if (message.role !== 'user') continue
+
+    const blocks = typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : [...(message.content as Record<string, unknown>[])]
+    const end = blocks.at(-1)
+
+    if (end) blocks[blocks.length - 1] = { ...end, cache_control: CACHED }
+    out[at] = { ...message, content: blocks }
+
+    break
+  }
+
+  return out
+}
 
 function messagesOf (service: Service, system: string, turns: Turn[]) {
   const messages: Record<string, unknown>[] = [{ role: 'system', content: system }]
 
   for (const turn of turns) {
     if (turn.role === 'user') {
-      messages.push({ role: 'user', content: turn.text })
+      messages.push({ role: 'user', content: turn.parts?.length ? [{ type: 'text', text: turn.text }, ...turn.parts.map(partOf)] : turn.text })
     } else if (turn.role === 'assistant') {
       // As it came, where it came from here — see `raw` in `messages.ts`.
       if (turn.raw?.service === service) {
@@ -72,7 +117,7 @@ function messagesOf (service: Service, system: string, turns: Turn[]) {
 
         if (images.length) {
           pictures.push({ type: 'text', text: `Pictures from ${result.name} (call ${result.callId}):` })
-          pictures.push(...images.map((image) => ({ type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.data}` } })))
+          pictures.push(...images.map(partOf))
         }
       }
 
@@ -85,17 +130,19 @@ function messagesOf (service: Service, system: string, turns: Turn[]) {
 
 export function openAiBody (service: Service, input: { model: AiModel, system: string, tools: OfferedTool[], turns: Turn[] }, effort: ReasoningEffort) {
   const deepseek = service === 'DeepSeek'
+  const claude = !deepseek && input.model.id.startsWith('anthropic/')
+  const messages = messagesOf(service, input.system, input.turns)
 
   return {
     model: deepseek ? deepseekModel(input.model.id) : input.model.id,
     max_tokens: MAX_TOKENS,
     ...(deepseek ? deepseekThinking(effort) : { usage: { include: true }, ...(effort === 'auto' ? {} : { reasoning: { effort } }) }),
-    ...(!deepseek && input.model.id.startsWith('anthropic/') ? { cache_control: { type: 'ephemeral' } } : {}),
+    ...(claude ? { cache_control: CACHED } : {}),
     tools: input.tools.map((tool) => ({
       type: 'function',
       function: { name: tool.name, description: tool.description ?? '', parameters: tool.inputSchema },
     })),
-    messages: messagesOf(service, input.system, input.turns),
+    messages: claude ? marked(messages) : messages,
   }
 }
 

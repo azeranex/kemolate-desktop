@@ -87,7 +87,8 @@ describe('OpenAI\'s format', () => {
   it('says a tool returned pictures, and sends them after the tool messages', () => {
     const body = openAiBody('OpenRouter', { model, system: 'You help.', tools, turns }, 'auto')
 
-    expect(body.messages[0]).toEqual({ role: 'system', content: 'You help.' })
+    // Claude through OpenRouter: the system prompt carries an explicit breakpoint — see "Caching" in openai.ts.
+    expect(body.messages[0]).toEqual({ role: 'system', content: [{ type: 'text', text: 'You help.', cache_control: { type: 'ephemeral' } }] })
     expect(body.messages[2]).toMatchObject({ role: 'assistant', tool_calls: [{ id: 't1', function: { name: 'review_page_reading', arguments: '{"pageId":4}' } }] })
     expect(body.messages[3]).toMatchObject({ role: 'tool', tool_call_id: 't1' })
     expect(String(body.messages[3]!.content)).toContain('1 picture(s) from this call follow')
@@ -95,7 +96,36 @@ describe('OpenAI\'s format', () => {
       role: 'user',
       content: [
         { type: 'text', text: 'Pictures from review_page_reading (call t1):' },
-        { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' }, cache_control: { type: 'ephemeral' } },
+      ],
+    })
+  })
+
+  it('marks the newest message that can carry a breakpoint, and only for Claude', () => {
+    const asked = openAiBody('OpenRouter', { model, system: 'You help.', tools, turns: [turns[0]!] }, 'auto')
+
+    expect(asked.messages.at(-1)).toEqual({ role: 'user', content: [{ type: 'text', text: (turns[0] as { text: string }).text, cache_control: { type: 'ephemeral' } }] })
+
+    const other = openAiBody('OpenRouter', { model: { ...model, id: 'openai/gpt-5' }, system: 'You help.', tools, turns }, 'auto')
+
+    expect(other.messages[0]).toEqual({ role: 'system', content: 'You help.' })
+    expect(JSON.stringify(other.messages)).not.toContain('cache_control')
+  })
+
+  it('sends the parts a chapter run looked up with its message', () => {
+    const body = openAiBody('OpenRouter', {
+      model: { ...model, id: 'openai/gpt-5' },
+      system: '',
+      tools,
+      turns: [{ role: 'user', text: 'Fix page 3.', parts: [{ type: 'text', text: 'review' }, { type: 'image', data: 'BBBB', mimeType: 'image/jpeg' }] }],
+    }, 'auto')
+
+    expect(body.messages[1]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Fix page 3.' },
+        { type: 'text', text: 'review' },
+        { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,BBBB' } },
       ],
     })
   })

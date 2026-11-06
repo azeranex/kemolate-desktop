@@ -7,13 +7,20 @@
  * holds: the conversation, the model, the key, the Stop, the question the
  * reader is being asked, and the bill.
  *
- * ## One conversation per tab, in memory
+ * ## Conversations, and the ones kept
  *
- * Module state, so the panel can be closed and opened again, or moved to
- * another column, without losing the conversation — and since a tab is its own
- * page, each tab has its own. It does not outlive a reload, and the panel says
- * so; keeping it would mean deciding what a conversation about a page that has
- * since been re-read is worth, which is a later question.
+ * One conversation is open per tab, in module state, so the panel can be
+ * closed and opened again, or moved to another column, without losing it —
+ * and since a tab is its own page, each tab has its own.
+ *
+ * "New chat" starts another and keeps the last, and every conversation is kept
+ * per chapter in IndexedDB (`assistant:<workspaceId>`, the newest `KEPT`), so
+ * one can be read again or carried on after a reload. Kept **without its
+ * pictures**: a review is a dozen crops, and a chapter's worth of base64 in the
+ * store is exactly what `idb.ts` says it is not for. A conversation opened
+ * again has a line where each was — which is what the model is sent for an old
+ * picture anyway (`forSending`) — and its permissions are not kept: "Allow for
+ * this conversation" meant the conversation as it was running.
  *
  * ## The model
  *
@@ -23,18 +30,25 @@
  * allowed — most of the work is text — and is told when a tool's picture was
  * kept from it.
  *
- * ## Spend
+ * ## Spend, and what it is spent on
  *
  * Every provider round is a row on the AI ledger, `what: 'assistant'`, filed
  * under the page on screen — like a region's, so a table of a chapter's costs
  * says what the assistant cost beside what its pages did.
+ *
+ * `context` is what the next round will send, broken down — the system
+ * prompt, the tool list, and the conversation by kind — so a reader can see
+ * why a turn costs what it does. Estimated at four characters a token and a
+ * flat price per picture, since nothing local counts tokens the provider's way;
+ * the last round's real count and its cached share sit beside it.
  */
 import type { PricedModel } from '~/composables/useModels'
 import type { Ending, Tool } from '~/utils/agent/loop'
-import type { ToolCall, Turn } from '~/utils/agent/messages'
+import type { Part, ToolCall, Turn } from '~/utils/agent/messages'
 
-import { asksFirst, MAX_CALLS, runLoop } from '~/utils/agent/loop'
-import { CHAPTER_TRANSLATE, chapterLetter, PLAYBOOK_TOOL, readPlaybook, SYSTEM_PROMPT, withheld } from '~/utils/agent/prompt'
+import { asksFirst, forSending, MAX_CALLS, offered, runLoop } from '~/utils/agent/loop'
+import { CHAPTER_TRANSLATE, chapterLetter, PLAYBOOK_TOOL, readPlaybook, SYSTEM_PROMPT, unlisted, withheld, withTopic } from '~/utils/agent/prompt'
+import { idb } from '~/utils/idb'
 import { send } from '~/utils/openrouter'
 
 /** What the reader is being asked: may this call run? */
@@ -44,7 +58,42 @@ export interface Approval {
   answer: (allowed: boolean, always?: boolean) => void
 }
 
-const turns = ref<Turn[]>([])
+type UserTurn = Extract<Turn, { role: 'user' }>
+
+/** What one conversation has cost, where the provider said. */
+interface Spent { input: number, output: number, cached: number, cost: number, unknown: boolean }
+
+/** One conversation, as kept and as listed. */
+export interface Conversation {
+  id: string
+  /** The reader's first words, or the chapter run it was. */
+  title: string
+  /** When it was last added to. */
+  at: number
+  turns: Turn[]
+  spent: Spent
+  /** Where what the model is sent begins — see `since` in `loop.ts`. */
+  since: number
+}
+
+/** How many conversations a chapter keeps. */
+const KEPT = 30
+
+/** Characters to a token, for the estimate — see "Spend, and what it is spent on". */
+const PER_TOKEN = 4
+
+/** What a picture is reckoned at in the estimate: a lettering crop at the size the relay sends it. */
+const PER_PICTURE = 1_500
+
+const nothingSpent = (): Spent => ({ input: 0, output: 0, cached: 0, cost: 0, unknown: false })
+const fresh = (): Conversation => ({ id: crypto.randomUUID(), title: '', at: Date.now(), turns: [], spent: nothingSpent(), since: 0 })
+
+const current = ref<Conversation>(fresh())
+/** Kept conversations of the chapter open here, newest first — without the one open. */
+const kept = ref<Conversation[]>([])
+/** Which chapter `kept` is of. */
+let keptFor = ''
+
 const busy = ref(false)
 const problem = ref<string | null>(null)
 /** Said while a provider has asked for a wait — see `RateGate` in `openrouter.ts`. */
@@ -53,18 +102,17 @@ const asking = ref<Approval | null>(null)
 const running = ref<ToolCall | null>(null)
 /** The model chosen here, or null to follow the Translate panel's. */
 const chosen = ref<string | null>(null)
-/** This conversation's spend so far, where the provider said. */
-const spent = ref({ input: 0, output: 0, cached: 0, cost: 0, unknown: false })
+/** The last round's real count, for the context breakdown. */
+const lastRound = ref<{ input: number, cached: number } | null>(null)
 /** Tools the reader has said yes to for the rest of this conversation. */
 const always = new Set<string>()
 
 /** Which step of a chapter run is going, for the panel. */
 const progress = ref<string | null>(null)
 
-let tools: Tool[] | null = null
+/** The server's tools, as `tools/list` gave them — once per tab. */
+const tools = shallowRef<Tool[] | null>(null)
 let stopping: AbortController | null = null
-/** Where the conversation the model is sent begins — see `since` in `loop.ts`. */
-let since = 0
 
 /** What a chapter run does: translate then letter, or one of the two. */
 export type ChapterRun = 'all' | 'translate' | 'letter'
@@ -83,11 +131,41 @@ function signal (): AbortSignal {
 
 type Bridge = NonNullable<ReturnType<typeof bridge>>
 
+const storeKey = (workspaceId: string) => `assistant:${workspaceId}`
+
+const PICTURE_KEPT_OUT: Part = { type: 'text', text: '[A picture was shown here; pictures are not kept with a saved conversation.]' }
+const bare = (parts: Part[]) => parts.map((part) => (part.type === 'image' ? PICTURE_KEPT_OUT : part))
+
+/** A conversation as it is stored: its pictures out, and nothing reactive. */
+function forKeeping (conversation: Conversation): Conversation {
+  return {
+    ...toRaw(conversation),
+    spent: { ...conversation.spent },
+    turns: toRaw(conversation.turns).map((turn) => {
+      if (turn.role === 'tool') return { ...turn, results: turn.results.map((result) => ({ ...result, content: bare(result.content) })) }
+      if (turn.role === 'user' && turn.parts) return { ...turn, parts: bare(turn.parts) }
+
+      return turn
+    }),
+  }
+}
+
+/** The title a conversation is listed under: its first message, cut short. */
+function titleOf (turns: Turn[]): string {
+  const first = turns.find((turn): turn is UserTurn => turn.role === 'user')?.text.trim() ?? ''
+  const line = first.split('\n')[0] ?? ''
+
+  return line.length > 60 ? `${line.slice(0, 57)}…` : line
+}
+
 export function useAssistant () {
   const { page, translate } = useComic()
   const { models, byId } = useModels()
   const { require } = useProviderKeys()
   const { record } = useAiUsage()
+  const route = useRoute()
+
+  const workspaceId = computed(() => String(route.params.workspaceId ?? ''))
 
   /** Every model the assistant can drive. */
   const usable = computed(() => models.value.filter((model) => model.tools !== false))
@@ -100,6 +178,38 @@ export function useAssistant () {
 
   /** Why the assistant cannot be used here at all, or null. */
   const unavailable = computed(() => (bridge() ? null : 'The assistant needs the Kemolate desktop app.'))
+
+  const turns = computed(() => current.value.turns)
+  const spent = computed(() => current.value.spent)
+
+  /** This chapter's kept conversations, read once per chapter. */
+  async function loadKept () {
+    const id = workspaceId.value
+
+    if (!id || keptFor === id) return
+
+    keptFor = id
+    const stored = await idb.get<Conversation[]>(storeKey(id)).catch(() => undefined)
+
+    if (keptFor === id) kept.value = (stored ?? []).filter((one) => one.id !== current.value.id)
+  }
+
+  /** The open conversation written into the chapter's list, newest first. An empty one is not kept. */
+  async function keep () {
+    const id = workspaceId.value
+
+    if (!id) return
+
+    await loadKept()
+
+    const open = current.value
+    const others = kept.value.filter((one) => one.id !== open.id)
+    const all = open.turns.length ? [forKeeping(open), ...others] : others
+
+    await idb.set(storeKey(id), all.slice(0, KEPT)).catch(() => {})
+  }
+
+  if (import.meta.client) watch(workspaceId, () => { loadKept().catch(() => {}) }, { immediate: true })
 
   function approve (call: ToolCall, tool: Tool): Promise<boolean> {
     if (always.has(tool.name)) return Promise.resolve(true)
@@ -126,61 +236,79 @@ export function useAssistant () {
     })
   }
 
+  /** What the model is offered this turn of the open conversation, as the loop works it out. */
+  function offeredNow (): Tool[] {
+    const all = [...offered(tools.value ?? [], model.value), PLAYBOOK_TOOL]
+    const hidden = unlisted(current.value.turns.slice(current.value.since))
+
+    return all.filter((tool) => !hidden.has(tool.name))
+  }
+
   /**
    * One message and the run it leads to. `fresh` starts a conversation of its
    * own after whatever the panel already shows — see `since` in `loop.ts`.
    */
-  async function round (tab: Bridge, key: string, text: string, options: { fresh?: boolean, maxCalls?: number } = {}): Promise<Ending> {
+  async function round (tab: Bridge, key: string, message: string | UserTurn, options: { fresh?: boolean, maxCalls?: number } = {}): Promise<Ending> {
     const using = model.value
+    const open = current.value
 
-    if (options.fresh) since = turns.value.length
+    if (options.fresh) open.since = open.turns.length
 
-    turns.value.push({ role: 'user', text })
-    tools ??= await tab.tools()
+    open.turns.push(typeof message === 'string' ? { role: 'user', text: message } : message)
+    open.title ||= titleOf(open.turns)
+    open.at = Date.now()
+    tools.value ??= await tab.tools()
 
-    return runLoop({
-      model: using,
-      system: SYSTEM_PROMPT,
-      local: [{ tool: PLAYBOOK_TOOL, run: readPlaybook }],
-      withheld,
-      tools,
-      turns: turns.value,
-      since,
-      maxCalls: options.maxCalls,
-      effort: REASONING_FOR[translate.value.effort],
-      signal: signal(),
-      ask: (body, sending) => send(key, using, body, sending),
-      call: (name, args) => tab.call(name, toRaw(args)),
-      approve,
-      spent: (usage) => {
-        spent.value = {
-          input: spent.value.input + usage.input,
-          output: spent.value.output + usage.output,
-          cached: spent.value.cached + (usage.cached ?? 0),
-          cost: spent.value.cost + (usage.cost ?? 0),
-          unknown: spent.value.unknown || usage.cost === null,
-        }
+    try {
+      return await runLoop({
+        model: using,
+        system: SYSTEM_PROMPT,
+        local: [{ tool: PLAYBOOK_TOOL, run: readPlaybook }],
+        withheld,
+        unlisted,
+        tools: tools.value,
+        turns: open.turns,
+        since: open.since,
+        maxCalls: options.maxCalls,
+        effort: REASONING_FOR[translate.value.effort],
+        signal: signal(),
+        ask: (body, sending) => send(key, using, body, sending),
+        call: (name, args) => tab.call(name, toRaw(args)),
+        approve,
+        spent: (usage) => {
+          open.spent = {
+            input: open.spent.input + usage.input,
+            output: open.spent.output + usage.output,
+            cached: open.spent.cached + (usage.cached ?? 0),
+            cost: open.spent.cost + (usage.cost ?? 0),
+            unknown: open.spent.unknown || usage.cost === null,
+          }
+          lastRound.value = { input: usage.input, cached: usage.cached ?? 0 }
 
-        const here = page.value
+          const here = page.value
 
-        record({
-          at: Date.now(),
-          pageId: here?.id ?? '',
-          page: here?.name ?? 'No page',
-          model: using.label,
-          what: 'assistant',
-          input: usage.input,
-          output: usage.output,
-          reasoning: usage.reasoning,
-          cost: usage.cost,
-        }).catch(() => {})
-      },
-      retrying: (wait) => {
-        waiting.value = wait
-        setTimeout(() => { waiting.value = null }, wait)
-      },
-      running: (call) => { running.value = call },
-    })
+          record({
+            at: Date.now(),
+            pageId: here?.id ?? '',
+            page: here?.name ?? 'No page',
+            model: using.label,
+            what: 'assistant',
+            input: usage.input,
+            output: usage.output,
+            reasoning: usage.reasoning,
+            cost: usage.cost,
+          }).catch(() => {})
+        },
+        retrying: (wait) => {
+          waiting.value = wait
+          setTimeout(() => { waiting.value = null }, wait)
+        },
+        running: (call) => { running.value = call },
+      })
+    } finally {
+      open.at = Date.now()
+      keep().catch(() => {})
+    }
   }
 
   /** Busy for the length of `work`, whose failure is said in the panel rather than thrown. */
@@ -224,6 +352,29 @@ export function useAssistant () {
   }
 
   /**
+   * One page's lettering, looked at before the model is asked: `review_lettering`
+   * run here, and the page passed over if nothing on it is flagged — most pages
+   * of a chapter lettered by Kemolate need nothing, and asking a model to find
+   * that out cost a review and a turn or two each (2026-11-06).
+   */
+  async function reviewed (tab: Bridge, pageId: number): Promise<{ flagged: number, parts: Part[] } | { error: string }> {
+    const answer = await tab.call('review_lettering', { pageId })
+    const text = answer.content.find((part) => part.type === 'text')?.text ?? ''
+
+    if (answer.isError) return { error: text || 'the review failed' }
+
+    const flagged = Number((JSON.parse(text || '{}') as { flagged?: number }).flagged ?? 0)
+
+    return {
+      flagged,
+      parts: [
+        { type: 'text', text: `# \`review_lettering\` for this page, run just now\n\n${text}` },
+        ...answer.content.filter((part) => part.type === 'image'),
+      ],
+    }
+  }
+
+  /**
    * The chapter, in the shape that keeps it cheap: its translation as one
    * conversation in batches of twenty pages, then each translated page's
    * lettering as a conversation of its own. One conversation for the lot ran
@@ -235,7 +386,7 @@ export function useAssistant () {
     return busyWith(async (tab, key) => {
       if (what !== 'letter') {
         progress.value = 'Translating the chapter'
-        problem.value = ended(await round(tab, key, CHAPTER_TRANSLATE, { fresh: true }))
+        problem.value = ended(await round(tab, key, withTopic(CHAPTER_TRANSLATE, 'translating'), { fresh: true }))
       }
 
       if (what === 'translate') return
@@ -245,15 +396,36 @@ export function useAssistant () {
       const pages = (JSON.parse(text?.type === 'text' ? text.text : '{}') as { pages?: { pageId: number, name: string, translated: number }[] }).pages ?? []
       const lettered = pages.filter((page) => page.translated > 0)
       const short: string[] = []
+      let clean = 0
 
       for (const [at, page] of lettered.entries()) {
+        signal().throwIfAborted()
+        progress.value = `Checking page ${at + 1} of ${lettered.length}`
+
+        const review = await reviewed(tab, page.pageId)
+
+        if ('error' in review) {
+          short.push(`${page.name} (${review.error})`)
+          continue
+        }
+
+        if (!review.flagged) {
+          clean += 1
+          continue
+        }
+
         progress.value = `Lettering page ${at + 1} of ${lettered.length}`
 
-        if (await round(tab, key, chapterLetter(page), { fresh: true, maxCalls: PAGE_CALLS }) !== 'answered') short.push(page.name)
+        const message: UserTurn = { ...withTopic(chapterLetter(page), 'lettering'), parts: review.parts }
+
+        if (await round(tab, key, message, { fresh: true, maxCalls: PAGE_CALLS }) !== 'answered') short.push(page.name)
       }
 
+      const passed = clean ? ` ${clean} page${clean === 1 ? ' had' : 's had'} nothing flagged and ${clean === 1 ? 'was' : 'were'} left as ${clean === 1 ? 'it was' : 'they were'}.` : ''
+
       if (!lettered.length) problem.value = 'No page has a translation to letter yet.'
-      else if (short.length) problem.value = `Not finished on ${short.join(', ')} — open the page and ask the assistant to carry on.`
+      else if (short.length) problem.value = `Not finished on ${short.join(', ')} — open the page and ask the assistant to carry on.${passed}`
+      else if (passed) problem.value = passed.trim()
     })
   }
 
@@ -261,16 +433,96 @@ export function useAssistant () {
     stopping?.abort(new DOMException('Stopped.', 'AbortError'))
   }
 
-  /** Start again: the conversation, its permissions and its tally. */
-  function clear () {
-    stop()
-    turns.value = []
+  /** Put the open conversation away, keeping it, and start another. */
+  async function newChat () {
+    if (busy.value) return
+
+    await keep()
+
+    if (current.value.turns.length) kept.value = [forKeeping(current.value), ...kept.value.filter((one) => one.id !== current.value.id)].slice(0, KEPT)
+
+    current.value = fresh()
     problem.value = null
-    spent.value = { input: 0, output: 0, cached: 0, cost: 0, unknown: false }
-    since = 0
+    lastRound.value = null
     always.clear()
-    tools = null
   }
+
+  /** Carry on a kept conversation, putting the open one away first. */
+  async function open (id: string) {
+    const wanted = kept.value.find((one) => one.id === id)
+
+    if (busy.value || !wanted) return
+
+    await newChat()
+    kept.value = kept.value.filter((one) => one.id !== id)
+    current.value = { ...wanted, turns: [...wanted.turns], spent: { ...wanted.spent } }
+  }
+
+  /** Delete a kept conversation, or the open one. */
+  async function forget (id: string) {
+    if (current.value.id === id) {
+      if (busy.value) return
+
+      current.value = fresh()
+      problem.value = null
+      lastRound.value = null
+      always.clear()
+    }
+
+    kept.value = kept.value.filter((one) => one.id !== id)
+    await keep()
+  }
+
+  /**
+   * What the next round would send — see "Spend, and what it is spent on". The
+   * conversation as `forSending` will send it, so an old picture counts as the
+   * line that replaced it.
+   */
+  const context = computed(() => {
+    const est = (text: string) => Math.ceil(text.length / PER_TOKEN)
+    const sending = forSending(current.value.turns.slice(current.value.since), model.value)
+    const parts = { reader: 0, assistant: 0, results: 0, pictures: 0 }
+    let pictures = 0
+
+    const count = (content: Part[], into: 'reader' | 'results') => {
+      for (const part of content) {
+        if (part.type === 'image') {
+          parts.pictures += PER_PICTURE
+          pictures += 1
+        } else {
+          parts[into] += est(part.text)
+        }
+      }
+    }
+
+    for (const turn of sending) {
+      if (turn.role === 'user') {
+        parts.reader += est(turn.text)
+        count(turn.parts ?? [], 'reader')
+      } else if (turn.role === 'assistant') {
+        parts.assistant += est(turn.text) + turn.calls.reduce((sum, call) => sum + est(call.name) + est(JSON.stringify(call.arguments)), 0)
+      } else {
+        for (const result of turn.results) count(result.content, 'results')
+      }
+    }
+
+    const toolList = tools.value ? est(JSON.stringify(offeredNow().map(({ name, description, inputSchema }) => ({ name, description, inputSchema })))) : null
+    const rows = [
+      { key: 'system', label: 'Instructions and playbook', tokens: est(SYSTEM_PROMPT) },
+      { key: 'tools', label: 'Tool list', tokens: toolList ?? 0, unknown: toolList === null },
+      { key: 'reader', label: 'Your messages', tokens: parts.reader },
+      { key: 'assistant', label: 'Its replies and calls', tokens: parts.assistant },
+      { key: 'results', label: 'Tool answers', tokens: parts.results },
+      { key: 'pictures', label: pictures === 1 ? '1 picture' : `${pictures} pictures`, tokens: parts.pictures },
+    ]
+
+    return {
+      rows,
+      total: rows.reduce((sum, row) => sum + row.tokens, 0),
+      last: lastRound.value,
+      turns: sending.length,
+    }
+  })
 
   return {
     turns,
@@ -286,9 +538,14 @@ export function useAssistant () {
     unavailable,
     asksFirst,
     progress,
+    current,
+    kept,
+    context,
     say,
     chapter,
     stop,
-    clear,
+    newChat,
+    open,
+    forget,
   }
 }

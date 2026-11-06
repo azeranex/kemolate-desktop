@@ -40,23 +40,13 @@
  */
 import { z } from 'zod'
 
-import type { BreakFlag } from '~~/server/utils/breaks'
 import type { Shaped } from '~~/server/utils/mcp'
 
 import { blocks } from '~~/server/services'
-import { breakFlags } from '~~/server/utils/breaks'
 import { requestFits } from '~~/server/utils/fits'
-import { extentOf, mcpContext, mcpEnabled, mcpPage, shapeOf } from '~~/server/utils/mcp'
+import { BREAKS, judgedLines } from '~~/server/utils/letteringReview'
+import { extentOf, mcpContext, mcpEnabled, mcpPage } from '~~/server/utils/mcp'
 import { requestRenders } from '~~/server/utils/relay'
-
-/** A chosen size under this share of what its frame would hold is small for its balloon. */
-const SMALL_FOR_ROOM = 0.75
-
-/** An automatic line under this share of the page's ordinary size is small for the page. */
-const SMALL_FOR_PAGE = 0.7
-
-/** An automatic line over this multiple of the page's ordinary size, with ordinary lettering in the original, is large for it. */
-const LARGE_FOR_PAGE = 1.3
 
 /** How many lettered crops one call returns at most — each is a render out of the window. */
 const MAX_IMAGES = 12
@@ -64,11 +54,6 @@ const MAX_IMAGES = 12
 /** Room round a frame in its crop, as for `review_page_reading`. */
 const MARGIN = 0.12
 const FLOOR = 0.01
-
-type Flag = 'does-not-fit' | 'squeezed' | 'small-for-its-balloon' | 'smaller-than-the-page' | 'larger-than-the-page' | 'collides' | BreakFlag
-
-/** Flags about where lines break: judged from `drawn`, so their balloons need no picture. */
-const BREAKS = new Set<Flag>(['stranded-word', 'lone-last-word', 'rewrapped'])
 
 export default defineMcpTool({
   name: 'review_lettering',
@@ -105,51 +90,7 @@ export default defineMcpTool({
 
     const rows = new Map((await blocks.onPage(context, page.id)).map((row) => [row.id, row]))
     const target = context.workspace.targetLocale
-    const wanted = (report.lines ?? []).filter((line) => !blockIds?.length || blockIds.includes(line.blockId))
-
-    // The page's ordinary size: the middle of its automatic and standard lines.
-    const ordinary = wanted.filter((line) => line.set !== 'chosen').map((line) => line.size).sort((a, b) => a - b)
-    const median = ordinary.length ? ordinary[Math.floor(ordinary.length / 2)]! : null
-
-    const lines = wanted.map((line) => {
-      const row = rows.get(line.blockId)
-      const said = row?.translations.find((one) => one.locale === target)
-      const flags: Flag[] = []
-
-      if (line.over) flags.push('does-not-fit')
-      else if (line.tight || line.hyphens) flags.push('squeezed')
-
-      if (!line.over && line.set === 'chosen' && line.capacity && line.size < line.capacity * SMALL_FOR_ROOM) flags.push('small-for-its-balloon')
-      if (!line.over && line.set === 'auto' && median && line.size < median * SMALL_FOR_PAGE) flags.push('smaller-than-the-page')
-      if (!line.over && line.set === 'auto' && median && row?.kind !== 'sfx' && (line.measuredEmphasis ?? 1) <= 1 && line.size > median * LARGE_FOR_PAGE) flags.push('larger-than-the-page')
-      // Desktop: where the lines break, from the lines as drawn — see `server/utils/breaks.ts`.
-      if (!line.over && line.drawn) flags.push(...breakFlags(line.drawn, line.rewrapped))
-      // Desktop: its words run into another line's — see `collisions` in `useLetteringErrands`.
-      if (line.collides?.length) flags.push('collides')
-
-      return {
-        blockId: line.blockId,
-        text: said?.text ?? '',
-        size: line.size,
-        set: line.set,
-        capacity: line.capacity,
-        // Desktop: how loud it is set over the standard, and how loud the original was lettered — 1 is ordinary.
-        ...((line.emphasis ?? 1) !== 1 ? { emphasis: line.emphasis } : {}),
-        ...((line.measuredEmphasis ?? 1) !== 1 ? { measuredEmphasis: line.measuredEmphasis } : {}),
-        ...(line.emphasisChosen ? { emphasisChosen: true } : {}),
-        flags,
-        // The lines as Kemolate draws them; a typed break is a newline in `text`.
-        ...(line.drawn ? { drawn: line.drawn } : {}),
-        ...(line.collides?.length ? { collidesWith: line.collides } : {}),
-        // Where it is set: its own frame where a letterer (or agent) placed one, else its room, else its box.
-        // With its turn, lean and corners where it has them: the room is upright, a block or a frame may not be.
-        frame: said && said.cx !== null
-          ? shapeOf(said as Shaped)
-          : row?.room ?? (row ? shapeOf(row) : null),
-        ...(row?.room ? { room: row.room } : {}),
-        ...(said?.pinned ? { pinned: true } : {}),
-      }
-    })
+    const { lines, median } = judgedLines(report, rows, target, blockIds)
 
     // A line flagged only for its breaks shows them in `drawn`; its picture would add nothing.
     const shown = (images === 'none' ? [] : images === 'all' ? lines : lines.filter((line) => line.flags.some((flag) => !BREAKS.has(flag))))
@@ -173,7 +114,7 @@ export default defineMcpTool({
     // Lines that break badly are re-broken by hand: a newline in the translation is a break Kemolate keeps.
     // Lines lettered over each other: usually several utterances in one balloon, each in a room cut round its own original.
     const overlapping = lines.some((line) => line.flags.includes('collides'))
-      ? ' Lines flagged `collides` are lettered over another (`collidesWith`) — usually several utterances in one balloon: join them into one block with a blank line between (`join_blocks`, then the translation), or give each a `frame` of its own band of the balloon (`set_lettering_style`). `get_guide`, "Several lines in one balloon".'
+      ? ' Lines flagged `collides` are lettered over another (`collidesWith`) — usually several utterances in one balloon: give each a `frame` of its own band of the balloon (`set_lettering_style`, `frames` for all of them in one call). Joining them into one block (`join_blocks`) is the user\'s decision — ask, never do it unasked. `get_guide`, "Several lines in one balloon".'
       : ''
 
     const rebreak = lines.some((line) => line.flags.some((flag) => BREAKS.has(flag)))

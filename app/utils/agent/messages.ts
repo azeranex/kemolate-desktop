@@ -43,7 +43,13 @@ export interface ToolResult {
 }
 
 export type Turn =
-  | { role: 'user', text: string }
+  /**
+   * `parts` and `topics` are a chapter run's: what the run looked up before
+   * asking — a page's lettering review, pictures and all — and the playbook
+   * chapters it put in the message, which count as read (`withheld` in
+   * `prompt.ts`). See `useAssistant.chapter`.
+   */
+  | { role: 'user', text: string, parts?: Part[], topics?: string[] }
   | { role: 'assistant', text: string, calls: ToolCall[], raw?: { service: Service, message: unknown } }
   /** Every answer to one assistant turn's calls, together — Anthropic takes them as one message. */
   | { role: 'tool', results: ToolResult[] }

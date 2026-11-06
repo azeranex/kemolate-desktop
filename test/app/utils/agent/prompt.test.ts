@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Turn } from '~/utils/agent/messages'
 
-import { CHAPTER_TRANSLATE, chapterLetter, withheld } from '~/utils/agent/prompt'
+import { CHAPTER_TRANSLATE, chapterLetter, unlisted, withheld, withTopic } from '~/utils/agent/prompt'
 
 /**
  * Which tools the assistant is held back from, by what the conversation holds.
@@ -20,6 +20,26 @@ describe('what the assistant is held back from', () => {
     expect(withheld([said('Fix the lettering on this page.'), readTopic('reading')])).toContain('join_blocks')
     expect(withheld([said('Fix the lettering on this page.'), readTopic('reading')])).not.toContain('split_block')
     expect(withheld([said('Merge blocks 4 and 5, they are one balloon.'), readTopic('reading')])).not.toContain('join_blocks')
+  })
+
+  it('holds joining back from a reader who mentions it only to rule it out', () => {
+    expect(withheld([said('Fix the lettering, but don\'t join any blocks.'), readTopic('reading')])).toContain('join_blocks')
+    expect(withheld([said('Never merge them. Letter each on its own.'), readTopic('reading')])).toContain('join_blocks')
+    expect(withheld([said('Letter them separately rather than combining.'), readTopic('reading')])).toContain('join_blocks')
+    expect(withheld([said('Don\'t touch page 3. Join 13 and 14 though.'), readTopic('reading')])).not.toContain('join_blocks')
+  })
+
+  it('lists joining only once the reader asks for it', () => {
+    expect(unlisted([said('Fix the lettering.')])).toContain('join_blocks')
+    expect(unlisted([said('Join 13 and 14.')])).not.toContain('join_blocks')
+  })
+
+  it('counts a chapter put in a chapter run\'s message as read', () => {
+    const message = withTopic(chapterLetter({ pageId: 3, name: '03.jpg' }), 'lettering')
+
+    expect(message.text).toContain('# The playbook: lettering')
+    expect(withheld([message])).not.toContain('set_lettering_style')
+    expect(withheld([message])).toContain('correct_blocks')
   })
 
   it('never offers joining to a chapter run', () => {

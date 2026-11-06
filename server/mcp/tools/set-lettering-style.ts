@@ -36,6 +36,8 @@ import type { Shaped } from '~~/server/utils/mcp'
 
 import { letteringStyleSchema } from '#shared/schemas/workspace'
 import { blocks, translations } from '~~/server/services'
+import { requestFits } from '~~/server/utils/fits'
+import { BREAKS, judgedLines } from '~~/server/utils/letteringReview'
 import { mcpContext, mcpEnabled, mcpPage, shapeOf } from '~~/server/utils/mcp'
 
 const field = letteringStyleSchema.shape
@@ -94,6 +96,44 @@ function bent (sent: Frame, block: { room?: unknown, angle: number, skewX: numbe
   }
 }
 
+/**
+ * How the lines just restyled came out, measured again by the window — the
+ * verdict `review_lettering` would give them, without its pictures. Every
+ * restyle used to be followed by a turn spent calling the review to find out,
+ * and for the in-app assistant a turn is the whole conversation sent again
+ * (2026-11-06). The pictures are left to the review, asked for only where a
+ * line is still flagged. Judged against the whole page, so "smaller than the
+ * page" means what it means in the review.
+ *
+ * Never fails the write: the style is stored by now, and a window that cannot
+ * measure (the chapter closed, the page not held) is said instead.
+ */
+async function refitted (context: Awaited<ReturnType<typeof mcpContext>>, page: Awaited<ReturnType<typeof mcpPage>>, target: string, ids: number[]) {
+  if (!page.hash) return { measured: false, note: 'Not measured: the page has not been hashed. `review_lettering` once the chapter is open.' }
+
+  try {
+    const report = await requestFits(context.workspace.publicId, page.hash, context.workspace.name)
+
+    if (!report.ok) return { measured: false, note: `Not measured: ${report.error ?? 'Kemolate could not measure the page'}.` }
+
+    const rows = new Map((await blocks.onPage(context, page.id)).map((row) => [row.id, row]))
+    const lines = judgedLines(report, rows, target).lines
+      .filter((line) => ids.includes(line.blockId))
+      .map(({ blockId, size, set, capacity, flags, drawn, collidesWith }) => ({ blockId, size, set, capacity, flags, ...(drawn ? { drawn } : {}), ...(collidesWith ? { collidesWith } : {}) }))
+    const look = lines.filter((line) => line.flags.some((flag) => !BREAKS.has(flag))).map((line) => line.blockId)
+
+    return {
+      measured: true,
+      lines,
+      next: look.length
+        ? `Still flagged: \`review_lettering\` with \`blockIds: [${look.join(', ')}]\` shows them as lettered.`
+        : 'Nothing here is flagged for size or fit; `drawn` shows the breaks. No need to review these again unless the user asks to see them.',
+    }
+  } catch (error) {
+    return { measured: false, note: `Not measured: ${(error as { statusMessage?: string }).statusMessage ?? (error instanceof Error ? error.message : String(error))}` }
+  }
+}
+
 export default defineMcpTool({
   name: 'set_lettering_style',
   description: [
@@ -107,6 +147,8 @@ export default defineMcpTool({
     '`room` and `frame`). Look at the balloon with `get_page_image` and a `region` a little wider than the block, then send',
     '`frame` as the balloon’s inside — a few percent in from its outline — with `style: { shape: "oval", size: null }`;',
     'the lines are then wrapped into the balloon and sized to fill it. Several balloons at once: `frames`, one entry each.',
+    'The answer\'s `fit` is the changed lines measured again (size, flags, `drawn`), as `review_lettering` would judge them,',
+    'so there is no need to review them again just to see the sizes.',
   ].join(' '),
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
   enabled: mcpEnabled,
@@ -196,6 +238,7 @@ export default defineMcpTool({
     }
 
     const { restyled, untranslated } = await translations.restyle(context, page.id, target, entries)
+    const fit = restyled.length ? await refitted(context, page, target, restyled.map((row) => row.blockId)) : null
 
     return mcpJson({
       pageId: page.id,
@@ -207,6 +250,7 @@ export default defineMcpTool({
       })),
       // Asked for and already set that way — not an error, and not a write.
       unchanged: entries.length - restyled.length - untranslated.length,
+      ...(fit ? { fit } : {}),
       ...(untranslated.length
         ? { untranslated, note: 'These blocks have no line in this language yet; translate them first.' }
         : {}),

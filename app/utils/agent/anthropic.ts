@@ -27,7 +27,7 @@ const partOf = (part: Part) => part.type === 'text'
 
 function messagesOf (turns: Turn[]) {
   return turns.map((turn) => {
-    if (turn.role === 'user') return { role: 'user', content: turn.text }
+    if (turn.role === 'user') return { role: 'user', content: turn.parts?.length ? [{ type: 'text', text: turn.text }, ...turn.parts.map(partOf)] : turn.text }
 
     if (turn.role === 'tool') {
       return {

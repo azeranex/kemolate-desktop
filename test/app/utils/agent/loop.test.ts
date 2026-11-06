@@ -102,16 +102,29 @@ describe('the assistant\'s loop', () => {
     expect((bodies[0]!.tools as { name: string }[]).map((tool) => tool.name)).toContain('read_playbook')
   })
 
-  it('holds a tool back while it is withheld, and offers it once it is not', async () => {
-    const { ask, bodies } = scripted(calling({ id: 'j', name: 'join_blocks' }), calling({ id: 'k', name: 'join_blocks' }), saying('Joined.'))
-    const run = input({ ask, withheld: (turns) => new Set(turns.length > 2 ? [] : ['join_blocks']) })
+  it('refuses calls to a withheld tool but keeps it listed, so the tool list — and the cache — never changes', async () => {
+    const { ask, bodies } = scripted(calling({ id: 'j', name: 'list_pages' }), calling({ id: 'k', name: 'list_pages' }), saying('Fixed.'))
+    const run = input({ ask, withheld: (turns) => new Set(turns.length > 2 ? [] : ['list_pages']) })
+
+    await runLoop(run)
+
+    const listed = bodies.map((body) => (body.tools as { name: string }[]).map((tool) => tool.name))
+
+    expect(listed[0]).toContain('list_pages')
+    expect(listed[1]).toEqual(listed[0])
+    expect(run.turns[2]).toMatchObject({ results: [{ isError: true, content: [{ text: expect.stringContaining('Not yet') }] }] })
+    expect(run.call).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves an unlisted tool out of the list, and answers a call to it as no such tool', async () => {
+    const { ask, bodies } = scripted(calling({ id: 'j', name: 'join_blocks' }), saying('Left them.'))
+    const run = input({ ask, withheld: () => new Set(['join_blocks']), unlisted: () => new Set(['join_blocks']) })
 
     await runLoop(run)
 
     expect((bodies[0]!.tools as { name: string }[]).map((tool) => tool.name)).not.toContain('join_blocks')
-    expect(run.turns[2]).toMatchObject({ results: [{ isError: true, content: [{ text: expect.stringContaining('Not offered yet') }] }] })
-    expect((bodies[1]!.tools as { name: string }[]).map((tool) => tool.name)).toContain('join_blocks')
-    expect(run.call).toHaveBeenCalledTimes(1)
+    expect(run.turns[2]).toMatchObject({ results: [{ isError: true, content: [{ text: 'There is no tool called join_blocks.' }] }] })
+    expect(run.call).not.toHaveBeenCalled()
   })
 
   it('asks the reader before a destructive call, and a no goes back as its answer', async () => {
@@ -186,6 +199,14 @@ describe('what is sent again', () => {
 
   it('keeps pictures only in the newest answers', () => {
     expect(pictures(forSending([pictured('1'), pictured('2'), pictured('3')], seeing, 2))).toEqual(['2', '3'])
+  })
+
+  it('counts the pictures a chapter run put in its message like a tool answer\'s', () => {
+    const message: Turn = { role: 'user', text: 'Fix page 3.', parts: [{ type: 'image', data: 'review', mimeType: 'image/jpeg' }] }
+    const [first] = forSending([message, pictured('2'), pictured('3')], seeing, 2)
+
+    expect(first).toMatchObject({ role: 'user', parts: [{ type: 'text', text: expect.stringContaining('shown here earlier') }] })
+    expect(forSending([message, pictured('2')], seeing, 2)[0]).toEqual(message)
   })
 
   const asked = (id: string, name: string, args: Record<string, unknown> = {}): Turn => ({ role: 'assistant', text: '', calls: [{ id, name, arguments: args }] })

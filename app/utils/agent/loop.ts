@@ -167,6 +167,17 @@ export function forSending (turns: Turn[], model: AiModel, keep = KEEP_PICTURES)
   return turns.map((turn) => (turn.role === 'tool' && turn.results.some((result) => replaced.has(result.callId))
     ? { ...turn, results: turn.results.map((result) => (replaced.has(result.callId) ? { ...result, content: [stale(result.name)] } : result)) }
     : turn)).reverse().map((turn) => {
+    if (turn.role === 'user') {
+      // A chapter run's message, with the review it looked up: its pictures are kept like a tool's.
+      if (!turn.parts?.some((part) => part.type === 'image')) return turn
+
+      const keeping = model.vision && kept < keep
+
+      kept += 1
+
+      return keeping ? turn : { ...turn, parts: turn.parts.map((part) => (part.type === 'image' ? (model.vision ? SEEN : NO_SIGHT) : part)) }
+    }
+
     if (turn.role !== 'tool') return turn
 
     const pictured = turn.results.some((result) => result.content.some((part) => part.type === 'image'))
@@ -206,8 +217,10 @@ export interface LoopInput {
   call: (name: string, args: Record<string, unknown>) => Promise<{ content: Part[], isError?: boolean }>
   /** Whether the reader lets this call run — asked only where `asksFirst`. */
   approve: (call: ToolCall, tool: Tool) => Promise<boolean>
-  /** Tools not offered yet in a conversation of these turns — see `TOOLS_OF` in `prompt.ts`. Asked every turn. */
+  /** Tools whose calls a conversation of these turns refuses — see `TOOLS_OF` in `prompt.ts`. Asked every turn. */
   withheld?: (turns: Turn[]) => Set<string>
+  /** Tools left out of the list altogether. Asked every turn, and kept rare: a changed list is a cache missed whole. */
+  unlisted?: (turns: Turn[]) => Set<string>
   /** Tools answered in the window rather than by the server — `read_playbook`. */
   local?: { tool: Tool, run: (args: Record<string, unknown>) => string }[]
   /** Each provider round's cost, for the ledger. */
@@ -258,7 +271,8 @@ export async function runLoop (input: LoopInput): Promise<Ending> {
   for (;;) {
     const conversation = input.turns.slice(input.since ?? 0)
     const held = input.withheld?.(conversation) ?? new Set<string>()
-    const tools = all.filter((tool) => !held.has(tool.name))
+    const hidden = input.unlisted?.(conversation) ?? new Set<string>()
+    const tools = all.filter((tool) => !hidden.has(tool.name))
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
     const turns = forSending(conversation, input.model)
     const sent = await input.ask((service, effort) => service === 'Anthropic'
@@ -287,7 +301,9 @@ export async function runLoop (input: LoopInput): Promise<Ending> {
         results.push(calls >= most
           ? unrun(call, 'Not run: this message has used all its tool calls.')
           : held.has(call.name)
-            ? unrun(call, `Not offered yet: ${call.name} comes with its playbook topic. Read it with read_playbook, then call it.`)
+            ? unrun(call, byName.has(call.name)
+                ? `Not yet: ${call.name} comes with its playbook topic. Read it with read_playbook, then call it.`
+                : `There is no tool called ${call.name}.`)
             : await answer(input, call, byName.get(call.name)))
         calls += 1
       }

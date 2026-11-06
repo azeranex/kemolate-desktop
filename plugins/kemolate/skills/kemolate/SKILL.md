@@ -69,7 +69,8 @@ Let the app read. Do not read pages by looking at images.
 4. **Fix blocks that are not one balloon each** — before translating, because
    both cost the translation of the blocks they change:
    - `join_blocks` for one balloon read as several blocks (a block per column or
-     per line — the crops show half a sentence each). Name them **in reading
+     per line — the crops show half a sentence each) — **only when the user asks**;
+     otherwise say which blocks you would join and leave them. Name them **in reading
      order**; their text is joined in that order. The balloon is one block with
      the parts inside it (`parts` in `read_page`).
    - `split_block` for the other way round. A joined balloon (one with `parts`)
@@ -215,18 +216,18 @@ mutter, or one accusation set as staggered groups of columns. The reading makes
 each its own block. Kemolate notices when their rooms overlap and shares the
 balloon out on its own, as a band each, top to bottom in reading order. Where it
 cannot tell, `review_lettering` flags **collides** (`collidesWith` names the
-other line). A letterer handles this in one of two ways:
+other line). Handle it this way:
 
-- **One balloon, one block.** Use this when the groups are one speech that was
-  only laid out in pieces. `join_blocks` the blocks in reading order, then
-  translate the joined block with the sentences as paragraphs, a blank line
-  between them. Inside a paragraph, break the lines by hand as usual. A
-  paragraph you leave unbroken wraps by itself.
-- **Separate lines, a band each.** Use this when the gap is a pause the artist
-  drew, like "Why...!?" … "What on earth have I done!?". Leave them as blocks.
-  If Kemolate has not banded them, give each a `frame` of its own part of the
-  balloon with `set_lettering_style`: stacked, in reading order, not
-  overlapping. Then check with `review_lettering`.
+- **Separate lines, a band each — the default.** Leave them as blocks. If
+  Kemolate has not banded them, give each a `frame` of its own part of the
+  balloon with `set_lettering_style` (`frames`, all in one call): stacked, in
+  reading order, not overlapping. Its answer measures them again (`fit`).
+- **One balloon, one block — only when the user asks.** Joining merges blocks,
+  their translations and their lettering, and users often want the pieces kept,
+  so it is their decision, never yours: suggest it where the groups read as one
+  speech only laid out in pieces, and wait. Asked, `join_blocks` them in
+  reading order and translate the joined block with the sentences as
+  paragraphs, a blank line between them.
 
 Either way, the lines of one voice in one balloon should come out at one size.
 A chapter standard does that; without one, compare the sizes in the review.
