@@ -1,0 +1,27 @@
+<script setup lang="ts">
+import { Primitive } from 'reka-ui'
+
+import type { PrimitiveProps } from 'reka-ui'
+import type { HTMLAttributes } from 'vue'
+
+import { cn } from '@/utils/cn'
+
+interface Props extends PrimitiveProps {
+  class?: HTMLAttributes['class']
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  as: 'div',
+})
+</script>
+
+<template>
+  <Primitive
+    data-slot="bubble-group"
+    :as="as"
+    :as-child="asChild"
+    :class="cn('flex min-w-0 flex-col gap-2', props.class)"
+  >
+    <slot />
+  </Primitive>
+</template>

@@ -30,6 +30,16 @@
  * allowed — most of the work is text — and is told when a tool's picture was
  * kept from it.
  *
+ * ## Thinking
+ *
+ * The assistant's own setting (`thinking`), kept in this browser, Low until
+ * changed. It used to follow the Translate panel's speed, whose default, Fast,
+ * is no thinking at all — right for a page sent in one pass, wrong for a run
+ * that chooses among twenty tools and works through a page in several steps,
+ * where a call made without a plan is a round, and the conversation sent
+ * again, spent on finding that out. Low is ~2k tokens a round at the output
+ * price; Off is still offered for a reader who would rather pay in rounds.
+ *
  * ## Spend, and what it is spent on
  *
  * Every provider round is a row on the AI ledger, `what: 'assistant'`, filed
@@ -107,12 +117,33 @@ const lastRound = ref<{ input: number, cached: number } | null>(null)
 /** Tools the reader has said yes to for the rest of this conversation. */
 const always = new Set<string>()
 
-/** Which step of a chapter run is going, for the panel. */
-const progress = ref<string | null>(null)
+/** One step of a chapter run, as the panel shows it. `clean` is a page passed over with nothing flagged. */
+export interface RunStep {
+  key: string
+  label: string
+  status: 'pending' | 'running' | 'done' | 'clean' | 'short'
+  note?: string
+}
+
+/**
+ * The chapter run's plan: its steps and where each stands, kept once the run
+ * ends so the reader can see what was done and what was passed over, until a
+ * new chat or another run.
+ */
+const plan = ref<{ title: string, steps: RunStep[] } | null>(null)
 
 /** The server's tools, as `tools/list` gave them — once per tab. */
 const tools = shallowRef<Tool[] | null>(null)
 let stopping: AbortController | null = null
+
+/** How much the model thinks before each round's calls — see "Thinking". */
+export type AssistantThinking = 'none' | 'low' | 'medium' | 'high'
+
+export const ASSISTANT_THINKING: AssistantThinking[] = ['none', 'low', 'medium', 'high']
+
+const THINKING_STORE = 'kemolate:assistant-thinking'
+const thinking = ref<AssistantThinking>('low')
+let thinkingWired = false
 
 /** What a chapter run does: translate then letter, or one of the two. */
 export type ChapterRun = 'all' | 'translate' | 'letter'
@@ -166,6 +197,29 @@ export function useAssistant () {
   const route = useRoute()
 
   const workspaceId = computed(() => String(route.params.workspaceId ?? ''))
+
+  // Restored after hydration and written on change, as the brush's settings are (`usePaintSettings`).
+  if (import.meta.client && !thinkingWired) {
+    thinkingWired = true
+
+    onNuxtReady(() => {
+      try {
+        const held = localStorage.getItem(THINKING_STORE)
+
+        if (ASSISTANT_THINKING.includes(held as AssistantThinking)) thinking.value = held as AssistantThinking
+      } catch {
+        // No storage, or a broken entry: Low, and the next change rewrites it.
+      }
+
+      watch(thinking, (value) => {
+        try {
+          localStorage.setItem(THINKING_STORE, value)
+        } catch {
+          // Kept for this session only.
+        }
+      })
+    })
+  }
 
   /** Every model the assistant can drive. */
   const usable = computed(() => models.value.filter((model) => model.tools !== false))
@@ -270,7 +324,7 @@ export function useAssistant () {
         turns: open.turns,
         since: open.since,
         maxCalls: options.maxCalls,
-        effort: REASONING_FOR[translate.value.effort],
+        effort: thinking.value,
         signal: signal(),
         ask: (body, sending) => send(key, using, body, sending),
         call: (name, args) => tab.call(name, toRaw(args)),
@@ -329,7 +383,6 @@ export function useAssistant () {
       busy.value = false
       running.value = null
       asking.value = null
-      progress.value = null
       stopping = null
     }
   }
@@ -384,9 +437,22 @@ export function useAssistant () {
    */
   function chapter (what: ChapterRun) {
     return busyWith(async (tab, key) => {
+      const steps: RunStep[] = what === 'letter' ? [] : [{ key: 'translate', label: 'Translate the pages that need it', status: 'running' }]
+      const mark = (step: RunStep | undefined, status: RunStep['status'], note?: string) => {
+        if (!step) return
+
+        step.status = status
+        if (note) step.note = note
+        plan.value = { title: plan.value?.title ?? '', steps: [...steps] }
+      }
+
+      plan.value = { title: what === 'translate' ? 'Translating the chapter' : what === 'letter' ? 'Lettering the chapter' : 'Translating and lettering the chapter', steps: [...steps] }
+
       if (what !== 'letter') {
-        progress.value = 'Translating the chapter'
-        problem.value = ended(await round(tab, key, withTopic(CHAPTER_TRANSLATE, 'translating'), { fresh: true }))
+        const ending = await round(tab, key, withTopic(CHAPTER_TRANSLATE, 'translating'), { fresh: true })
+
+        problem.value = ended(ending)
+        mark(steps[0], ending === 'answered' ? 'done' : 'short')
       }
 
       if (what === 'translate') return
@@ -395,37 +461,41 @@ export function useAssistant () {
       const text = listed.content.find((part) => part.type === 'text')
       const pages = (JSON.parse(text?.type === 'text' ? text.text : '{}') as { pages?: { pageId: number, name: string, translated: number }[] }).pages ?? []
       const lettered = pages.filter((page) => page.translated > 0)
-      const short: string[] = []
-      let clean = 0
 
-      for (const [at, page] of lettered.entries()) {
+      steps.push(...lettered.map((page): RunStep => ({ key: `page-${page.pageId}`, label: `Letter ${page.name}`, status: 'pending' })))
+      plan.value = { title: plan.value?.title ?? '', steps: [...steps] }
+
+      for (const page of lettered) {
         signal().throwIfAborted()
-        progress.value = `Checking page ${at + 1} of ${lettered.length}`
+
+        const step = steps.find((one) => one.key === `page-${page.pageId}`)
+
+        mark(step, 'running', 'checking')
 
         const review = await reviewed(tab, page.pageId)
 
         if ('error' in review) {
-          short.push(`${page.name} (${review.error})`)
+          mark(step, 'short', review.error)
           continue
         }
 
         if (!review.flagged) {
-          clean += 1
+          mark(step, 'clean', 'nothing flagged')
           continue
         }
 
-        progress.value = `Lettering page ${at + 1} of ${lettered.length}`
+        mark(step, 'running', `${review.flagged} flagged`)
 
         const message: UserTurn = { ...withTopic(chapterLetter(page), 'lettering'), parts: review.parts }
+        const ending = await round(tab, key, message, { fresh: true, maxCalls: PAGE_CALLS })
 
-        if (await round(tab, key, message, { fresh: true, maxCalls: PAGE_CALLS }) !== 'answered') short.push(page.name)
+        mark(step, ending === 'answered' ? 'done' : 'short', ending === 'answered' ? undefined : 'not finished')
       }
 
-      const passed = clean ? ` ${clean} page${clean === 1 ? ' had' : 's had'} nothing flagged and ${clean === 1 ? 'was' : 'were'} left as ${clean === 1 ? 'it was' : 'they were'}.` : ''
+      const short = steps.filter((step) => step.key.startsWith('page-') && step.status === 'short').map((step) => step.label.replace(/^Letter /, ''))
 
       if (!lettered.length) problem.value = 'No page has a translation to letter yet.'
-      else if (short.length) problem.value = `Not finished on ${short.join(', ')} — open the page and ask the assistant to carry on.${passed}`
-      else if (passed) problem.value = passed.trim()
+      else if (short.length) problem.value = `Not finished on ${short.join(', ')} — open the page and ask the assistant to carry on.`
     })
   }
 
@@ -444,6 +514,7 @@ export function useAssistant () {
     current.value = fresh()
     problem.value = null
     lastRound.value = null
+    plan.value = null
     always.clear()
   }
 
@@ -466,6 +537,7 @@ export function useAssistant () {
       current.value = fresh()
       problem.value = null
       lastRound.value = null
+      plan.value = null
       always.clear()
     }
 
@@ -533,11 +605,12 @@ export function useAssistant () {
     running,
     spent,
     chosen,
+    thinking,
     model,
     usable,
     unavailable,
     asksFirst,
-    progress,
+    plan,
     current,
     kept,
     context,

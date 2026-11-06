@@ -92,7 +92,7 @@ export function anthropicBody (input: { model: AiModel, system: string, tools: O
 
 export function anthropicReply (data: unknown): Reply {
   const message = data as {
-    content?: { type?: string, text?: string, id?: string, name?: string, input?: unknown }[]
+    content?: { type?: string, text?: string, thinking?: string, id?: string, name?: string, input?: unknown }[]
     stop_reason?: string | null
   }
   const content = message.content ?? []
@@ -103,9 +103,13 @@ export function anthropicReply (data: unknown): Reply {
     ...argumentsOf(part.input),
   }))
 
+  // Extended thinking's own blocks; a redacted one has nothing to show.
+  const reasoning = content.filter((part) => part.type === 'thinking').map((part) => part.thinking ?? '').join('\n\n').trim()
+
   return {
     text: content.filter((part) => part.type === 'text').map((part) => part.text ?? '').join(''),
     calls,
+    ...(reasoning ? { reasoning } : {}),
     stop: message.stop_reason === 'max_tokens' ? 'length' : calls.length ? 'tools' : 'end',
     raw: { service: 'Anthropic', message: { content } },
   }

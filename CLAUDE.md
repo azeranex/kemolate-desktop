@@ -516,6 +516,18 @@ over MCP can, without an outside client.
   (`assistant:<workspaceId>`, the newest 30) **without their pictures**, to be opened again from
   the panel. The panel's "Next round" line breaks down what the next request sends (estimated,
   four characters a token) beside the last round's real and cached counts.
+- **Thinking is the assistant's own setting** (`thinking` in `useAssistant`, kept in
+  `localStorage`, Low by default), no longer the Translate panel's speed — whose default, Fast, is no
+  thinking at all. What a model thought is kept on its turn (`reasoning`: Anthropic's `thinking`
+  blocks, OpenRouter's `reasoning`, DeepSeek's `reasoning_content`) and shown, never sent back as words.
+- **The panel is shadcn-vue's chat pieces** — Message Scroller, Message, Bubble, Trace (what its AI
+  elements Tool, Task, Plan, Queue and Chain of Thought are built from), Item, Code Block, Input
+  Group. They came from the registry by way of a scratch project (this repository has no
+  `components.json`, and the CLI cannot resolve its split tsconfig); the Code Block's `shiki`
+  highlighter was left out, so nothing here may import `highlightCode`. Calls are said in the
+  reader's words (`agent/describe.ts`), a chapter run is a Plan of its pages (`plan`), and a reply's
+  Markdown is read into a tree and drawn as elements (`agent/markdown.ts`, `AssistantMarkdown`) —
+  never `v-html`, so nothing a model writes becomes markup.
 - **Joining is never the assistant's call.** Asked to fix lettering it joined balloons the reader
   wanted kept, twice. The playbook, the preface and `review_lettering`'s collision hint all say
   to band a balloon's lines with frames and to ask before joining. Note that two blocks sharing

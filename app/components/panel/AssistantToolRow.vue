@@ -3,16 +3,36 @@
  * One tool call in the assistant's conversation: what it was, and what it
  * answered.
  *
- * Folded by default to a line — the tool, a glance at its arguments, and
- * whether it worked — because a check of a page is a dozen calls and the
- * conversation is the reader's to read, not the calls'. Opened, it shows the
- * arguments and the answer whole, and any pictures the tool returned, which
- * is what to look at when the assistant says something about a balloon the
- * reader does not believe.
+ * A line of what the assistant did, in the reader's words (`describeCall`) —
+ * shimmering while it runs, red if it failed — because a check of a page is a
+ * dozen calls and the conversation is the reader's to read, not the calls'.
+ * Opened, it shows the tool, the arguments and the answer whole, and any
+ * pictures the tool returned, which is what to look at when the assistant says
+ * something about a balloon the reader does not believe.
+ *
+ * Drawn with shadcn-vue's Trace, which is what its AI elements (Tool, Task,
+ * Chain of Thought) are built from.
  */
-import { CheckIcon, ChevronRightIcon, LoaderCircleIcon, XIcon } from '@lucide/vue'
+import {
+  BookOpenIcon,
+  BookTextIcon,
+  EyeIcon,
+  ImageIcon,
+  LanguagesIcon,
+  ListIcon,
+  MergeIcon,
+  PencilIcon,
+  ScanTextIcon,
+  SparklesIcon,
+  TypeIcon,
+  WrenchIcon,
+} from '@lucide/vue'
 
+import type { Component } from 'vue'
+import type { Described } from '~/utils/agent/describe'
 import type { ToolCall, ToolResult } from '~/utils/agent/messages'
+
+import { describeCall } from '~/utils/agent/describe'
 
 const props = defineProps<{
   call: ToolCall
@@ -21,49 +41,73 @@ const props = defineProps<{
   live?: boolean
 }>()
 
-const open = ref(false)
+const ICONS: Record<Described['kind'], Component> = {
+  look: ListIcon,
+  read: ScanTextIcon,
+  image: ImageIcon,
+  fix: PencilIcon,
+  blocks: MergeIcon,
+  translate: LanguagesIcon,
+  letter: TypeIcon,
+  clean: SparklesIcon,
+  notes: BookTextIcon,
+  playbook: BookOpenIcon,
+  other: WrenchIcon,
+}
 
-/** The arguments in a line, for the folded row. */
-const glance = computed(() => {
-  const text = JSON.stringify(props.call.arguments)
+const described = computed(() => describeCall(props.call))
+const running = computed(() => props.live || !props.result)
+const status = computed(() => (running.value ? 'running' : props.result?.isError ? 'error' : undefined))
 
-  return text === '{}' ? '' : text.length > 80 ? `${text.slice(0, 79)}…` : text
+/** The arguments as sent, or nothing worth showing. */
+const sent = computed(() => {
+  const text = JSON.stringify(props.call.arguments, null, 2)
+
+  return text === '{}' ? '' : text
 })
 
-const said = computed(() => (props.result?.content ?? [])
-  .filter((part) => part.type === 'text')
-  .map((part) => part.text)
-  .join('\n'))
+/** The answer's text, pretty where it is JSON — which it nearly always is. */
+const said = computed(() => {
+  const text = (props.result?.content ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n')
+
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2)
+  } catch {
+    return text
+  }
+})
 
 const pictures = computed(() => (props.result?.content ?? []).flatMap((part) =>
   part.type === 'image' ? [`data:${part.mimeType};base64,${part.data}`] : []))
 </script>
 
 <template>
-  <div class="border-border min-w-0 rounded-md border text-[11px]">
-    <button
-      type="button"
-      class="hover:bg-accent/50 flex w-full min-w-0 items-center gap-1.5 px-2 py-1 text-left"
-      :aria-expanded="open"
-      @click="open = !open"
-    >
-      <ChevronRightIcon class="text-muted-foreground size-3 shrink-0 transition-transform" :class="open && 'rotate-90'" />
-      <span class="shrink-0 font-mono">{{ call.name }}</span>
-      <span class="text-muted-foreground min-w-0 truncate font-mono">{{ glance }}</span>
-      <span class="ml-auto shrink-0">
-        <LoaderCircleIcon v-if="live || !result" class="text-muted-foreground size-3 animate-spin" />
-        <XIcon v-else-if="result.isError" class="text-destructive size-3" />
-        <CheckIcon v-else class="text-muted-foreground size-3" />
-      </span>
-    </button>
-
-    <div v-if="open" class="border-border grid min-w-0 gap-1.5 border-t px-2 py-1.5">
-      <pre class="text-muted-foreground max-h-40 min-w-0 overflow-auto font-mono text-[10px] whitespace-pre-wrap">{{ JSON.stringify(call.arguments, null, 2) }}</pre>
-      <pre
-        v-if="said"
-        class="max-h-60 min-w-0 overflow-auto font-mono text-[10px] whitespace-pre-wrap"
-        :class="result?.isError && 'text-destructive'"
-      >{{ said }}</pre>
+  <UTraceCollapsible>
+    <UTraceCollapsibleTrigger>
+      <UTraceLine :status="status" class="text-xs">
+        <UTraceIcon>
+          <component :is="ICONS[described.kind]" />
+        </UTraceIcon>
+        <UTraceTitle>{{ running ? described.doing : described.done }}</UTraceTitle>
+        <UTraceDescription v-if="described.detail">
+          {{ described.detail }}
+        </UTraceDescription>
+        <UTraceDescription v-if="pictures.length">
+          <EyeIcon class="inline size-3" /> {{ pictures.length }}
+        </UTraceDescription>
+      </UTraceLine>
+    </UTraceCollapsibleTrigger>
+    <UTraceCollapsibleContent class="grid gap-1.5 text-[11px]">
+      <p class="font-mono text-[10px]">
+        {{ call.name }}
+      </p>
+      <UCodeBlock v-if="sent" size="sm">
+        <!-- Inline: whitespace round the text would be drawn, this being a <pre>. -->
+        <UCodeBlockContent wrap class="max-h-40 text-[10px]">{{ sent }}</UCodeBlockContent>
+      </UCodeBlock>
+      <UCodeBlock v-if="said" size="sm" :variant="result?.isError ? 'destructive' : 'default'">
+        <UCodeBlockContent wrap class="max-h-60 text-[10px]">{{ said }}</UCodeBlockContent>
+      </UCodeBlock>
       <div v-if="pictures.length" class="flex flex-wrap gap-1">
         <img
           v-for="(picture, index) in pictures"
@@ -73,6 +117,6 @@ const pictures = computed(() => (props.result?.content ?? []).flatMap((part) =>
           class="border-border max-h-24 rounded-sm border object-contain"
         >
       </div>
-    </div>
-  </div>
+    </UTraceCollapsibleContent>
+  </UTraceCollapsible>
 </template>

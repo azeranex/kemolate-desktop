@@ -287,7 +287,7 @@ export async function runLoop (input: LoopInput): Promise<Ending> {
 
     const reply = readOf(sent)
 
-    input.turns.push({ role: 'assistant', text: reply.text, calls: reply.calls, raw: reply.raw })
+    input.turns.push({ role: 'assistant', text: reply.text, calls: reply.calls, ...(reply.reasoning ? { reasoning: reply.reasoning } : {}), raw: reply.raw })
 
     if (reply.stop === 'length') return 'cut-off'
     if (!reply.calls.length) return 'answered'

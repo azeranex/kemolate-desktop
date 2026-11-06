@@ -8,18 +8,49 @@
  * conversation, the question when a call wants the reader's yes, and the
  * running bill.
  *
+ * Built from shadcn-vue's chat pieces, the ones its AI elements are made of:
+ * the Message Scroller keeps the newest turn in view without dragging a reader
+ * who has scrolled back to read; the reader's words are a Bubble and the
+ * model's are a Message; what it thought, each call it made and a chapter
+ * run's plan are Trace lines — one line each, shimmering while they run,
+ * opened for the whole of it; a call that waits for a yes is an Item. The
+ * model and how hard it thinks are chosen in the input's own bar, as the Model
+ * Selector element has them, beside what the next round will send.
+ *
  * New chat puts the open conversation away and keeps it; the clock lists the
- * chapter's kept ones to open again. The line under the input is what this
- * conversation has cost, and opens what the next round will send.
+ * chapter's kept ones to open again.
  *
  * What the assistant changes, the page shows as it changes — the tools write
  * through the same services as everything else, and their change notices
  * reach this tab as an agent's always have. So nothing here refreshes
  * anything.
  */
-import { BookOpenIcon, HistoryIcon, SendIcon, SquareIcon, SquarePenIcon, Trash2Icon } from '@lucide/vue'
+import {
+  ArrowUpIcon,
+  BookOpenIcon,
+  BotIcon,
+  BrainIcon,
+  ChevronDownIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleDashedIcon,
+  CircleMinusIcon,
+  GaugeIcon,
+  HistoryIcon,
+  ListChecksIcon,
+  LoaderCircleIcon,
+  ShieldAlertIcon,
+  SquareIcon,
+  SquarePenIcon,
+  Trash2Icon,
+} from '@lucide/vue'
 
+import type { Component } from 'vue'
+import type { AssistantThinking, RunStep } from '~/composables/useAssistant'
 import type { ToolResult, Turn } from '~/utils/agent/messages'
+
+import { ASSISTANT_THINKING } from '~/composables/useAssistant'
+import { describeCall } from '~/utils/agent/describe'
 
 const {
   turns,
@@ -30,10 +61,11 @@ const {
   running,
   spent,
   chosen,
+  thinking,
   model,
   usable,
   unavailable,
-  progress,
+  plan,
   kept,
   context,
   say,
@@ -44,8 +76,69 @@ const {
   forget,
 } = useAssistant()
 
-/** Whether the context breakdown is open. */
-const showContext = ref(false)
+const draft = ref('')
+
+/** The thinking setting's words — see "Thinking" in `useAssistant`. */
+const THINKING_LABEL: Record<AssistantThinking, { name: string, note: string }> = {
+  none: { name: 'Off', note: 'Calls tools straight away' },
+  low: { name: 'Low', note: 'A short plan each round' },
+  medium: { name: 'Medium', note: 'More for tangled pages' },
+  high: { name: 'High', note: 'Most thought, most cost' },
+}
+
+function think (value: unknown) {
+  if (ASSISTANT_THINKING.includes(value as AssistantThinking)) thinking.value = value as AssistantThinking
+}
+
+function pick (id: unknown) {
+  if (typeof id === 'string') chosen.value = id
+}
+
+/** What to ask when there is nothing yet — each a button that asks it. */
+const SUGGESTIONS = [
+  'Check the reading on this page',
+  'Fix the lettering that does not fit',
+  'Translate the pages that are left',
+]
+
+type Shown = Exclude<Turn, { role: 'tool' }>
+
+/** The conversation as it is drawn: each model turn with the answers to its calls beside them. */
+const shown = computed(() => {
+  const answers = new Map<string, ToolResult>()
+
+  for (const turn of turns.value) {
+    if (turn.role === 'tool') for (const result of turn.results) answers.set(result.callId, result)
+  }
+
+  return turns.value
+    .map((turn, index) => ({ turn, index }))
+    .filter((entry): entry is { turn: Shown, index: number } => entry.turn.role !== 'tool')
+    .map(({ turn, index }) => ({ turn, index, answers }))
+})
+
+/**
+ * What the reader is shown of a message: a chapter run's is its instruction,
+ * not the playbook chapter and the review it carries for the model.
+ */
+const said = (turn: Extract<Turn, { role: 'user' }>) => (turn.topics?.length ? turn.text.split('\n\n# The playbook')[0]! : turn.text)
+
+/** Whether the model is being waited on — not a tool, not the reader. */
+const thinkingNow = computed(() => busy.value && !asking.value && !running.value)
+
+function submit (text = draft.value) {
+  if (!text.trim() || busy.value) return
+
+  if (text === draft.value) draft.value = ''
+  say(text)
+}
+
+function keydown (event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
+
+  event.preventDefault()
+  submit()
+}
 
 /** Long enough ago to be worth a date; before that, how long ago — as the Text panel says it. */
 function when (at: number) {
@@ -62,55 +155,31 @@ const approx = (count: number) => count >= 1000 ? `${(count / 1000).toFixed(coun
 
 const money = (cost: number) => `$${cost.toFixed(cost < 0.1 ? 4 : 2)}`
 
-const draft = ref('')
-
-/** The conversation as it is drawn: each model turn with the answers to its calls beside them. */
-const shown = computed(() => {
-  const answers = new Map<string, ToolResult>()
-
-  for (const turn of turns.value) {
-    if (turn.role === 'tool') for (const result of turn.results) answers.set(result.callId, result)
-  }
-
-  return turns.value
-    .map((turn, index) => ({ turn, index }))
-    .filter((entry): entry is { turn: Exclude<Turn, { role: 'tool' }>, index: number } => entry.turn.role !== 'tool')
-    .map(({ turn, index }) => ({ turn, index, answers }))
-})
-
-function submit () {
-  const text = draft.value
-
-  if (!text.trim() || busy.value) return
-
-  draft.value = ''
-  say(text)
-}
-
-function keydown (event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
-
-  event.preventDefault()
-  submit()
-}
-
 const cost = computed(() => {
   if (!spent.value.input && !spent.value.output) return ''
 
-  // Cached tokens said apart: they are most of a long run, and billed at a tenth.
-  const cached = spent.value.cached ? ` (${spent.value.cached.toLocaleString('en')} cached)` : ''
-  const tokens = `${(spent.value.input + spent.value.output).toLocaleString('en')} tokens${cached}`
-
-  return spent.value.unknown && !spent.value.cost ? tokens : `${tokens} · ${money(spent.value.cost)}`
+  return spent.value.unknown && !spent.value.cost ? `${approx(spent.value.input + spent.value.output)} tokens` : money(spent.value.cost)
 })
 
-/** Scrolled to the newest turn as the conversation grows. */
-const list = ref<HTMLElement | null>(null)
+/** A context row's colour, the same in the bar and its key. */
+const SWATCH: Record<string, string> = {
+  system: 'bg-chart-1',
+  tools: 'bg-chart-2',
+  reader: 'bg-chart-3',
+  assistant: 'bg-chart-4',
+  results: 'bg-chart-5',
+  pictures: 'bg-primary',
+}
 
-watch(() => [turns.value.length, asking.value, running.value], async () => {
-  await nextTick()
-  list.value?.scrollTo({ top: list.value.scrollHeight })
-}, { deep: false })
+const STEP_ICON: Record<RunStep['status'], Component> = {
+  pending: CircleDashedIcon,
+  running: LoaderCircleIcon,
+  done: CircleCheckIcon,
+  clean: CircleMinusIcon,
+  short: CircleAlertIcon,
+}
+
+const finished = computed(() => plan.value?.steps.filter((step) => step.status !== 'pending' && step.status !== 'running').length ?? 0)
 </script>
 
 <template>
@@ -121,16 +190,9 @@ watch(() => [turns.value.length, asking.value, running.value], async () => {
 
     <template v-else>
       <div class="flex min-w-0 items-center gap-1">
-        <USelect :model-value="model.id" @update:model-value="(id) => { chosen = String(id) }">
-          <USelectTrigger size="sm" class="min-w-0 flex-1">
-            <USelectValue />
-          </USelectTrigger>
-          <USelectContent position="popper" class="w-(--reka-select-trigger-width)">
-            <USelectItem v-for="option in usable" :key="option.id" :value="option.id">
-              {{ option.label }}
-            </USelectItem>
-          </USelectContent>
-        </USelect>
+        <span class="text-muted-foreground min-w-0 flex-1 truncate text-[11px]">
+          <template v-if="cost">This conversation · {{ cost }}</template>
+        </span>
         <UDropdownMenu>
           <UDropdownMenuTrigger as-child>
             <UButton variant="ghost" size="icon-sm" :disabled="busy" aria-label="Do the whole chapter" title="Do the whole chapter">
@@ -191,155 +253,304 @@ watch(() => [turns.value.length, asking.value, running.value], async () => {
         </UButton>
       </div>
 
-      <div ref="list" class="grid max-h-[60vh] min-w-0 gap-2 overflow-y-auto">
-        <p
-          v-if="!turns.length"
-          class="text-muted-foreground border-border rounded-md border border-dashed px-3 py-4 text-center text-[11px]"
-        >
-          Ask about this chapter, or for work on it — "check the reading on this page", "fix the lettering
-          that does not fit", "translate the pages that are left". It works through Kemolate's own tools, on your key.
-          Conversations are kept for this chapter, without their pictures.
-        </p>
+      <UTrace v-if="plan" class="border-border rounded-md border px-2.5 py-2">
+        <UTraceCollapsible default-open>
+          <UTraceCollapsibleTrigger>
+            <UTraceLine :status="busy ? 'running' : undefined" class="text-xs">
+              <UTraceIcon>
+                <ListChecksIcon />
+              </UTraceIcon>
+              <UTraceTitle>{{ plan.title }}</UTraceTitle>
+              <UTraceDescription>{{ finished }} of {{ plan.steps.length }}</UTraceDescription>
+            </UTraceLine>
+          </UTraceCollapsibleTrigger>
+          <UTraceCollapsibleContent>
+            <UTrace class="max-h-40 gap-1 overflow-y-auto">
+              <UTraceLine
+                v-for="step in plan.steps"
+                :key="step.key"
+                :status="step.status === 'running' ? 'running' : step.status === 'pending' ? 'pending' : step.status === 'short' ? 'error' : undefined"
+                class="text-xs"
+              >
+                <UTraceIcon>
+                  <component :is="STEP_ICON[step.status]" :class="step.status === 'running' && 'animate-spin'" />
+                </UTraceIcon>
+                <UTraceTitle>{{ step.label }}</UTraceTitle>
+                <UTraceDescription v-if="step.note">
+                  {{ step.note }}
+                </UTraceDescription>
+              </UTraceLine>
+            </UTrace>
+          </UTraceCollapsibleContent>
+        </UTraceCollapsible>
+      </UTrace>
 
-        <template v-for="{ turn, index, answers } in shown" :key="index">
-          <p
-            v-if="turn.role === 'user'"
-            class="bg-accent text-accent-foreground ml-6 min-w-0 rounded-md px-2 py-1.5 text-xs wrap-break-word whitespace-pre-wrap"
+      <UEmpty v-if="!turns.length" class="border-border gap-3 border p-4">
+        <UEmptyHeader>
+          <UEmptyMedia variant="icon">
+            <BotIcon />
+          </UEmptyMedia>
+          <UEmptyTitle class="text-sm">
+            Ask about this chapter
+          </UEmptyTitle>
+          <UEmptyDescription class="text-[11px]">
+            It works through Kemolate's own tools, on your key. Conversations are kept for this chapter, without
+            their pictures.
+          </UEmptyDescription>
+        </UEmptyHeader>
+        <UEmptyContent class="gap-1.5">
+          <UButton
+            v-for="suggestion in SUGGESTIONS"
+            :key="suggestion"
+            variant="outline"
+            size="xs"
+            class="max-w-full"
+            :disabled="busy"
+            @click="submit(suggestion)"
           >
-            {{ turn.text }}
-          </p>
+            <span class="truncate">{{ suggestion }}</span>
+          </UButton>
+        </UEmptyContent>
+      </UEmpty>
 
-          <div v-else class="grid min-w-0 gap-1">
-            <p v-if="turn.text" class="min-w-0 text-xs wrap-break-word whitespace-pre-wrap">
-              {{ turn.text }}
-            </p>
-            <PanelAssistantToolRow
-              v-for="call in turn.calls"
-              :key="call.id"
-              :call="call"
-              :result="answers.get(call.id)"
-              :live="running?.id === call.id"
-            />
-          </div>
-        </template>
+      <UMessageScrollerProvider v-else auto-scroll>
+        <UMessageScroller class="h-[min(60vh,36rem)] min-h-48">
+          <UMessageScrollerViewport>
+            <UMessageScrollerContent class="gap-4 pb-2" :aria-busy="busy">
+              <UMessageScrollerItem
+                v-for="{ turn, index, answers } in shown"
+                :key="index"
+                :message-id="String(index)"
+                :scroll-anchor="turn.role === 'user'"
+              >
+                <UMessage v-if="turn.role === 'user'" align="end">
+                  <UMessageContent>
+                    <UBubble align="end" :variant="turn.topics?.length ? 'outline' : 'muted'">
+                      <UBubbleContent class="px-2.5 py-1.5 text-xs whitespace-pre-wrap">
+                        {{ said(turn) }}
+                      </UBubbleContent>
+                    </UBubble>
+                  </UMessageContent>
+                </UMessage>
 
-        <div v-if="asking" class="border-primary/50 bg-primary/5 grid min-w-0 gap-1.5 rounded-md border p-2 text-xs">
-          <p class="min-w-0">
-            The assistant wants to run <span class="font-mono">{{ asking.call.name }}</span>, which changes the page in a way
-            that is hard to take back.
-          </p>
-          <pre class="text-muted-foreground max-h-32 min-w-0 overflow-auto font-mono text-[10px] whitespace-pre-wrap">{{ JSON.stringify(asking.call.arguments, null, 2) }}</pre>
-          <div class="flex flex-wrap gap-1">
-            <UButton size="sm" @click="asking.answer(true)">
-              Allow
-            </UButton>
-            <UButton size="sm" variant="outline" @click="asking.answer(true, true)">
-              Allow for this conversation
-            </UButton>
-            <UButton size="sm" variant="ghost" @click="asking.answer(false)">
-              Deny
-            </UButton>
-          </div>
-        </div>
+                <UMessage v-else>
+                  <UMessageContent class="gap-2">
+                    <UTrace v-if="turn.reasoning" class="gap-1.5">
+                      <UTraceCollapsible>
+                        <UTraceCollapsibleTrigger>
+                          <UTraceLine class="text-xs">
+                            <UTraceIcon>
+                              <BrainIcon />
+                            </UTraceIcon>
+                            <UTraceTitle>Thought it through</UTraceTitle>
+                          </UTraceLine>
+                        </UTraceCollapsibleTrigger>
+                        <UTraceCollapsibleContent class="text-[11px] whitespace-pre-wrap">
+                          {{ turn.reasoning }}
+                        </UTraceCollapsibleContent>
+                      </UTraceCollapsible>
+                    </UTrace>
+                    <!-- What it says, then what it did: a turn's words lead into its calls. -->
+                    <PanelAssistantMarkdown v-if="turn.text" :text="turn.text" />
+                    <UTrace v-if="turn.calls.length" class="gap-1.5">
+                      <PanelAssistantToolRow
+                        v-for="call in turn.calls"
+                        :key="call.id"
+                        :call="call"
+                        :result="answers.get(call.id)"
+                        :live="running?.id === call.id"
+                      />
+                    </UTrace>
+                  </UMessageContent>
+                </UMessage>
+              </UMessageScrollerItem>
 
-        <p v-if="busy && !asking && !running" class="text-muted-foreground text-[11px]">
-          {{ waiting ? `${model.label} asked for a wait — trying again in ${Math.ceil(waiting / 1000)} s…` : 'Thinking…' }}
-        </p>
+              <UMessageScrollerItem v-if="asking" message-id="asking">
+                <UItem variant="outline" size="sm" class="border-primary/50 bg-primary/5">
+                  <UItemMedia variant="icon">
+                    <ShieldAlertIcon class="text-primary" />
+                  </UItemMedia>
+                  <UItemContent class="min-w-0">
+                    <UItemTitle class="text-xs">
+                      {{ describeCall(asking.call).doing }}?
+                    </UItemTitle>
+                    <UItemDescription class="text-[11px]">
+                      <span class="font-mono">{{ asking.call.name }}</span> changes the page in a way that is hard to take back.
+                    </UItemDescription>
+                  </UItemContent>
+                  <UCodeBlock size="sm" class="basis-full">
+                    <UCodeBlockContent wrap class="max-h-32 text-[10px]">{{ JSON.stringify(asking.call.arguments, null, 2) }}</UCodeBlockContent>
+                  </UCodeBlock>
+                  <UItemActions class="basis-full flex-wrap">
+                    <UButton size="xs" @click="asking.answer(true)">
+                      Allow
+                    </UButton>
+                    <UButton size="xs" variant="outline" @click="asking.answer(true, true)">
+                      Allow for this conversation
+                    </UButton>
+                    <UButton size="xs" variant="ghost" @click="asking.answer(false)">
+                      Deny
+                    </UButton>
+                  </UItemActions>
+                </UItem>
+              </UMessageScrollerItem>
 
-        <p v-if="progress" class="text-muted-foreground text-[11px]">
-          {{ progress }} — each page is a conversation of its own, so one page's work is not sent again with the next.
-        </p>
+              <UMessageScrollerItem v-if="thinkingNow" message-id="thinking">
+                <UTraceLine status="running" class="text-xs">
+                  <UTraceIcon>
+                    <BrainIcon v-if="thinking !== 'none'" />
+                    <LoaderCircleIcon v-else class="animate-spin" />
+                  </UTraceIcon>
+                  <UTraceTitle>
+                    {{ waiting ? `${model.label} asked for a wait — trying again in ${Math.ceil(waiting / 1000)} s` : thinking !== 'none' ? 'Thinking' : 'Working' }}
+                  </UTraceTitle>
+                </UTraceLine>
+              </UMessageScrollerItem>
 
-        <p v-if="problem" class="text-destructive min-w-0 text-[11px] wrap-break-word">
-          {{ problem }}
-        </p>
-      </div>
+              <UMessageScrollerItem v-if="problem" message-id="problem">
+                <p class="text-destructive min-w-0 text-[11px] wrap-break-word">
+                  {{ problem }}
+                </p>
+              </UMessageScrollerItem>
+            </UMessageScrollerContent>
+          </UMessageScrollerViewport>
+          <UMessageScrollerButton class="absolute bottom-2 left-1/2 -translate-x-1/2" size="icon-xs" />
+        </UMessageScroller>
+      </UMessageScrollerProvider>
 
-      <div class="flex min-w-0 items-end gap-1">
-        <UTextarea
+      <UInputGroup class="min-w-0">
+        <UInputGroupTextarea
           v-model="draft"
           rows="2"
-          class="max-h-40 min-h-14 min-w-0 flex-1 resize-none text-xs"
+          class="max-h-40 min-h-14 text-xs"
           placeholder="Ask the assistant…"
           aria-label="Message to the assistant"
           @keydown="keydown"
         />
-        <UButton
-          v-if="busy"
-          size="icon-sm"
-          variant="outline"
-          aria-label="Stop"
-          title="Stop"
-          @click="stop"
-        >
-          <SquareIcon class="size-3.5" />
-        </UButton>
-        <UButton
-          v-else
-          size="icon-sm"
-          :disabled="!draft.trim()"
-          aria-label="Send"
-          title="Send (Enter)"
-          @click="submit"
-        >
-          <SendIcon class="size-3.5" />
-        </UButton>
-      </div>
+        <UInputGroupAddon align="block-end" class="min-w-0 gap-0.5">
+          <UDropdownMenu>
+            <UDropdownMenuTrigger as-child>
+              <UInputGroupButton variant="ghost" size="xs" class="min-w-0" title="The model">
+                <span class="truncate">{{ model.label }}</span>
+                <ChevronDownIcon />
+              </UInputGroupButton>
+            </UDropdownMenuTrigger>
+            <UDropdownMenuContent align="start" side="top" class="max-h-72 w-60 overflow-y-auto">
+              <UDropdownMenuLabel class="text-muted-foreground text-[11px] font-normal">
+                Models that can use tools
+              </UDropdownMenuLabel>
+              <UDropdownMenuRadioGroup :model-value="model.id" @update:model-value="pick">
+                <UDropdownMenuRadioItem v-for="option in usable" :key="option.id" :value="option.id" class="text-xs">
+                  {{ option.label }}
+                </UDropdownMenuRadioItem>
+              </UDropdownMenuRadioGroup>
+            </UDropdownMenuContent>
+          </UDropdownMenu>
 
-      <button
-        v-if="turns.length"
-        type="button"
-        class="text-muted-foreground hover:text-foreground min-w-0 text-left text-[10px]"
-        :aria-expanded="showContext"
-        @click="showContext = !showContext"
-      >
-        <template v-if="cost">
-          This conversation: {{ cost }} ·
-        </template>
-        Next round ≈ {{ approx(context.total) }} tokens {{ showContext ? '▾' : '▸' }}
-      </button>
+          <UDropdownMenu>
+            <UDropdownMenuTrigger as-child>
+              <UInputGroupButton
+                variant="ghost"
+                size="xs"
+                class="shrink-0"
+                :class="{ 'text-muted-foreground': thinking === 'none' }"
+                :aria-label="`Thinking: ${THINKING_LABEL[thinking].name}`"
+                :title="`Thinking before it acts: ${THINKING_LABEL[thinking].name}`"
+              >
+                <BrainIcon />
+                {{ THINKING_LABEL[thinking].name }}
+              </UInputGroupButton>
+            </UDropdownMenuTrigger>
+            <UDropdownMenuContent align="start" side="top" class="w-56">
+              <UDropdownMenuLabel class="text-muted-foreground text-[11px] font-normal">
+                Thinking before it acts — billed as output
+              </UDropdownMenuLabel>
+              <UDropdownMenuRadioGroup :model-value="thinking" @update:model-value="think">
+                <UDropdownMenuRadioItem v-for="level in ASSISTANT_THINKING" :key="level" :value="level">
+                  <span class="grid">
+                    <span class="text-xs">{{ THINKING_LABEL[level].name }}</span>
+                    <span class="text-muted-foreground text-[10px]">{{ THINKING_LABEL[level].note }}</span>
+                  </span>
+                </UDropdownMenuRadioItem>
+              </UDropdownMenuRadioGroup>
+            </UDropdownMenuContent>
+          </UDropdownMenu>
 
-      <div v-if="showContext && turns.length" class="border-border grid min-w-0 gap-1.5 rounded-md border p-2 text-[10px]">
-        <div class="bg-muted flex h-1.5 min-w-0 overflow-hidden rounded-full" aria-hidden="true">
-          <div
-            v-for="row in context.rows"
-            :key="row.key"
-            class="h-full"
-            :class="{
-              'bg-chart-1': row.key === 'system',
-              'bg-chart-2': row.key === 'tools',
-              'bg-chart-3': row.key === 'reader',
-              'bg-chart-4': row.key === 'assistant',
-              'bg-chart-5': row.key === 'results',
-              'bg-primary': row.key === 'pictures',
-            }"
-            :style="{ width: `${context.total ? (row.tokens / context.total) * 100 : 0}%` }"
-          />
-        </div>
-        <div v-for="row in context.rows" :key="row.key" class="flex min-w-0 items-center gap-1.5">
-          <span
-            class="size-2 shrink-0 rounded-full"
-            :class="{
-              'bg-chart-1': row.key === 'system',
-              'bg-chart-2': row.key === 'tools',
-              'bg-chart-3': row.key === 'reader',
-              'bg-chart-4': row.key === 'assistant',
-              'bg-chart-5': row.key === 'results',
-              'bg-primary': row.key === 'pictures',
-            }"
-          />
-          <span class="min-w-0 flex-1 truncate">{{ row.label }}</span>
-          <span class="text-muted-foreground tabular-nums">{{ 'unknown' in row && row.unknown ? '—' : `≈ ${approx(row.tokens)}` }}</span>
-        </div>
-        <p class="text-muted-foreground">
-          Estimated at four characters a token. Everything but the newest turn is normally read from the provider's cache, at
-          a tenth of the price.
-          <template v-if="context.last">
-            The last round sent {{ context.last.input.toLocaleString('en') }} tokens, {{ context.last.cached.toLocaleString('en') }} of
-            them from the cache.
-          </template>
-        </p>
-      </div>
+          <UPopover>
+            <UPopoverTrigger as-child>
+              <UInputGroupButton
+                variant="ghost"
+                size="xs"
+                class="ml-auto shrink-0 tabular-nums"
+                :disabled="!turns.length"
+                aria-label="What the next round sends"
+                title="What the next round sends"
+              >
+                <GaugeIcon />
+                {{ turns.length ? `≈ ${approx(context.total)}` : '' }}
+              </UInputGroupButton>
+            </UPopoverTrigger>
+            <UPopoverContent align="end" side="top" class="grid w-64 gap-2 p-3 text-[11px]">
+              <p class="font-medium">
+                The next round sends ≈ {{ approx(context.total) }} tokens
+              </p>
+              <div class="bg-muted flex h-1.5 min-w-0 overflow-hidden rounded-full" aria-hidden="true">
+                <div
+                  v-for="row in context.rows"
+                  :key="row.key"
+                  class="h-full"
+                  :class="SWATCH[row.key]"
+                  :style="{ width: `${context.total ? (row.tokens / context.total) * 100 : 0}%` }"
+                />
+              </div>
+              <div class="grid gap-1">
+                <div v-for="row in context.rows" :key="row.key" class="flex min-w-0 items-center gap-1.5">
+                  <span class="size-2 shrink-0 rounded-full" :class="SWATCH[row.key]" />
+                  <span class="min-w-0 flex-1 truncate">{{ row.label }}</span>
+                  <span class="text-muted-foreground tabular-nums">{{ 'unknown' in row && row.unknown ? '—' : `≈ ${approx(row.tokens)}` }}</span>
+                </div>
+              </div>
+              <p class="text-muted-foreground">
+                Estimated at four characters a token. Everything but the newest turn is normally read from the
+                provider's cache, at a tenth of the price.
+                <template v-if="context.last">
+                  The last round sent {{ context.last.input.toLocaleString('en') }} tokens,
+                  {{ context.last.cached.toLocaleString('en') }} of them from the cache.
+                </template>
+              </p>
+              <p v-if="cost" class="text-muted-foreground">
+                This conversation so far: {{ cost }}<template v-if="spent.cached">
+                  ({{ spent.cached.toLocaleString('en') }} tokens cached)
+                </template>.
+              </p>
+            </UPopoverContent>
+          </UPopover>
+
+          <UInputGroupButton
+            v-if="busy"
+            variant="outline"
+            size="icon-xs"
+            class="shrink-0"
+            aria-label="Stop"
+            title="Stop"
+            @click="stop"
+          >
+            <SquareIcon />
+          </UInputGroupButton>
+          <UInputGroupButton
+            v-else
+            variant="default"
+            size="icon-xs"
+            class="shrink-0"
+            :disabled="!draft.trim()"
+            aria-label="Send"
+            title="Send (Enter)"
+            @click="submit()"
+          >
+            <ArrowUpIcon />
+          </UInputGroupButton>
+        </UInputGroupAddon>
+      </UInputGroup>
     </template>
   </UFieldGroup>
 </template>

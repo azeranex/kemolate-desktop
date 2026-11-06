@@ -154,6 +154,8 @@ export function openAiReply (service: Service, data: unknown): Reply {
     }[]
   }).choices?.[0]
   const message = choice?.message ?? {}
+  // OpenRouter's `reasoning`, DeepSeek's `reasoning_content`.
+  const thought = [message.reasoning, message.reasoning_content].find((one): one is string => typeof one === 'string' && Boolean(one.trim()))
 
   const calls = (message.tool_calls ?? []).map((call, index) => ({
     id: call.id || `call_${index}`,
@@ -165,6 +167,7 @@ export function openAiReply (service: Service, data: unknown): Reply {
     text: message.content ?? '',
     calls,
     stop: choice?.finish_reason === 'length' ? 'length' : calls.length ? 'tools' : 'end',
+    ...(thought ? { reasoning: thought.trim() } : {}),
     // Kept whole, with the role it may have left out, so it goes back as it came.
     raw: { service, message: { ...message, role: 'assistant' } },
   }

@@ -50,7 +50,8 @@ export type Turn =
    * `prompt.ts`). See `useAssistant.chapter`.
    */
   | { role: 'user', text: string, parts?: Part[], topics?: string[] }
-  | { role: 'assistant', text: string, calls: ToolCall[], raw?: { service: Service, message: unknown } }
+  /** `reasoning` is what the model thought before answering, where its provider says — shown, never sent back as words. */
+  | { role: 'assistant', text: string, calls: ToolCall[], reasoning?: string, raw?: { service: Service, message: unknown } }
   /** Every answer to one assistant turn's calls, together — Anthropic takes them as one message. */
   | { role: 'tool', results: ToolResult[] }
 
@@ -67,6 +68,8 @@ export interface Reply {
   calls: ToolCall[]
   /** `length`: cut off at the token limit, which is no answer however it reads. */
   stop: 'end' | 'tools' | 'length'
+  /** What it thought first, as text, where the provider gives it. */
+  reasoning?: string
   raw: { service: Service, message: unknown }
 }
 

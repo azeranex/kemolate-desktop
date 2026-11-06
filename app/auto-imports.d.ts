@@ -11,6 +11,7 @@ declare global {
   const $fetch: typeof import('./composables/nuxt').$fetch
   const ADJUSTMENTS: typeof import('../shared/utils/adjust').ADJUSTMENTS
   const AI_MODELS: typeof import('../shared/utils/models').AI_MODELS
+  const ASSISTANT_THINKING: typeof import('./composables/useAssistant').ASSISTANT_THINKING
   const AUTO_LINE: typeof import('../shared/utils/lettering').AUTO_LINE
   const AUTO_STEPS: typeof import('./composables/useAutoRun').AUTO_STEPS
   const AUTO_STEP_LABELS: typeof import('./composables/useAutoRun').AUTO_STEP_LABELS
@@ -953,7 +954,7 @@ declare global {
   export type { AlignAxis, AlignEdge, AlignTo } from './composables/useAlign'
   import('./composables/useAlign')
   // @ts-ignore
-  export type { Approval } from './composables/useAssistant'
+  export type { Approval, Conversation, RunStep, AssistantThinking, ChapterRun } from './composables/useAssistant'
   import('./composables/useAssistant')
   // @ts-ignore
   export type { AutoStep, AutoRange, AutoProgress, AutoOutcome } from './composables/useAutoRun'
@@ -1202,6 +1203,7 @@ declare module 'vue' {
     readonly $fetch: UnwrapRef<typeof import('./composables/nuxt')['$fetch']>
     readonly ADJUSTMENTS: UnwrapRef<typeof import('../shared/utils/adjust')['ADJUSTMENTS']>
     readonly AI_MODELS: UnwrapRef<typeof import('../shared/utils/models')['AI_MODELS']>
+    readonly ASSISTANT_THINKING: UnwrapRef<typeof import('./composables/useAssistant')['ASSISTANT_THINKING']>
     readonly AUTO_LINE: UnwrapRef<typeof import('../shared/utils/lettering')['AUTO_LINE']>
     readonly AUTO_STEPS: UnwrapRef<typeof import('./composables/useAutoRun')['AUTO_STEPS']>
     readonly AUTO_STEP_LABELS: UnwrapRef<typeof import('./composables/useAutoRun')['AUTO_STEP_LABELS']>

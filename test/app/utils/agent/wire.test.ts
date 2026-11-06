@@ -33,6 +33,15 @@ const turns: Turn[] = [
   },
 ]
 
+describe('what a model thought, for the panel', () => {
+  it('reads Anthropic\'s thinking blocks, OpenRouter\'s reasoning and DeepSeek\'s', () => {
+    expect(anthropicReply({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: 'Page 7 first.' }, { type: 'redacted_thinking' }, { type: 'text', text: 'Done.' }] }).reasoning).toBe('Page 7 first.')
+    expect(openAiReply('OpenRouter', { choices: [{ finish_reason: 'stop', message: { content: 'Done.', reasoning: ' Look first. ' } }] }).reasoning).toBe('Look first.')
+    expect(openAiReply('DeepSeek', { choices: [{ finish_reason: 'stop', message: { content: 'Done.', reasoning_content: 'Hmm.' } }] }).reasoning).toBe('Hmm.')
+    expect(openAiReply('OpenRouter', { choices: [{ finish_reason: 'stop', message: { content: 'Done.' } }] })).not.toHaveProperty('reasoning')
+  })
+})
+
 describe('Anthropic', () => {
   it('puts a tool\'s pictures inside its result, and caches the system prompt and tools', () => {
     const body = anthropicBody({ model, system: 'You help.', tools, turns }, 'auto')
