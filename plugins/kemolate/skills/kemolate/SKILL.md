@@ -66,6 +66,17 @@ Let the app read. Do not read pages by looking at images.
    mark a block `kind: "garbage"` (not lettering — signs, background text it
    should leave alone) or `hidden`. It patches one block at a time and leaves
    the rest of the page alone.
+   - **Latin words in vertical columns.** A Japanese page sets an English word
+     or a brand name the way it sets everything else: stacked in columns, read
+     **column by column, right to left**, top to bottom inside each, with a
+     vertical "…" as part of its column. The recogniser reads the column as
+     Japanese and returns spaced-out letters ("i m p : M E?"). Look at the crop
+     and write the source in reading order, not the order an English reader's
+     eye takes across the balloon: a right column "D …" and a left column "in /
+     ME / ?" is "D… in ME?", not "in D… ME?". Check it against the art — a
+     label or a sign on the same page usually spells it out. The line is then
+     already English: translate it as itself (a name stays as written), and do
+     not mark it `hidden` or `garbage` — it is dialogue.
 4. **Fix blocks that are not one balloon each** — before translating, because
    both cost the translation of the blocks they change:
    - `join_blocks` for one balloon read as several blocks (a block per column or

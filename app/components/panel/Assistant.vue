@@ -35,6 +35,7 @@ import {
   CircleCheckIcon,
   CircleDashedIcon,
   CircleMinusIcon,
+  CpuIcon,
   GaugeIcon,
   HistoryIcon,
   ListChecksIcon,
@@ -89,6 +90,14 @@ const THINKING_LABEL: Record<AssistantThinking, { name: string, note: string }> 
 function think (value: unknown) {
   if (ASSISTANT_THINKING.includes(value as AssistantThinking)) thinking.value = value as AssistantThinking
 }
+
+/**
+ * The models apart by where they run: a local one costs nothing and sends
+ * nothing off this machine, which is the first thing a reader choosing between
+ * them wants to know — mixed into one alphabetical list, it was not said at all.
+ */
+const online = computed(() => usable.value.filter((option) => !isLocalModel(option.id)))
+const local = computed(() => usable.value.filter((option) => isLocalModel(option.id)))
 
 function pick (id: unknown) {
   if (typeof id === 'string') chosen.value = id
@@ -430,17 +439,29 @@ const finished = computed(() => plan.value?.steps.filter((step) => step.status !
         <UInputGroupAddon align="block-end" class="min-w-0 gap-0.5">
           <UDropdownMenu>
             <UDropdownMenuTrigger as-child>
-              <UInputGroupButton variant="ghost" size="xs" class="min-w-0" title="The model">
+              <UInputGroupButton variant="ghost" size="xs" class="min-w-0" :title="isLocalModel(model.id) ? 'The model — on this computer' : 'The model'">
+                <CpuIcon v-if="isLocalModel(model.id)" />
                 <span class="truncate">{{ model.label }}</span>
                 <ChevronDownIcon />
               </UInputGroupButton>
             </UDropdownMenuTrigger>
-            <UDropdownMenuContent align="start" side="top" class="max-h-72 w-60 overflow-y-auto">
-              <UDropdownMenuLabel class="text-muted-foreground text-[11px] font-normal">
-                Models that can use tools
-              </UDropdownMenuLabel>
+            <UDropdownMenuContent align="start" side="top" class="max-h-80 w-64 overflow-y-auto">
+              <!-- This computer's first: a few models at most, where the online list is the whole catalogue. -->
               <UDropdownMenuRadioGroup :model-value="model.id" @update:model-value="pick">
-                <UDropdownMenuRadioItem v-for="option in usable" :key="option.id" :value="option.id" class="text-xs">
+                <template v-if="local.length">
+                  <UDropdownMenuLabel class="text-muted-foreground flex items-center gap-1.5 text-[11px] font-normal">
+                    <CpuIcon class="size-3" /> On this computer — free
+                  </UDropdownMenuLabel>
+                  <UDropdownMenuRadioItem v-for="option in local" :key="option.id" :value="option.id" class="text-xs">
+                    <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
+                    <span class="text-muted-foreground ml-2 shrink-0 text-[10px]">{{ isBuiltinModel(option.id) ? 'Kemolate' : 'LM Studio' }}</span>
+                  </UDropdownMenuRadioItem>
+                  <UDropdownMenuSeparator />
+                </template>
+                <UDropdownMenuLabel class="text-muted-foreground text-[11px] font-normal">
+                  Online — on your key
+                </UDropdownMenuLabel>
+                <UDropdownMenuRadioItem v-for="option in online" :key="option.id" :value="option.id" class="text-xs">
                   {{ option.label }}
                 </UDropdownMenuRadioItem>
               </UDropdownMenuRadioGroup>

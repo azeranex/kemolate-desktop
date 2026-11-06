@@ -73,6 +73,7 @@ declare global {
   const LETTERING_WRAP: typeof import('../shared/utils/lettering').LETTERING_WRAP
   const LETTER_SHAPES: typeof import('../shared/utils/lettering').LETTER_SHAPES
   const LINE_BOX: typeof import('./utils/letterCss').LINE_BOX
+  const LOCAL_PREFIX: typeof import('../shared/utils/models').LOCAL_PREFIX
   const MANGA_OCR_2025_MODEL: typeof import('./utils/ocr/manga').MANGA_OCR_2025_MODEL
   const MANGA_OCR_MODEL: typeof import('./utils/ocr/manga').MANGA_OCR_MODEL
   const MANIFEST: typeof import('./utils/project').MANIFEST
@@ -346,10 +347,8 @@ declare global {
   const isDefined: typeof import('@vueuse/core').isDefined
   const isDistorted: typeof import('../shared/utils/transform').isDistorted
   const isFreeModel: typeof import('../shared/utils/models').isFreeModel
-  const lmStudioModel: typeof import('../shared/utils/models').lmStudioModel
-  const isLocalModel: typeof import('../shared/utils/models').isLocalModel
-  const LOCAL_PREFIX: typeof import('../shared/utils/models').LOCAL_PREFIX
   const isLanguage: typeof import('../shared/utils/prompt').isLanguage
+  const isLocalModel: typeof import('../shared/utils/models').isLocalModel
   const isOffline: typeof import('./composables/useComic').isOffline
   const isOnGpu: typeof import('./utils/ocr/onnx').isOnGpu
   const isPng: typeof import('../shared/utils/repairs').isPng
@@ -382,9 +381,11 @@ declare global {
   const letteringOf: typeof import('../shared/utils/lettering').letteringOf
   const letteringRange: typeof import('../shared/utils/lettering').letteringRange
   const listPatches: typeof import('./utils/ocr/patches').listPatches
+  const lmStudioModel: typeof import('../shared/utils/models').lmStudioModel
   const loadFace: typeof import('./utils/lettering').loadFace
   const localCast: typeof import('./composables/useCast').localCast
   const localGlossaries: typeof import('./composables/useGlossary').localGlossaries
+  const localId: typeof import('./utils/openrouter').localId
   const localModel: typeof import('./utils/ocr/onnx').localModel
   const localSurface: typeof import('./composables/useBlockCache').localSurface
   const localise: typeof import('./composables/useBlockCache').localise
@@ -1270,6 +1271,7 @@ declare module 'vue' {
     readonly LETTERING_WRAP: UnwrapRef<typeof import('../shared/utils/lettering')['LETTERING_WRAP']>
     readonly LETTER_SHAPES: UnwrapRef<typeof import('../shared/utils/lettering')['LETTER_SHAPES']>
     readonly LINE_BOX: UnwrapRef<typeof import('./utils/letterCss')['LINE_BOX']>
+    readonly LOCAL_PREFIX: UnwrapRef<typeof import('../shared/utils/models')['LOCAL_PREFIX']>
     readonly MANGA_OCR_2025_MODEL: UnwrapRef<typeof import('./utils/ocr/manga')['MANGA_OCR_2025_MODEL']>
     readonly MANGA_OCR_MODEL: UnwrapRef<typeof import('./utils/ocr/manga')['MANGA_OCR_MODEL']>
     readonly MANIFEST: UnwrapRef<typeof import('./utils/project')['MANIFEST']>
@@ -1544,6 +1546,7 @@ declare module 'vue' {
     readonly isDistorted: UnwrapRef<typeof import('../shared/utils/transform')['isDistorted']>
     readonly isFreeModel: UnwrapRef<typeof import('../shared/utils/models')['isFreeModel']>
     readonly isLanguage: UnwrapRef<typeof import('../shared/utils/prompt')['isLanguage']>
+    readonly isLocalModel: UnwrapRef<typeof import('../shared/utils/models')['isLocalModel']>
     readonly isOffline: UnwrapRef<typeof import('./composables/useComic')['isOffline']>
     readonly isOnGpu: UnwrapRef<typeof import('./utils/ocr/onnx')['isOnGpu']>
     readonly isPng: UnwrapRef<typeof import('../shared/utils/repairs')['isPng']>
@@ -1576,9 +1579,11 @@ declare module 'vue' {
     readonly letteringOf: UnwrapRef<typeof import('../shared/utils/lettering')['letteringOf']>
     readonly letteringRange: UnwrapRef<typeof import('../shared/utils/lettering')['letteringRange']>
     readonly listPatches: UnwrapRef<typeof import('./utils/ocr/patches')['listPatches']>
+    readonly lmStudioModel: UnwrapRef<typeof import('../shared/utils/models')['lmStudioModel']>
     readonly loadFace: UnwrapRef<typeof import('./utils/lettering')['loadFace']>
     readonly localCast: UnwrapRef<typeof import('./composables/useCast')['localCast']>
     readonly localGlossaries: UnwrapRef<typeof import('./composables/useGlossary')['localGlossaries']>
+    readonly localId: UnwrapRef<typeof import('./utils/openrouter')['localId']>
     readonly localModel: UnwrapRef<typeof import('./utils/ocr/onnx')['localModel']>
     readonly localSurface: UnwrapRef<typeof import('./composables/useBlockCache')['localSurface']>
     readonly localise: UnwrapRef<typeof import('./composables/useBlockCache')['localise']>
