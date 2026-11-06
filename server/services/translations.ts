@@ -940,8 +940,9 @@ export async function setStatus (
  *
  * Each entry's `style` is the whole of it, as stored — the caller merges; null
  * or empty is "as the app would letter it", absent is "leave it". Its `frame`
- * is where the lettering sits, upright, normalised by the page's width like a
- * block's box; null puts it back in the block's room (or on the block), absent
+ * is where the lettering sits, normalised by the page's width like a block's
+ * box, a turn, lean or corners it leaves out being none (the tool fills them
+ * in from what the line has — `bent` in `set-lettering-style.ts`); null puts it back in the block's room (or on the block), absent
  * leaves it. A block with no line in this language has nothing to letter yet,
  * and is answered in `untranslated` rather than given an empty line to carry
  * them. Every block is proved to be on the page before anything is written.
@@ -950,7 +951,7 @@ export async function restyle (
   context: Context,
   pageId: number,
   locale: string,
-  entries: { blockId: number, style?: TextStyle | null, frame?: { cx: number, cy: number, w: number, h: number } | null }[],
+  entries: { blockId: number, style?: TextStyle | null, frame?: { cx: number, cy: number, w: number, h: number, angle?: number, skewX?: number, skewY?: number, quad?: number[] | null } | null }[],
 ): Promise<{ restyled: Translation[], untranslated: number[] }> {
   await must(context, translateWorkspace, context)
 
@@ -982,8 +983,8 @@ export async function restyle (
     }
 
     if (entry.frame !== undefined) {
-      // Upright and plain: an agent places a frame; leaning one is the canvas's.
-      const frame = boxOf(entry.frame ? { blockId: entry.blockId, text: '', ...entry.frame, angle: 0, skewX: 0, skewY: 0 } : { blockId: entry.blockId, text: '' })
+      // A frame that exists writes nought for a turn or lean nobody applied — see `translations.cx`.
+      const frame = boxOf(entry.frame ? { blockId: entry.blockId, text: '', ...entry.frame, angle: entry.frame.angle ?? 0, skewX: entry.frame.skewX ?? 0, skewY: entry.frame.skewY ?? 0 } : { blockId: entry.blockId, text: '' })
 
       if (!sameBox(row, { blockId: entry.blockId, text: '', ...frame })) Object.assign(set, frame)
     }

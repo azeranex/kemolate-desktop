@@ -21,6 +21,7 @@
  */
 import type { Context } from '~~/server/services'
 
+import { cornersOf, mapped, matrixOf } from '#shared/utils/transform'
 import { db } from '~~/server/database'
 import { contextFor } from '~~/server/services'
 import { swarmState } from '~~/server/utils/swarm'
@@ -134,4 +135,62 @@ export async function activeChapter () {
  */
 export function mcpJson (result: unknown) {
   return jsonResult(result, false)
+}
+
+/** A box as the database keeps one: centre and size by the page's width, and how it is bent. */
+export interface Shaped {
+  cx: number
+  cy: number
+  w: number
+  h: number
+  angle?: number | null
+  skewX?: number | null
+  skewY?: number | null
+  quad?: number[] | null
+}
+
+/**
+ * A box as an agent is shown it: the whole of its shape, but the turn, the lean
+ * and the pulled corners only where it has them, so an ordinary balloon costs
+ * four numbers.
+ *
+ * The lettering frame used to be shown as its centre and size alone, and
+ * `set_lettering_style` then wrote it back upright: an agent moving a slanted
+ * sound effect's frame had no way to know it was straightening it, and did.
+ */
+export function shapeOf (box: Shaped) {
+  return {
+    cx: box.cx,
+    cy: box.cy,
+    w: box.w,
+    h: box.h,
+    ...(box.angle ? { angle: box.angle } : {}),
+    ...(box.skewX ? { skewX: box.skewX } : {}),
+    ...(box.skewY ? { skewY: box.skewY } : {}),
+    ...(box.quad?.some((v) => v !== 0) ? { quad: box.quad } : {}),
+  }
+}
+
+/**
+ * The upright rectangle a box covers, as `{ x, y, w, h }` by the page's width —
+ * what a crop of it has to ask for. A turned frame cropped by its centre and
+ * size alone cut its own corners off. `quad` is in the scan's pixels (see
+ * `Block.quad` in `useComic`), so it needs the page's width to join the rest.
+ */
+export function extentOf (box: Shaped, pageWidth: number | null) {
+  const shape = {
+    ...box,
+    angle: box.angle ?? 0,
+    skewX: box.skewX ?? 0,
+    skewY: box.skewY ?? 0,
+    quad: pageWidth && box.quad ? box.quad.map((v) => v / pageWidth) : null,
+  }
+  const m = matrixOf(shape)
+  const corners = cornersOf(shape).map(({ x, y }) => mapped(m, x, y))
+  const xs = corners.map((p) => p.x)
+  const ys = corners.map((p) => p.y)
+  const x0 = Math.min(...xs)
+  const y0 = Math.min(...ys)
+
+  return { x: box.cx + x0, y: box.cy + y0, w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 }
 }

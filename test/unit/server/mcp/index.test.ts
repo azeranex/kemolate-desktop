@@ -629,6 +629,46 @@ describe('set_lettering_style with a frame', () => {
     expect(second.translations.en).toMatchObject({ style: { shape: 'oval' }, frame: { cx: 0.7, cy: 0.5, w: 0.2, h: 0.3 } })
   })
 
+  it('shows a frame\'s turn, and keeps it when the frame is moved without one', async () => {
+    const { context, page, ids } = await lettered()
+    const at = { workspaceId: context.workspace.publicId, pageId: page.id, blockIds: [ids[0]] }
+
+    const set = JSON.parse(textOf(await call({ ...at, frame: { cx: 0.21, cy: 0.5, w: 0.18, h: 0.26, angle: 12, skewX: 4 } })))
+
+    expect(set.restyled[0].frame).toEqual({ cx: 0.21, cy: 0.5, w: 0.18, h: 0.26, angle: 12, skewX: 4 })
+
+    await call({ ...at, frame: { cx: 0.25, cy: 0.52, w: 0.2, h: 0.26 } })
+    let [first] = await blocksOf(context.workspace.publicId, page.id)
+
+    expect(first.translations.en.frame).toEqual({ cx: 0.25, cy: 0.52, w: 0.2, h: 0.26, angle: 12, skewX: 4 })
+
+    await call({ ...at, frame: { cx: 0.25, cy: 0.52, w: 0.2, h: 0.26, angle: 0, skewX: 0 } })
+    ;[first] = await blocksOf(context.workspace.publicId, page.id)
+
+    expect(first.translations.en.frame).toEqual({ cx: 0.25, cy: 0.52, w: 0.2, h: 0.26 })
+  })
+
+  it('gives a first frame the turn of the block it was lettered on, but not of an upright room', async () => {
+    const context = await aWorkspace()
+    const [page] = await syncPages(context, [{ path: '01.jpg', name: '01.jpg', position: 0, hash: 'sha-01' }])
+    const rows = await replace(context, page!.id, [
+      { kind: 'sfx' as const, source: 'ドン', cx: 0.3, cy: 0.5, w: 0.2, h: 0.08, angle: 20 },
+      { kind: 'bubble' as const, source: 'あ', cx: 0.7, cy: 0.5, w: 0.05, h: 0.2, angle: 5, room: { cx: 0.7, cy: 0.5, w: 0.14, h: 0.24 } },
+    ])
+
+    await putOnPage(context, page!.id, 'en', [{ blockId: rows[0]!.id, text: 'BOOM' }, { blockId: rows[1]!.id, text: 'Hey' }])
+    await call({
+      workspaceId: context.workspace.publicId,
+      pageId: page!.id,
+      frames: [{ blockId: rows[0]!.id, frame: { cx: 0.3, cy: 0.5, w: 0.3, h: 0.1 } }, { blockId: rows[1]!.id, frame: { cx: 0.7, cy: 0.5, w: 0.15, h: 0.25 } }],
+    })
+
+    const [sound, balloon] = await blocksOf(context.workspace.publicId, page!.id)
+
+    expect(sound.translations.en.frame).toEqual({ cx: 0.3, cy: 0.5, w: 0.3, h: 0.1, angle: 20 })
+    expect(balloon.translations.en.frame).toEqual({ cx: 0.7, cy: 0.5, w: 0.15, h: 0.25 })
+  })
+
   it('refuses `frames` beside `frame` or `blockIds`', async () => {
     const { context, page, ids } = await lettered()
     const result = await call({ workspaceId: context.workspace.publicId, pageId: page.id, blockIds: ids, frames: [{ blockId: ids[0], frame: null }] })

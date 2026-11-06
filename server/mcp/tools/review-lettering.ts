@@ -41,11 +41,12 @@
 import { z } from 'zod'
 
 import type { BreakFlag } from '~~/server/utils/breaks'
+import type { Shaped } from '~~/server/utils/mcp'
 
 import { blocks } from '~~/server/services'
 import { breakFlags } from '~~/server/utils/breaks'
 import { requestFits } from '~~/server/utils/fits'
-import { mcpContext, mcpEnabled, mcpPage } from '~~/server/utils/mcp'
+import { extentOf, mcpContext, mcpEnabled, mcpPage, shapeOf } from '~~/server/utils/mcp'
 import { requestRenders } from '~~/server/utils/relay'
 
 /** A chosen size under this share of what its frame would hold is small for its balloon. */
@@ -141,9 +142,10 @@ export default defineMcpTool({
         ...(line.drawn ? { drawn: line.drawn } : {}),
         ...(line.collides?.length ? { collidesWith: line.collides } : {}),
         // Where it is set: its own frame where a letterer (or agent) placed one, else its room, else its box.
+        // With its turn, lean and corners where it has them: the room is upright, a block or a frame may not be.
         frame: said && said.cx !== null
-          ? { cx: said.cx, cy: said.cy, w: said.w, h: said.h }
-          : row?.room ?? (row ? { cx: row.cx, cy: row.cy, w: row.w, h: row.h } : null),
+          ? shapeOf(said as Shaped)
+          : row?.room ?? (row ? shapeOf(row) : null),
         ...(row?.room ? { room: row.room } : {}),
         ...(said?.pinned ? { pinned: true } : {}),
       }
@@ -155,10 +157,11 @@ export default defineMcpTool({
       .slice(0, MAX_IMAGES)
 
     const regions = shown.map(({ frame }) => {
-      const box = frame as { cx: number, cy: number, w: number, h: number }
+      // The upright rectangle it covers, so a turned frame is cropped whole.
+      const box = extentOf(frame as Shaped, page.width)
       const pad = Math.max(box.w, box.h) * MARGIN + FLOOR
 
-      return { x: box.cx - box.w / 2 - pad, y: box.cy - box.h / 2 - pad, w: box.w + pad * 2, h: box.h + pad * 2 }
+      return { x: box.x - pad, y: box.y - pad, w: box.w + pad * 2, h: box.h + pad * 2 }
     })
 
     const crops = regions.length

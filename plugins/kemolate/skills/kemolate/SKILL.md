@@ -144,8 +144,10 @@ and the line is wrapped into it.
   a 1200-pixel page and small on a 4000-pixel one. Prefer `size: null`
   (fitted automatically) unless the user asks for a size, or you are making
   lines match.
-- `frame` — where the lines are set, upright, in the width-normalised units
-  above, for one block. For several balloons send `frames` —
+- `frame` — where the lines are set, in the width-normalised units above,
+  for one block. A turn or lean it already has (`angle`, `skewX`, `skewY` in
+  `read_page`) is kept unless you send one; send `angle: 0` to straighten
+  it. For several balloons send `frames` —
   `[{ blockId, frame }, …]` — in one call instead of a call each.
   `frame: null` hands the line back to its room.
 

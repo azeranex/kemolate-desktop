@@ -15,9 +15,10 @@
 import { z } from 'zod'
 
 import type { Translation } from '~~/server/database'
+import type { Shaped } from '~~/server/utils/mcp'
 
 import { blocks } from '~~/server/services'
-import { mcpContext, mcpEnabled, mcpPage } from '~~/server/utils/mcp'
+import { mcpContext, mcpEnabled, mcpPage, shapeOf } from '~~/server/utils/mcp'
 
 /** One block's translations, keyed by language, with only what a caller can use. */
 function saidIn (rows: Translation[]) {
@@ -33,7 +34,8 @@ function saidIn (rows: Translation[]) {
     // change — only where something is set, so an automatic line costs nothing.
     // `frame` is the lettering's own box, where a letterer moved it off the block.
     ...(row.style && Object.keys(row.style).length ? { style: row.style } : {}),
-    ...(row.cx !== null ? { frame: { cx: row.cx, cy: row.cy, w: row.w, h: row.h } } : {}),
+    // With its turn, lean and corners where it has them, which `set_lettering_style` keeps.
+    ...(row.cx !== null ? { frame: shapeOf(row as Shaped) } : {}),
   }]))
 }
 
@@ -43,6 +45,7 @@ export default defineMcpTool({
     'Every text block on one or more pages, in reading order, with what each says in the',
     'original and every translation it already has. Ask for a batch of pages in one call.',
     'Boxes are normalised by the page WIDTH on both axes, so `cy` and `h` can exceed 1 on a tall page.',
+    'A box or lettering `frame` may also carry `angle`, `skewX`, `skewY` (degrees) and `quad` (corner offsets in scan pixels, north-west first, clockwise).',
     'A block whose `pinned` is true for a language was written by a person and will not be moved by a machine.',
   ].join(' '),
   annotations: { readOnlyHint: true },
@@ -119,7 +122,7 @@ function onePage (
             parts: block.children.map((child) => ({
               blockId: child.id,
               position: child.position,
-              box: { cx: child.cx, cy: child.cy, w: child.w, h: child.h, angle: child.angle },
+              box: shapeOf(child),
               source: child.source,
             })),
           }

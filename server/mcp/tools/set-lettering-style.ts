@@ -12,7 +12,8 @@
  * (`letteringStyleSchema`), so an agent can store nothing the panel could not.
  *
  * `frame` is where the lines are set — the lettering frame the canvas lets a
- * letterer drag off the block. Upright, in the units a block's box uses. It is
+ * letterer drag off the block, in the units a block's box uses. Its turn, lean
+ * and corners are kept unless sent (`bent`), so moving one does not straighten it. It is
  * how an agent fixes a balloon far bigger than its words: by default a line is
  * set in its balloon's measured room, or its detection box where none was kept,
  * and the box of a vertical Japanese column is a narrow strip that holds a
@@ -30,11 +31,12 @@
  */
 import { z } from 'zod'
 
-import type { TextStyle } from '~~/server/database'
+import type { TextStyle, Translation } from '~~/server/database'
+import type { Shaped } from '~~/server/utils/mcp'
 
 import { letteringStyleSchema } from '#shared/schemas/workspace'
 import { blocks, translations } from '~~/server/services'
-import { mcpContext, mcpEnabled, mcpPage } from '~~/server/utils/mcp'
+import { mcpContext, mcpEnabled, mcpPage, shapeOf } from '~~/server/utils/mcp'
 
 const field = letteringStyleSchema.shape
 
@@ -63,7 +65,34 @@ const frameBox = z.object({
   cy: z.number().min(-10).max(10).describe('Centre down, also as a fraction of the page WIDTH — may exceed 1 on a tall page.'),
   w: z.number().min(0.005).max(10).describe('Width, as a fraction of the page width.'),
   h: z.number().min(0.005).max(10).describe('Height, as a fraction of the page width.'),
+  angle: z.number().min(-360).max(360).optional().describe('Degrees clockwise. Left out, the frame keeps the turn it has.'),
+  skewX: z.number().min(-75).max(75).optional().describe('Degrees it leans across. Left out, kept.'),
+  skewY: z.number().min(-75).max(75).optional().describe('Degrees it leans down. Left out, kept.'),
+  quad: z.array(z.number()).length(8).nullable().optional().describe('Corner offsets in scan pixels, north-west first, clockwise; null for none. Left out, kept.'),
 })
+
+type Frame = z.infer<typeof frameBox>
+
+/**
+ * The frame to write: what was sent, and the rest of the shape from what the
+ * line is lettered in now — its own frame, else its block where it has no
+ * upright room. Written upright, a slanted sound effect moved by an agent came
+ * back straightened, and nothing the agent was shown said it had been slanted.
+ */
+function bent (sent: Frame, block: { room?: unknown, angle: number, skewX: number, skewY: number, quad: number[] | null }, line?: Translation) {
+  const now = line && line.cx !== null ? line : block.room ? null : block
+
+  return {
+    cx: sent.cx,
+    cy: sent.cy,
+    w: sent.w,
+    h: sent.h,
+    angle: sent.angle ?? now?.angle ?? 0,
+    skewX: sent.skewX ?? now?.skewX ?? 0,
+    skewY: sent.skewY ?? now?.skewY ?? 0,
+    quad: sent.quad === undefined ? now?.quad ?? null : sent.quad,
+  }
+}
 
 export default defineMcpTool({
   name: 'set_lettering_style',
@@ -90,7 +119,7 @@ export default defineMcpTool({
       .describe('Which language\'s lines. Defaults to the chapter\'s target language.'),
     style: stylePatch.default({}).describe('The fields to change.'),
     frame: frameBox.nullable().optional()
-      .describe('Where the lines are set, upright. Null puts them back in the balloon’s measured room (or the block). One balloon’s: name one block, or use `frames`.'),
+      .describe('Where the lines are set. A turn, lean or corners it already has are kept unless sent. Null puts them back in the balloon’s measured room (or the block). One balloon’s: name one block, or use `frames`.'),
     frames: z.array(z.object({ blockId: z.number().int().positive(), frame: frameBox.nullable() })).min(1).max(200).optional()
       .describe('A frame for each of several balloons, instead of `frame` and `blockIds`: the blocks changed are the ones named here, `style` applying to each.'),
     reset: z.boolean().default(false)
@@ -137,7 +166,9 @@ export default defineMcpTool({
     }
 
     for (const block of wanted) {
-      const placed = frameOf(block.id)
+      const line = block.translations.find((row) => row.locale === target)
+      const sent = frameOf(block.id)
+      const placed = sent ? bent(sent, block, line) : sent
 
       if (!restyling) {
         entries.push({ blockId: block.id, frame: placed })
@@ -145,7 +176,6 @@ export default defineMcpTool({
         continue
       }
 
-      const line = block.translations.find((row) => row.locale === target)
       // A field sent as null is taken out, which is what "automatic" is.
       const merged = Object.fromEntries(Object.entries({ ...(reset ? {} : line?.style), ...style })
         .filter(([, value]) => value !== null && value !== undefined))
@@ -173,7 +203,7 @@ export default defineMcpTool({
       restyled: restyled.map((row) => ({
         blockId: row.blockId,
         style: row.style ?? {},
-        frame: row.cx === null ? null : { cx: row.cx, cy: row.cy, w: row.w, h: row.h },
+        frame: row.cx === null ? null : shapeOf(row as Shaped),
       })),
       // Asked for and already set that way — not an error, and not a write.
       unchanged: entries.length - restyled.length - untranslated.length,
