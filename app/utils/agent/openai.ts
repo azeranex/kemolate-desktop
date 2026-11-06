@@ -43,7 +43,7 @@ import type { ReasoningEffort } from '#shared/utils/prompt'
 import type { OfferedTool, Part, Reply, Turn } from './messages'
 import type { Service } from '~/utils/openrouter'
 
-import { deepseekModel, deepseekThinking, MAX_TOKENS } from '~/utils/openrouter'
+import { deepseekModel, deepseekThinking, localId, MAX_TOKENS } from '~/utils/openrouter'
 
 const partOf = (part: Part) => part.type === 'text'
   ? { type: 'text', text: part.text }
@@ -132,11 +132,14 @@ export function openAiBody (service: Service, input: { model: AiModel, system: s
   const deepseek = service === 'DeepSeek'
   const claude = !deepseek && input.model.id.startsWith('anthropic/')
   const messages = messagesOf(service, input.system, input.turns)
+  // Desktop: LM Studio takes its own id and none of OpenRouter's extras — no usage
+  // switch, no reasoning word, no cache control; it keeps its own prompt cache.
+  const local = service === 'Local'
 
   return {
-    model: deepseek ? deepseekModel(input.model.id) : input.model.id,
+    model: deepseek ? deepseekModel(input.model.id) : local ? localId(input.model.id) : input.model.id,
     max_tokens: MAX_TOKENS,
-    ...(deepseek ? deepseekThinking(effort) : { usage: { include: true }, ...(effort === 'auto' ? {} : { reasoning: { effort } }) }),
+    ...(local ? {} : deepseek ? deepseekThinking(effort) : { usage: { include: true }, ...(effort === 'auto' ? {} : { reasoning: { effort } }) }),
     ...(claude ? { cache_control: CACHED } : {}),
     tools: input.tools.map((tool) => ({
       type: 'function',

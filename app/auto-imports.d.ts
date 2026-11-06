@@ -344,6 +344,9 @@ declare global {
   const isDefined: typeof import('@vueuse/core').isDefined
   const isDistorted: typeof import('../shared/utils/transform').isDistorted
   const isFreeModel: typeof import('../shared/utils/models').isFreeModel
+  const lmStudioModel: typeof import('../shared/utils/models').lmStudioModel
+  const isLocalModel: typeof import('../shared/utils/models').isLocalModel
+  const LOCAL_PREFIX: typeof import('../shared/utils/models').LOCAL_PREFIX
   const isLanguage: typeof import('../shared/utils/prompt').isLanguage
   const isOffline: typeof import('./composables/useComic').isOffline
   const isOnGpu: typeof import('./utils/ocr/onnx').isOnGpu

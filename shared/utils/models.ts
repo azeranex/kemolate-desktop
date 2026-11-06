@@ -319,6 +319,30 @@ export function freeModel (id: string, found?: { name?: string, vision?: boolean
   }
 }
 
+/**
+ * Desktop: a model running on this computer, under LM Studio — its id there
+ * behind `local/`, so nothing that reads an id as OpenRouter's (`family`,
+ * `isFreeModel`, the catalogue) ever mistakes one for a product it sells. No
+ * key and no bill: `serviceFor` in `openrouter.ts` sends these to LM Studio's
+ * own OpenAI-compatible server, and they cost nothing but the reader's GPU.
+ */
+export const LOCAL_PREFIX = 'local/'
+
+export const isLocalModel = (id: string | null | undefined): boolean => Boolean(id?.startsWith(LOCAL_PREFIX))
+
+export function lmStudioModel (id: string, found?: { vision?: boolean, tools?: boolean }): AiModel {
+  return {
+    id,
+    label: id.slice(LOCAL_PREFIX.length).replace(/^[^/]+\//, ''),
+    note: 'On this computer, through LM Studio — free, as fast as your GPU',
+    vision: found?.vision ?? false,
+    reasoning: false,
+    // Unknown until LM Studio says: taken as yes, so a model the reader picked is not refused before it is asked.
+    tools: found?.tools ?? true,
+    price: { in: 0, out: 0 },
+  }
+}
+
 /** A tracked entry's label for another version of its family — `Claude Haiku 4.5` as `Claude Haiku 5.5`. */
 export function labelFor (model: AiModel, id: string): string {
   const version = model.family ? versionIn(model.family, id) : null

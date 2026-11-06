@@ -127,6 +127,10 @@ export function useProviderKeys () {
    * (see `DEEPSEEK` in `utils/openrouter.ts`).
    */
   async function require (provider: Provider, model?: { id: string, label: string }): Promise<string> {
+    // Desktop: a model on this computer needs no key — see `LOCAL_PREFIX`. Something
+    // non-empty, because every caller reads an empty key as none.
+    if (isLocalModel(model?.id)) return 'local'
+
     // The service that sells this model itself, where the reader has its key.
     const own = provider === 'openrouter' ? DIRECT.find((each) => model?.id.startsWith(each.prefix)) : undefined
 

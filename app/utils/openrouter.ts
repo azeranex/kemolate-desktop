@@ -66,10 +66,23 @@ const DEEPSEEK_MODELS: Record<string, string> = {
 
 export const deepseekModel = (id: string) => DEEPSEEK_MODELS[id] ?? id.replace(/^deepseek\//, '')
 
-export type Service = 'OpenRouter' | 'Anthropic' | 'DeepSeek'
+/*
+ * Desktop: a model on this computer, through LM Studio's OpenAI-compatible
+ * server on its default port — see `LOCAL_PREFIX` in `shared/utils/models.ts`.
+ * The model's id says it, not a key: there is none. LM Studio must have its
+ * server on with CORS allowed (`lms server start --cors`), because the window
+ * asks it from the app's own origin.
+ */
+const LOCAL = 'http://127.0.0.1:1234/v1/chat/completions'
+
+/** LM Studio's name for a local entry: its own id, less `local/`. */
+export const localId = (id: string) => id.slice(LOCAL_PREFIX.length)
+
+export type Service = 'OpenRouter' | 'Anthropic' | 'DeepSeek' | 'Local'
 
 /** Where a key is spent, from the key and the model it is spent on — see `ANTHROPIC` and `DEEPSEEK`. */
 function serviceFor (key: string, model: AiModel): Service {
+  if (isLocalModel(model.id)) return 'Local'
   if (key.startsWith('sk-ant-')) return 'Anthropic'
   if (model.id.startsWith('deepseek/') && !key.startsWith('sk-or-')) return 'DeepSeek'
 
@@ -403,6 +416,7 @@ function endpointOf (service: Service, key: string): { url: string, headers: Rec
     }
   }
 
+  if (service === 'Local') return { url: LOCAL, headers: { 'Content-Type': 'application/json' } }
   if (service === 'DeepSeek') return { url: DEEPSEEK, headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } }
 
   return { url: ENDPOINT, headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'kemolate' } }
@@ -458,12 +472,15 @@ function usageOf (service: Service, model: AiModel, data: unknown): AiUsage | nu
     input: prompt,
     output: usage.completion_tokens ?? 0,
     reasoning: usage.completion_tokens_details?.reasoning_tokens ?? 0,
+    // Desktop: a local model is free — nothing was bought, so nought rather than unknown.
     // OpenRouter's `cost` is its bill, cache and all. Desktop: DeepSeek reports
     // tokens and no dollars — estimated, its cache hits at a tenth and the rest
     // at the cache-miss price, so it errs high.
-    cost: usage.cost ?? (service === 'DeepSeek'
-      ? estimateCost(model, { in: prompt - cached + cached * CACHE_READ, out: usage.completion_tokens ?? 0 })
-      : null),
+    cost: service === 'Local'
+      ? 0
+      : usage.cost ?? (service === 'DeepSeek'
+        ? estimateCost(model, { in: prompt - cached + cached * CACHE_READ, out: usage.completion_tokens ?? 0 })
+        : null),
     ...(cached ? { cached } : {}),
   }
 }

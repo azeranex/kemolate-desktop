@@ -37,6 +37,12 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/models'
 
 const TIMEOUT = 15_000
 
+/** LM Studio's listing of what it has, on its default port — see `local`. */
+const LOCAL_MODELS = 'http://127.0.0.1:1234/api/v0/models'
+
+/** Short: it is this computer or nothing. */
+const LOCAL_TIMEOUT = 2_000
+
 /** How long a run waits for the list before going on without it — see `current`. */
 const CURRENT_WAIT = 3000
 
@@ -80,7 +86,7 @@ export function useModels () {
   const byId = (id: string | null | undefined): PricedModel =>
     models.value.find((model) => model.id === id)
     ?? models.value.find((model) => model.family && model.family === modelFamilyOf(id))
-    ?? (isFreeModel(id) ? { ...freeModel(id!), priced: true } : models.value[0]!)
+    ?? (isFreeModel(id) ? { ...freeModel(id!), priced: true } : isLocalModel(id) ? { ...lmStudioModel(id!), priced: true } : models.value[0]!)
 
   /**
    * Ask what these models cost and whether they think.
@@ -89,7 +95,37 @@ export function useModels () {
    * of page turns, and a panel that refetched on every mount would spend a
    * request each time somebody opened a dock column.
    */
+  /**
+   * Desktop: the models LM Studio has on this computer, after the rest — see
+   * `LOCAL_PREFIX`. Its own REST listing rather than `/v1/models`, because
+   * that one says which can see (`type: "vlm"`) and which call tools
+   * (`capabilities`), the two things the assistant has to know. Not running is
+   * the ordinary answer and says nothing; asked again on every refresh, so a
+   * server started after the app is found.
+   */
+  async function local (): Promise<void> {
+    try {
+      const response = await fetch(LOCAL_MODELS, { signal: AbortSignal.timeout(LOCAL_TIMEOUT) })
+
+      if (!response.ok) return
+
+      const data = await response.json() as { data?: { id: string, type?: string, capabilities?: string[] }[] }
+      const found = (data.data ?? [])
+        .filter((model) => model.type === 'llm' || model.type === 'vlm')
+        .map((model) => ({
+          ...lmStudioModel(LOCAL_PREFIX + model.id, { vision: model.type === 'vlm', tools: model.capabilities ? model.capabilities.includes('tool_use') : undefined }),
+          priced: true,
+        }))
+
+      models.value = [...models.value.filter((model) => !isLocalModel(model.id)), ...found]
+    } catch {
+      // LM Studio not running, or its server not started: no local models, as before.
+    }
+  }
+
   async function refresh (): Promise<void> {
+    await local()
+
     if (fetched.value) return
 
     try {
