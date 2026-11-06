@@ -28,6 +28,7 @@ import { serveCudaSetup } from './cudaSetup'
 import { closeDatabase, openDatabase } from './database'
 import { askWhereToSave } from './downloads'
 import { serveKeys } from './keys'
+import { serveLlama } from './llama'
 import { hasWaiting, opened, projectsIn, serveOpening } from './opening'
 import { APP_ORIGIN, serveApp } from './protocol'
 import { closeLaunchSplash, splashAfterUpdate } from './splash'
@@ -241,6 +242,7 @@ serveKeys(trusted)
 // Models on an NVIDIA GPU, opt-in — see `cuda.ts`. The same store the model route serves.
 serveCuda(trusted, () => path.join(app.getPath('userData'), 'models'))
 serveCudaSetup(trusted)
+serveLlama(trusted)
 
 // The app's own updates, from this repository's GitHub Releases — see `updates.ts`.
 serveUpdates(trusted)

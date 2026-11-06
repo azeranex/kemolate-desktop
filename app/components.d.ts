@@ -67,6 +67,7 @@ declare module 'vue' {
     ProjectImport: typeof import('./components/ProjectImport.vue')['default']
     SettingsCuda: typeof import('./components/SettingsCuda.vue')['default']
     SettingsData: typeof import('./components/SettingsData.vue')['default']
+    SettingsLlama: typeof import('./components/SettingsLlama.vue')['default']
     SettingsMcp: typeof import('./components/SettingsMcp.vue')['default']
     SettingsUpdates: typeof import('./components/SettingsUpdates.vue')['default']
     StepRail: typeof import('./components/StepRail.vue')['default']

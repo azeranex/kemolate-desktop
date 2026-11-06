@@ -22,6 +22,7 @@ declare global {
   const BESIDE: typeof import('../shared/utils/ocr').BESIDE
   const BLOCK_TONE: typeof import('./composables/useComic').BLOCK_TONE
   const BREAKS: typeof import('../shared/utils/ocr').BREAKS
+  const BUILTIN_PREFIX: typeof import('../shared/utils/models').BUILTIN_PREFIX
   const CAST_GENDERS: typeof import('../shared/utils/cast').CAST_GENDERS
   const CHROME_Z: typeof import('../shared/utils/layers').CHROME_Z
   const CJK: typeof import('../shared/utils/ocr').CJK
@@ -340,6 +341,7 @@ declare global {
   const inkedLayer: typeof import('../shared/utils/layers').inkedLayer
   const inking: typeof import('../shared/utils/lettering').inking
   const insideOutline: typeof import('./utils/ocr/mask').insideOutline
+  const isBuiltinModel: typeof import('../shared/utils/models').isBuiltinModel
   const isCastGender: typeof import('../shared/utils/cast').isCastGender
   const isDefined: typeof import('@vueuse/core').isDefined
   const isDistorted: typeof import('../shared/utils/transform').isDistorted
@@ -1217,6 +1219,7 @@ declare module 'vue' {
     readonly BESIDE: UnwrapRef<typeof import('../shared/utils/ocr')['BESIDE']>
     readonly BLOCK_TONE: UnwrapRef<typeof import('./composables/useComic')['BLOCK_TONE']>
     readonly BREAKS: UnwrapRef<typeof import('../shared/utils/ocr')['BREAKS']>
+    readonly BUILTIN_PREFIX: UnwrapRef<typeof import('../shared/utils/models')['BUILTIN_PREFIX']>
     readonly CAST_GENDERS: UnwrapRef<typeof import('../shared/utils/cast')['CAST_GENDERS']>
     readonly CHROME_Z: UnwrapRef<typeof import('../shared/utils/layers')['CHROME_Z']>
     readonly CJK: UnwrapRef<typeof import('../shared/utils/ocr')['CJK']>
@@ -1535,6 +1538,7 @@ declare module 'vue' {
     readonly inkedLayer: UnwrapRef<typeof import('../shared/utils/layers')['inkedLayer']>
     readonly inking: UnwrapRef<typeof import('../shared/utils/lettering')['inking']>
     readonly insideOutline: UnwrapRef<typeof import('./utils/ocr/mask')['insideOutline']>
+    readonly isBuiltinModel: UnwrapRef<typeof import('../shared/utils/models')['isBuiltinModel']>
     readonly isCastGender: UnwrapRef<typeof import('../shared/utils/cast')['isCastGender']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isDistorted: UnwrapRef<typeof import('../shared/utils/transform')['isDistorted']>

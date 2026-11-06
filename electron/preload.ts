@@ -63,6 +63,46 @@ export interface CudaProgress {
   total?: number
 }
 
+/** Which llama.cpp build runs local models — see `llama.ts`. */
+export type LlamaBuild = 'vulkan' | 'cuda'
+
+/** Local models: whether they are set up, where they are looked for, and what is running — see `llama.ts`. */
+export interface LlamaStatus {
+  /** Whether this machine is one the setup is for (Windows on x64). */
+  supported: boolean
+  /** The pinned llama.cpp release. */
+  release: string
+  /** The NVIDIA card here, by name, or null — the CUDA build is offered only with one. */
+  gpu: string | null
+  /** The build installed, or null. */
+  build: LlamaBuild | null
+  /** What the app's llama folder takes on disk. */
+  bytes: number
+  /** What each build downloads, in bytes, for the buttons to say. */
+  sizes: Record<LlamaBuild, number>
+  /** Where GGUF files are looked for. */
+  folder: string
+  /** The context window a model is started with, in tokens. */
+  context: number
+  /** The model loaded now, and its port, or null. */
+  running: { model: string, port: number } | null
+}
+
+/** One GGUF model in the folder. `id` is its path under the folder, with forward slashes. */
+export interface LlamaModel {
+  id: string
+  name: string
+  bytes: number
+  /** A vision projector sits beside it. */
+  vision: boolean
+}
+
+export interface LlamaProgress {
+  message: string
+  done?: number
+  total?: number
+}
+
 /** A tensor in a CUDA frame: its type and shape, and where its bytes sit in the body. */
 export interface TensorSpec {
   dtype: string
@@ -274,6 +314,29 @@ const api = {
       ipcRenderer.on('cuda:progress', forward)
       return () => {
         ipcRenderer.off('cuda:progress', forward)
+      }
+    },
+  },
+  /**
+   * Local models, run by the app's own llama.cpp — see `llama.ts`. `start`
+   * loads a model where it is not the one running and answers with the port its
+   * OpenAI-compatible server listens on.
+   */
+  llama: {
+    status: (): Promise<LlamaStatus> => ipcRenderer.invoke('llama:status'),
+    models: (): Promise<LlamaModel[]> => ipcRenderer.invoke('llama:models'),
+    configure: (patch: { folder?: string, context?: number }): Promise<void> => ipcRenderer.invoke('llama:configure', patch),
+    chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('llama:choose-folder'),
+    install: (build: LlamaBuild): Promise<{ ok: boolean, error?: string }> => ipcRenderer.invoke('llama:install', build),
+    cancel: (): Promise<void> => ipcRenderer.invoke('llama:cancel'),
+    remove: (): Promise<void> => ipcRenderer.invoke('llama:remove'),
+    start: (model: string): Promise<number> => ipcRenderer.invoke('llama:start', model),
+    stop: (): Promise<void> => ipcRenderer.invoke('llama:stop'),
+    onProgress: (listener: (progress: LlamaProgress) => void) => {
+      const forward = (_event: IpcRendererEvent, progress: LlamaProgress) => listener(progress)
+      ipcRenderer.on('llama:progress', forward)
+      return () => {
+        ipcRenderer.off('llama:progress', forward)
       }
     },
   },

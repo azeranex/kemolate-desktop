@@ -328,13 +328,23 @@ export function freeModel (id: string, found?: { name?: string, vision?: boolean
  */
 export const LOCAL_PREFIX = 'local/'
 
-export const isLocalModel = (id: string | null | undefined): boolean => Boolean(id?.startsWith(LOCAL_PREFIX))
+/**
+ * Desktop: a model the app runs itself — a GGUF file in the reader's models
+ * folder, served by the app's own llama.cpp (`electron/llama.ts`). Its id is
+ * its path under that folder behind `gguf/`. The same wire as LM Studio's, so
+ * `isLocalModel` is true of both; only where the server is differs.
+ */
+export const BUILTIN_PREFIX = 'gguf/'
 
-export function lmStudioModel (id: string, found?: { vision?: boolean, tools?: boolean }): AiModel {
+export const isBuiltinModel = (id: string | null | undefined): boolean => Boolean(id?.startsWith(BUILTIN_PREFIX))
+
+export const isLocalModel = (id: string | null | undefined): boolean => Boolean(id?.startsWith(LOCAL_PREFIX)) || isBuiltinModel(id)
+
+export function lmStudioModel (id: string, found?: { vision?: boolean, tools?: boolean, name?: string }): AiModel {
   return {
     id,
-    label: id.slice(LOCAL_PREFIX.length).replace(/^[^/]+\//, ''),
-    note: 'On this computer, through LM Studio — free, as fast as your GPU',
+    label: found?.name ?? id.slice(LOCAL_PREFIX.length).replace(/^[^/]+\//, ''),
+    note: isBuiltinModel(id) ? 'On this computer, run by Kemolate — free, as fast as your GPU' : 'On this computer, through LM Studio — free, as fast as your GPU',
     vision: found?.vision ?? false,
     reasoning: false,
     // Unknown until LM Studio says: taken as yes, so a model the reader picked is not refused before it is asked.

@@ -117,9 +117,26 @@ export function useModels () {
           priced: true,
         }))
 
-      models.value = [...models.value.filter((model) => !isLocalModel(model.id)), ...found]
+      models.value = [...models.value.filter((model) => !model.id.startsWith(LOCAL_PREFIX)), ...found]
     } catch {
       // LM Studio not running, or its server not started: no local models, as before.
+    }
+
+    // Desktop: the GGUF files the app runs itself — see `BUILTIN_PREFIX`. Whether
+    // one calls tools is in its chat template, which is not read here: taken as yes.
+    const llama = typeof window === 'undefined' ? undefined : window.kemolate?.llama
+
+    if (!llama) return
+
+    try {
+      const built = (await llama.models()).map((model) => ({
+        ...lmStudioModel(BUILTIN_PREFIX + model.id, { vision: model.vision, name: model.name }),
+        priced: true,
+      }))
+
+      models.value = [...models.value.filter((model) => !isBuiltinModel(model.id)), ...built]
+    } catch {
+      // Not set up: nothing to offer.
     }
   }
 

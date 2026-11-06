@@ -75,8 +75,21 @@ export const deepseekModel = (id: string) => DEEPSEEK_MODELS[id] ?? id.replace(/
  */
 const LOCAL = 'http://127.0.0.1:1234/v1/chat/completions'
 
-/** LM Studio's name for a local entry: its own id, less `local/`. */
-export const localId = (id: string) => id.slice(LOCAL_PREFIX.length)
+/** LM Studio's name for a local entry, or the app's own server's file: the id less `local/` or `gguf/`. */
+export const localId = (id: string) => id.slice((isBuiltinModel(id) ? BUILTIN_PREFIX : LOCAL_PREFIX).length)
+
+/**
+ * Desktop: where a model the app runs itself answers — the port its llama.cpp
+ * server is on, started on this model first where another is loaded or none is
+ * (`electron/llama.ts`). The first ask of a model waits while it loads.
+ */
+async function builtinUrl (id: string): Promise<string> {
+  const llama = typeof window === 'undefined' ? undefined : window.kemolate?.llama
+
+  if (!llama) throw new Error('Local models need the Kemolate desktop app.')
+
+  return `http://127.0.0.1:${await llama.start(localId(id))}/v1/chat/completions`
+}
 
 export type Service = 'OpenRouter' | 'Anthropic' | 'DeepSeek' | 'Local'
 
@@ -525,7 +538,10 @@ export async function send (
 
   // Desktop: which service this key is for — see `ANTHROPIC` and `DEEPSEEK`.
   const service = serviceFor(key, model)
-  const { url, headers } = endpointOf(service, key)
+  const endpoint = endpointOf(service, key)
+  const { headers } = endpoint
+  // Desktop: a built-in model's server is started on demand, on a port of its own.
+  const url = isBuiltinModel(model.id) ? await builtinUrl(model.id) : endpoint.url
 
   /** Wait before going round again — or false, where the tries are spent. */
   const again = async (asked: number | null, status?: number): Promise<boolean> => {
