@@ -115,8 +115,11 @@ const STORE = 'lettering-fits'
  * if they sit where the anchor says (`tryFit`, `ANCHOR_SLACK`) (2026-10-22).
  * 12 (desktop): a line broken by hand keeps its breaks, set smaller rather than
  * wrapped again, and is never hyphenated (`keepsBreaks`) (2026-10-23).
+ * 13 (desktop): a chosen size walks the squeeze ladder (`fitAt`), so a block
+ * sized by hand hyphenates where it has to — every fit kept for one was
+ * measured without that and has no `hyphens` on it (2026-11-26).
  */
-const FITS_VERSION = 12
+const FITS_VERSION = 13
 const KEEP = 4000
 
 const remembered = new Map<string, LetterFit>()
@@ -323,11 +326,18 @@ export function useLetteringFit () {
       const style = styleOf(block)
       const shape = shapeFor(style, block, Boolean(bandOf(block)))
 
-      // A size written down is not being fitted — unless the lines wrap into a
-      // shape, which needs its words walked into place at whatever size, and
-      // says whether that size overflows. A plain box at a chosen size needs
-      // neither, and is left alone as it always was.
-      if (style.size !== null && shape === 'box') continue
+      // A size written down is fitted too. It used to be skipped here when the
+      // lines wrapped into a plain box — a chosen size needs neither walking
+      // into a shape nor a search — and the cost of that shortcut was
+      // hyphenation: the fit is what decides whether a line is hyphenated, a
+      // block skipped here has no `LetterFit` at all, and `HYPHENATE` is
+      // applied only where one asks for it (`letterCss.ts`). So typing a size
+      // into a balloon switched hyphenation off with it.
+      //
+      // `fitAt` never moves the size it is given; it chooses the squeeze and
+      // says whether even that overflows. So this measures the squeeze, not a
+      // size somebody already decided — once per distinct input, like every
+      // other fit, and kept by `remembered` from then on.
 
       const box = letterBoxOf(block)
 

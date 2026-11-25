@@ -739,13 +739,58 @@ export function fitStandard (input: FitInput, standard: number, range: { min: nu
  * A size somebody chose, laid out as it will be drawn — for a shaped block,
  * where the words have to be walked to their place in the shape whatever the
  * size (`tryFit`), and for any block, whether it overflows.
+ *
+ * It walks `fitStandard`'s ladder without its last rung: a chosen size is a
+ * decision, so a line that will not go is hyphenated and then tightened, and
+ * never set smaller. The empty squeeze is tried first, so a line that goes as
+ * it is keeps its whole words.
+ *
+ * The ladder is the whole of why hyphenation works on a block somebody sized
+ * by hand. This laid every chosen size out with an empty squeeze, so the fit
+ * it returned never had `hyphens` on it — and `HYPHENATE` is applied only
+ * where a fit asks for it (`letterCss.ts`), which meant typing a size into a
+ * balloon silently turned hyphenation off. A line that will not go even
+ * hyphenated and tightened is still set at the size that was asked for and
+ * flagged `over`, as it always was.
+ *
+ * Desktop: a line broken by hand is the exception, and keeps the exception it
+ * has in `fitStandard` — tightened, but neither hyphenated nor wrapped again
+ * while any squeeze holds its breaks (`keepsBreaks`). Only once none does is
+ * it re-wrapped, and said so with `rewrapped`. This is that rule with the
+ * shrinking steps left out, because the size here is one somebody chose.
  */
 export function fitAt (input: FitInput, size: number): LetterFit {
   if (input.box.w <= 0 || input.box.h <= 0) return { size }
 
-  const tried = tryFit(probeFor(input), input, size, {})
+  const setup = probeFor(input)
 
-  return { size, pad: tried.pad, ...(tried.fits ? {} : { over: true }) }
+  if (keepsBreaks(input)) {
+    for (const squeeze of [{}, { tight: true }] as Squeeze[]) {
+      const tried = tryFit(setup, input, size, squeeze, true)
+
+      if (tried.fits) return { size, pad: tried.pad, ...squeeze }
+    }
+
+    for (const squeeze of [{}, { tight: true }, { hyphens: true, tight: true }] as Squeeze[]) {
+      const tried = tryFit(setup, input, size, squeeze)
+
+      if (tried.fits) return { size, pad: tried.pad, ...squeeze, rewrapped: true }
+    }
+
+    const broken = { hyphens: true, tight: true }
+
+    return { size, pad: tryFit(setup, input, size, broken).pad, ...broken, rewrapped: true, over: true }
+  }
+
+  for (const squeeze of [{}, { hyphens: true }, { hyphens: true, tight: true }] as Squeeze[]) {
+    const tried = tryFit(setup, input, size, squeeze)
+
+    if (tried.fits) return { size, pad: tried.pad, ...squeeze }
+  }
+
+  const squeeze = { hyphens: true, tight: true }
+
+  return { size, pad: tryFit(setup, input, size, squeeze).pad, ...squeeze, over: true }
 }
 
 /**

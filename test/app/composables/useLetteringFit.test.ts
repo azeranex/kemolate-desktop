@@ -21,11 +21,13 @@ import { useLetteringFit } from '~/composables/useLetteringFit'
  * layout engine, and which size comes back is not what these are about.
  */
 
-const { measure } = vi.hoisted(() => ({
+const { measure, measureAt } = vi.hoisted(() => ({
   measure: vi.fn((input: { text: string }) => 12 + input.text.length),
+  measureAt: vi.fn((_input: { text: string }, size: number) => size),
 }))
 
 mockNuxtImport('fitSize', () => measure)
+mockNuxtImport('fitAt', () => measureAt)
 mockNuxtImport('loadFace', () => () => true)
 
 /**
@@ -61,6 +63,7 @@ describe('refitting a page', () => {
 
     useState('lettering-fits-ready').value = true
     measure.mockClear()
+    measureAt.mockClear()
   })
 
   const fitPage = () => {
@@ -81,6 +84,27 @@ describe('refitting a page', () => {
 
     expect(measure).toHaveBeenCalledTimes(4)
     expect(measure.mock.lastCall?.[0]).toMatchObject({ text: pages.value[0]!.blocks[1]!.translation })
+  })
+
+  /*
+   * A size somebody typed in is fitted too, and this is the guard on that.
+   *
+   * It used to be skipped where the lines wrap into a plain box — a chosen
+   * size needs no search — and a block skipped here has no `LetterFit` at all,
+   * which is what decides whether its lines are hyphenated (`HYPHENATE` in
+   * `letterCss`). So hyphenation was silently off on every balloon anybody had
+   * sized by hand. Putting the shortcut back reads like a free saving and
+   * costs exactly that, so it has to fail here.
+   */
+  it('fits a block whose size was typed in, because the fit is what hyphenates', () => {
+    const { pages, styleOf } = useComic()
+    const sized = (block: Block) => ({ ...styleOf(block), size: 20 })
+
+    useLetteringFit().refit(pages.value[0], sized, () => false)
+
+    expect(measureAt).toHaveBeenCalledTimes(3)
+    expect(measure).not.toHaveBeenCalled()
+    expect(useLetteringFit().fitOf(pages.value[0]!.blocks[0]!)).toBeDefined()
   })
 
   /*
