@@ -191,14 +191,20 @@ function pruneFits (fits: Ref<Record<string, LetterFit>>, keys: Ref<Record<strin
  */
 function keepBands () {
   const { pages } = useComic()
+  // Which way the chapter reads: a shared balloon set as columns puts its first
+  // line rightmost where the page reads right to left (`bandsFor`).
+  const direction = useState<'ltr' | 'rtl'>('workspace-direction', () => 'rtl')
 
   watch(
-    () => pages.value.map((page) => page.blocks.map((block) => [
+    () => [direction.value, ...pages.value.map((page) => page.blocks.map((block) => [
       block.id, block.type, block.hidden, Boolean(block.letter), block.translation.trim().length,
+      // Where each block sits, which is what decides bands or columns — a block
+      // dragged across its balloon can turn the one into the other.
+      block.x, block.y, block.w, block.h,
       block.room ? `${block.room.x},${block.room.y},${block.room.w},${block.room.h}` : '',
-    ].join(':')).join('|')).join('\n'),
+    ].join(':')).join('|'))].join('\n'),
     () => {
-      for (const page of pages.value) layBands(page.blocks)
+      for (const page of pages.value) layBands(page.blocks, direction.value)
     },
     { immediate: true, flush: 'sync' },
   )

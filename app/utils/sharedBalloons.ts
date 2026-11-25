@@ -13,9 +13,14 @@
  * A letterer shares the balloon out instead, and this does it two ways:
  *
  * - **A balloon measured whole** (`room.shared`, from `sharedRooms` in
- *   `ocr/rooms.ts`): one room inside the fill for all its lines, set as bands
- *   of it in the order they read, top to bottom, each as tall as its share of
- *   the words (with a floor, so "Quiet." is not a sliver), a gap between.
+ *   `ocr/rooms.ts`): one room inside the fill for all its lines, shared out in
+ *   the order they read, each getting its share of the words (with a floor, so
+ *   "Quiet." is not a sliver) and a gap between. **Which way it is shared out
+ *   follows the lines themselves** — bands down the balloon where they are
+ *   stacked, columns across it where they sit side by side, the first rightmost
+ *   on a page read right to left. Bands were the only answer until 2026-11-26,
+ *   and on two Japanese columns they laid each English line across both of
+ *   them; see `bandsFor`.
  * - **Otherwise**, rooms that overlap: each line kept in its own room — measured
  *   round its own original, inside the balloon where the original sat — and cut
  *   back from the others where they overlapped (`trimmed`). Bands of the
@@ -117,14 +122,17 @@ function trimmed (rooms: PageBox[]): PageBox[] {
 /**
  * The frames of a page's lines that share a balloon, by block id — pure.
  * Blocks whose rooms overlap are grouped (transitively). A group whose balloon
- * was measured whole (`room.shared`) is set in bands of that room, in the order
- * the blocks are listed, which is the reading order; any other group keeps each
- * line in its own room, cut back from the others where they overlapped
- * (`trimmed`) — a rectangle round separate rooms covers a jagged balloon's
- * points and notches, and words set there ran onto the art (2026-10-23).
+ * was measured whole (`room.shared`) is shared out as bands or as columns of
+ * that room — see below for which — in the order the blocks are listed, which
+ * is the reading order; any other group keeps each line in its own room, cut
+ * back from the others where they overlapped (`trimmed`) — a rectangle round
+ * separate rooms covers a jagged balloon's points and notches, and words set
+ * there ran onto the art (2026-10-23).
+ *
+ * `direction` is the chapter's, and is read only to decide which end of a
+ * balloon the first column goes at.
  */
-
-export function bandsFor (blocks: readonly Block[]): Map<string, Band> {
+export function bandsFor (blocks: readonly Block[], direction: 'ltr' | 'rtl' = 'rtl'): Map<string, Band> {
   const taking = blocks.filter(banded)
   const group = taking.map((_, index) => index)
   const root = (index: number): number => (group[index] === index ? index : (group[index] = root(group[index]!)))
@@ -168,22 +176,62 @@ export function bandsFor (blocks: readonly Block[]): Map<string, Band> {
     const inY = (outerBottom - outerTop) * inset
     const [left, top, right, bottom] = [outerLeft + inX, outerTop + inY, outerRight - inX, outerBottom - inY]
 
-    const height = bottom - top
-    const gaps = height * GAP * (members.length - 1)
+    /*
+     * Which way the balloon is shared out: the way its lines are already laid
+     * out in it.
+     *
+     * Stacked bands were the only answer, and on a vertical balloon they are
+     * the wrong one. Two Japanese columns side by side — one utterance each,
+     * read right to left — came back as two horizontal strips across both of
+     * them, so each English line sat over the other's column and neither was
+     * where its original was (2026-11-26, page 37 of the test chapter). The
+     * shared room is one rectangle whichever way its lines run; nothing in it
+     * says which, so the blocks do.
+     *
+     * Measured from the boxes they were *read* from, not their rooms: a group
+     * measured whole shares one room, so every member's room is the same
+     * rectangle and tells us nothing. Each spread is taken against the room's
+     * own extent on that axis, which is what makes the two comparable — x is a
+     * share of the page's width and y of its height. Level on both (one block
+     * drawn over another, or boxes that carry no layout) falls to bands, as
+     * before.
+     */
+    const centres = members.map((block) => ({ x: block.x + block.w / 2, y: block.y + block.h / 2 }))
+    const spread = (of: (centre: { x: number, y: number }) => number, over: number) =>
+      over > 0 ? (Math.max(...centres.map(of)) - Math.min(...centres.map(of))) / over : 0
+    const sideBySide = spread((centre) => centre.x, right - left) > spread((centre) => centre.y, bottom - top)
+
+    const along = sideBySide ? right - left : bottom - top
+    const gaps = along * GAP * (members.length - 1)
     const words = members.map((block) => Math.max(1, [...block.translation.trim()].length))
     const total = words.reduce((sum, one) => sum + one, 0)
-    // Each band's share: its words', raised to the floor, the rest scaled to fit.
+    // Each share: its words', raised to the floor, the rest scaled to fit.
     const raw = words.map((one) => Math.max(FLOOR, one / total))
     const scale = 1 / raw.reduce((sum, one) => sum + one, 0)
 
-    let y = top
+    /*
+     * Laid out in the order they read: down the balloon for bands, and across
+     * it for columns — the first line rightmost where the page reads right to
+     * left, as the original's columns were. `useAlign.columns`, the same thing
+     * by hand, mirrors the same way; a share still follows its own member,
+     * only the place it is put is reversed.
+     */
+    const order = [...members.keys()]
 
-    members.forEach((block, index) => {
-      const h = (height - gaps) * raw[index]! * scale
+    if (sideBySide && direction === 'rtl') order.reverse()
 
-      bands.set(block.id, { x: left, y, w: right - left, h, group: members[0]!.id })
-      y += h + height * GAP
-    })
+    let at = sideBySide ? left : top
+
+    for (const index of order) {
+      const block = members[index]!
+      const size = (along - gaps) * raw[index]! * scale
+
+      bands.set(block.id, sideBySide
+        ? { x: at, y: top, w: size, h: bottom - top, group: members[0]!.id }
+        : { x: left, y: at, w: right - left, h: size, group: members[0]!.id })
+
+      at += size + along * GAP
+    }
   }
 
   return bands
@@ -215,8 +263,8 @@ export function groupOf (block: Pick<Block, 'id'>): string | undefined {
 }
 
 /** Lay out one page's bands, taking down the ones it no longer has. */
-export function layBands (blocks: readonly Block[]): void {
-  const next = bandsFor(blocks)
+export function layBands (blocks: readonly Block[], direction: 'ltr' | 'rtl' = 'rtl'): void {
+  const next = bandsFor(blocks, direction)
   let moved = false
 
   for (const block of blocks) {

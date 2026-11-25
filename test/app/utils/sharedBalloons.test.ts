@@ -21,6 +21,14 @@ const room = (cx: number, cy: number, w: number, h: number): PageBox => ({
   h: (h * PAGE.width / PAGE.height) * 100,
 })
 
+/** The box a block was read from, in the same units — what decides bands or columns. */
+const box = (cx: number, cy: number, w: number, h: number) => ({
+  x: (cx - w / 2) * 100,
+  y: ((cy - h / 2) * PAGE.width / PAGE.height) * 100,
+  w: w * 100,
+  h: (h * PAGE.width / PAGE.height) * 100,
+})
+
 let next = 0
 
 function block (translation: string, own: PageBox | null, more: Partial<Block> = {}): Block {
@@ -91,6 +99,50 @@ describe('lines sharing a balloon', () => {
     // Across the whole room, a hair in from its sides.
     expect(first.w).toBeGreaterThan(whole.w * 0.9)
     expect(first.x).toBeGreaterThan(whole.x)
+  })
+
+  /*
+   * Two Japanese columns side by side, an utterance each — page 37 of the test
+   * chapter (2026-11-26), in that page's own numbers; it has the fixture page's
+   * aspect, so they convert the same way. Shared out as stacked bands, each
+   * English line was laid across *both* columns and neither sat where its
+   * original did.
+   */
+  it('sets a balloon whose lines sit side by side as columns, the first rightmost', () => {
+    const whole = { ...room(0.8273, 1.1070, 0.1266, 0.0984), shared: true }
+    const first = block('It\'s so hot inside my gut', { ...whole }, box(0.8719, 1.0758, 0.0376, 0.1563))
+    const second = block('You still come as much as ever, huh', { ...whole }, box(0.8042, 1.1131, 0.0687, 0.1193))
+    const set = bandsFor([first, second], 'rtl')
+    const a = set.get(first.id)!
+    const b = set.get(second.id)!
+
+    // Columns: side by side, each running the whole height of the room.
+    expect(overlaps(a, b)).toBe(false)
+    expect(a.y).toBeCloseTo(b.y, 10)
+    expect(a.h).toBeCloseTo(b.h, 10)
+    expect(a.h).toBeGreaterThan(whole.h * 0.9)
+
+    // In reading order: the first line is the rightmost column, as its own was.
+    expect(a.x).toBeGreaterThan(b.x)
+
+    // And the other way where the chapter reads left to right.
+    const ltr = bandsFor([first, second], 'ltr')
+
+    expect(ltr.get(first.id)!.x).toBeLessThan(ltr.get(second.id)!.x)
+  })
+
+  /* The other half of the same rule: stacked lines keep the bands they had. */
+  it('still bands a balloon whose lines are stacked', () => {
+    const whole = { ...room(0.22, 0.229, 0.239, 0.167), shared: true }
+    const upper = block('We have received a secret report.', { ...whole }, box(0.22, 0.19, 0.2, 0.05))
+    const lower = block('Come quietly.', { ...whole }, box(0.22, 0.27, 0.2, 0.05))
+    const set = bandsFor([upper, lower])
+    const a = set.get(upper.id)!
+    const b = set.get(lower.id)!
+
+    expect(a.y + a.h).toBeLessThanOrEqual(b.y)
+    expect(a.x).toBeCloseTo(b.x, 10)
+    expect(a.w).toBeCloseTo(b.w, 10)
   })
 
   it('leaves out a line with a frame of its own, one not translated, and a sound effect', () => {
