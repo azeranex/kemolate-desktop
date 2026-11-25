@@ -10,7 +10,7 @@ import { translatePage } from '~/utils/openrouter'
  * The errand is shared with OpenRouter's (see `ANTHROPIC` in `utils/openrouter`),
  * so what is pinned here is only what differs on the wire: where the request
  * goes and with what headers, the model's name as Anthropic spells it, a
- * thinking budget for an effort that asks for one, and the reply read back —
+ * the effort it is asked for, and the reply read back —
  * the text blocks rather than the thinking, a cut-off refused, and a cost
  * estimated where Anthropic gives only tokens.
  *
@@ -59,7 +59,8 @@ describe('an Anthropic key', () => {
     expect(headers['anthropic-version']).toBe('2023-06-01')
     expect(headers['anthropic-dangerous-direct-browser-access']).toBe('true')
     expect(body.model).toBe('claude-sonnet-5-5')
-    expect(body.thinking).toEqual({ type: 'enabled', budget_tokens: 6_000 })
+    expect(body.output_config).toEqual({ effort: 'medium' })
+    expect(body.thinking).toBeUndefined()
     expect(body.reasoning).toBeUndefined()
 
     // The text block, not the thinking one; the cost from the model's prices.
@@ -67,14 +68,20 @@ describe('an Anthropic key', () => {
     expect(result.usage).toEqual({ input: 1_000, output: 200, reasoning: 0, cost: (1_000 * 3 + 200 * 15) / 1_000_000 })
   })
 
-  it('sends no thinking where the effort asks for none', async () => {
+  it('asks for the shallowest thinking where the effort asks for none', async () => {
     const fetch = reply(page)
 
     vi.stubGlobal('fetch', fetch)
 
     await translatePage('sk-ant-test', { blocks: ['こんにちは'], target: 'en', model: claude, effort: 'none' })
 
-    expect(JSON.parse(String(fetch.mock.calls[0]![1].body)).thinking).toBeUndefined()
+    // These models cannot be asked to stop thinking, so Fast is the shallowest
+    // they go rather than none at all — and a `thinking` block of any shape is
+    // refused outright, which is what this pins. See `anthropicThinking`.
+    const body = JSON.parse(String(fetch.mock.calls[0]![1].body))
+
+    expect(body.output_config).toEqual({ effort: 'low' })
+    expect(body.thinking).toBeUndefined()
   })
 
   it('refuses a reply cut off at the limit', async () => {

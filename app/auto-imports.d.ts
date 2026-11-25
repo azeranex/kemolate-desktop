@@ -122,7 +122,6 @@ declare global {
   const STANDING_IN_TONE: typeof import('./composables/useComic').STANDING_IN_TONE
   const STROKE_TOOLS: typeof import('./composables/useTools').STROKE_TOOLS
   const SUPER: typeof import('./utils/letterCss').SUPER
-  const THINKING: typeof import('./utils/openrouter').THINKING
   const TIGHT_LINE: typeof import('../shared/utils/lettering').TIGHT_LINE
   const TIGHT_SPACING: typeof import('../shared/utils/lettering').TIGHT_SPACING
   const TOOLS: typeof import('./composables/useTools').TOOLS
@@ -151,6 +150,7 @@ declare global {
   const announceLocal: typeof import('./composables/useLocalChanges').announceLocal
   const anthropicContent: typeof import('./utils/openrouter').anthropicContent
   const anthropicModel: typeof import('./utils/openrouter').anthropicModel
+  const anthropicThinking: typeof import('./utils/openrouter').anthropicThinking
   const appendStroke: typeof import('./utils/strokes').appendStroke
   const applyLut: typeof import('../shared/utils/adjust').applyLut
   const archivePage: typeof import('./utils/images').archivePage
@@ -1320,7 +1320,6 @@ declare module 'vue' {
     readonly STANDING_IN_TONE: UnwrapRef<typeof import('./composables/useComic')['STANDING_IN_TONE']>
     readonly STROKE_TOOLS: UnwrapRef<typeof import('./composables/useTools')['STROKE_TOOLS']>
     readonly SUPER: UnwrapRef<typeof import('./utils/letterCss')['SUPER']>
-    readonly THINKING: UnwrapRef<typeof import('./utils/openrouter')['THINKING']>
     readonly TIGHT_LINE: UnwrapRef<typeof import('../shared/utils/lettering')['TIGHT_LINE']>
     readonly TIGHT_SPACING: UnwrapRef<typeof import('../shared/utils/lettering')['TIGHT_SPACING']>
     readonly TOOLS: UnwrapRef<typeof import('./composables/useTools')['TOOLS']>
@@ -1349,6 +1348,7 @@ declare module 'vue' {
     readonly announceLocal: UnwrapRef<typeof import('./composables/useLocalChanges')['announceLocal']>
     readonly anthropicContent: UnwrapRef<typeof import('./utils/openrouter')['anthropicContent']>
     readonly anthropicModel: UnwrapRef<typeof import('./utils/openrouter')['anthropicModel']>
+    readonly anthropicThinking: UnwrapRef<typeof import('./utils/openrouter')['anthropicThinking']>
     readonly appendStroke: UnwrapRef<typeof import('./utils/strokes')['appendStroke']>
     readonly applyLut: UnwrapRef<typeof import('../shared/utils/adjust')['applyLut']>
     readonly archivePage: UnwrapRef<typeof import('./utils/images')['archivePage']>

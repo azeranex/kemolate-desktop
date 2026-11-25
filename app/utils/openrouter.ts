@@ -115,11 +115,28 @@ export function deepseekThinking (effort: ReasoningEffort) {
 }
 
 /**
- * Thinking budgets for the efforts that ask for any — OpenRouter takes the word,
- * Anthropic a number of tokens, and each is well inside `MAX_TOKENS` so the
- * answer keeps room. `none` and `minimal` think not at all; `auto` sends nothing.
+ * Anthropic's thinking, as the models this app offers actually take it.
+ *
+ * It was a token budget — `thinking: { type: 'enabled', budget_tokens: n }` —
+ * which is the shape every Claude took up to 4.6 and none takes now. On Opus
+ * 5.5, Sonnet 5.5 and Haiku 5.5, the three in `AI_MODELS`, `budget_tokens` is
+ * refused outright, so every effort that asked for thinking was a 400 and the
+ * two that asked for none sent nothing and got the model's own default — which
+ * is *more* thinking, not less. The translate path hid it (`translatePage`
+ * retries a 400 that mentions reasoning, so a page cost two requests and
+ * thought at the default); the assistant had no such retry and simply failed.
+ *
+ * Depth is `output_config.effort` now — the same word OpenRouter already takes
+ * as `reasoning.effort`, so both services are asked the same thing in the same
+ * terms. Thinking cannot be switched off on these models at all: `low` is the
+ * shallowest they go, which is what Fast now means here. `auto` sends nothing
+ * and leaves each model its own default.
  */
-export const THINKING: Partial<Record<ReasoningEffort, number>> = { low: 2_000, medium: 6_000, high: 10_000 }
+export function anthropicThinking (effort: ReasoningEffort) {
+  if (effort === 'auto') return {}
+
+  return { output_config: { effort: effort === 'none' || effort === 'minimal' ? 'low' : effort } }
+}
 
 /** A message's content as Anthropic takes it: pictures as base64 sources rather than data URLs. */
 export function anthropicContent (content: unknown) {
@@ -341,13 +358,11 @@ async function ask (
   input: { model: AiModel, content: unknown, effort: ReasoningEffort, retrying?: (wait: number) => void, gate?: RateGate },
 ): Promise<Answer> {
   const sent = await send(key, input.model, (service, effort) => {
-    const budget = THINKING[effort]
-
     if (service === 'Anthropic') {
       return {
         model: anthropicModel(input.model.id),
         max_tokens: MAX_TOKENS,
-        ...(budget ? { thinking: { type: 'enabled', budget_tokens: budget } } : {}),
+        ...anthropicThinking(effort),
         messages: [{ role: 'user', content: anthropicContent(input.content) }],
       }
     }

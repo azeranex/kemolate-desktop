@@ -19,7 +19,7 @@ import type { AiModel } from '#shared/utils/models'
 import type { ReasoningEffort } from '#shared/utils/prompt'
 import type { OfferedTool, Part, Reply, Turn } from './messages'
 
-import { anthropicModel, MAX_TOKENS, THINKING } from '~/utils/openrouter'
+import { anthropicModel, anthropicThinking, MAX_TOKENS } from '~/utils/openrouter'
 
 const partOf = (part: Part) => part.type === 'text'
   ? { type: 'text', text: part.text }
@@ -72,12 +72,10 @@ function marked (messages: { role: string, content: unknown }[]) {
 }
 
 export function anthropicBody (input: { model: AiModel, system: string, tools: OfferedTool[], turns: Turn[] }, effort: ReasoningEffort) {
-  const budget = THINKING[effort]
-
   return {
     model: anthropicModel(input.model.id),
     max_tokens: MAX_TOKENS,
-    ...(budget ? { thinking: { type: 'enabled', budget_tokens: budget } } : {}),
+    ...anthropicThinking(effort),
     system: [{ type: 'text', text: input.system, cache_control: CACHED }],
     tools: input.tools.map((tool, index) => ({
       name: tool.name,
