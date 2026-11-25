@@ -54,7 +54,22 @@ const stylePatch = z.object({
   underline: field.underline.nullable(),
   align: field.align.nullable().describe('left, center, right or justify.'),
   anchor: field.anchor.nullable().describe('Where the text sits in its balloon: top, middle or bottom.'),
-  vertical: field.vertical.describe('Set down the page rather than across. Null is as the line reads.'),
+  /*
+   * No `vertical`, deliberately. Direction is the one style field that is not
+   * an agent's to choose, because a pinned value is not an opinion it can be
+   * argued out of: it beats both the translation and the balloon in
+   * `verticalOf`, outlives the job that set it, and reads back exactly like a
+   * direction the reader pressed — so neither they nor the next agent can tell
+   * the two apart. An agent asked to fix a page's lettering set every
+   * translated balloon on it across the page, and they stayed that way after
+   * the run, in balloons drawn to be read downwards (2026-11-26).
+   *
+   * Nothing is lost: a translated line is already set across the page by
+   * `verticalOf`'s own rule, which is what the agent was reaching for. The
+   * reader's H and V buttons still write the field through
+   * `letteringStyleSchema`, which is unchanged — this narrows one door, not
+   * what a block may carry.
+   */
   color: field.color.describe('Ink as #rrggbb. Null reads it off the page.'),
   outline: field.outline.describe('Outline colour as #rrggbb. Null is the reverse of the ink.'),
   shape: field.shape.describe('What the lines wrap into: box, soft (a rounded box, a balloon\'s default), oval, diamond, or custom with points.'),

@@ -372,6 +372,14 @@ const WIDE_BOX = 0.8
  *
  * And failing both, the way the source reads. That is what puts a vertical
  * Japanese balloon on screen vertically while it is still Japanese.
+ *
+ * Dropping the middle rule was tried on 2026-11-26 and put back the same day.
+ * It looked like the cause of balloons that would not turn, and was not: those
+ * had a direction *pinned* on them by an agent, which wins here before the
+ * translation is ever consulted. What it actually did was set every translated
+ * Japanese balloon in the chapter down the page. The pin is the thing to fix,
+ * and it is fixed where it was written — `set_lettering_style` no longer
+ * offers `vertical` at all.
  */
 export function verticalOf (
   style: Lettering,

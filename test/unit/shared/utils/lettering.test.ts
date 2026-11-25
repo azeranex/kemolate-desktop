@@ -4,7 +4,8 @@ import type { Lettering } from '#shared/utils/lettering'
 
 import {
   contrastOf, customFrom, estimateSize, INK_DARK, INK_LIGHT, inking, inkOn, LETTERING, LETTERING_RANGE, letteringOf,
-  letteringRange, luminanceOf, reverseOf, shapeFloats, shapeFor, shapeOutline, shapeSpans, squeezed, validPoints,
+  letteringRange, luminanceOf, readsVertical, reverseOf, shapeFloats, shapeFor, shapeOutline, shapeSpans, squeezed, validPoints,
+  verticalOf,
 } from '#shared/utils/lettering'
 
 /**
@@ -262,5 +263,44 @@ describe('squeezed', () => {
 
     expect(tight.line).toBeCloseTo(1.05, 5)
     expect(tight.spacing).toBeCloseTo(-1.2, 5)
+  })
+})
+
+/**
+ * Which way a balloon is set, and in which order the three answers are asked.
+ *
+ * The order is the whole of it: a direction somebody pressed, then the
+ * translation — every target this app writes into runs across the page — and
+ * only then how the source reads. Dropping the middle rule was tried on
+ * 2026-11-26, because balloons would not turn, and put back the same day: it
+ * set every translated Japanese balloon in the chapter down the page, and the
+ * balloons that would not turn had a direction *pinned* by an agent, which the
+ * first rule had already answered with. `set_lettering_style` no longer offers
+ * `vertical`, and these pin the order that made the pin so sticky.
+ */
+describe('verticalOf', () => {
+  // All wide characters, and taller than `WIDE_BOX` lets a caption strip be.
+  const japanese = 'もう二度と'
+  const tall = { w: 20, h: 60 }
+  const untranslated = { source: japanese, translation: '' }
+  const lettered = { source: japanese, translation: 'NEVER AGAIN' }
+
+  it('sets an untranslated Japanese balloon down the page', () => {
+    expect(readsVertical(japanese, tall)).toBe(true)
+    expect(verticalOf(LETTERING, untranslated, tall)).toBe(true)
+  })
+
+  it('turns it across the page once it has been translated', () => {
+    expect(verticalOf(LETTERING, lettered, tall)).toBe(false)
+  })
+
+  /* The rule a pin beats, which is why one written by an agent outlived its job. */
+  it('lets a pressed direction beat both', () => {
+    expect(verticalOf({ ...LETTERING, vertical: true }, lettered, tall)).toBe(true)
+    expect(verticalOf({ ...LETTERING, vertical: false }, untranslated, tall)).toBe(false)
+  })
+
+  it('leaves a caption strip across the page', () => {
+    expect(verticalOf(LETTERING, untranslated, { w: 60, h: 20 })).toBe(false)
   })
 })

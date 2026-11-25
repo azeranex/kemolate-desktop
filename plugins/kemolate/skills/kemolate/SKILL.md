@@ -146,11 +146,18 @@ and the line is wrapped into it.
 
 - `style` — `font` (dialogue, sfx, retro, casual, marker, hand, poster, sans,
   serif, mono), `size`, `line`, `spacing`, `stroke`, `bold`, `italic`,
-  `underline`, `align`, `anchor` (top/middle/bottom), `vertical`, `color` and
+  `underline`, `align`, `anchor` (top/middle/bottom), `color` and
   `outline` (`#rrggbb`), `shape` (box, soft, oval, diamond, custom), `emphasis`
   (see below). Only the
   fields you send change; **send a field as `null` to give it back to
   automatic**; `reset: true` clears them all.
+- **Direction is not yours to set, and the tool does not offer it.** Whether a
+  line runs across the page or down it follows the balloon: a translated line
+  is already set across the page, and an untranslated one stays as the source
+  reads. There is nothing to do about a balloon that looks wrong this way
+  except say so — only the user's H and V buttons pin a direction, and a pin
+  outlives your job, reads back exactly like one they pressed, and will sit in
+  balloons drawn to be read downwards long after you have gone.
 - **Sizes are in the scan's own pixels** — the same numbers as Kemolate's
   Lettering panel. A size means nothing without the page width: 40 is large on
   a 1200-pixel page and small on a 4000-pixel one. Prefer `size: null`

@@ -158,6 +158,30 @@ describe('the MCP server', () => {
     }
   })
 
+  /*
+   * The one style field an agent may not set.
+   *
+   * A pinned direction beats both the translation and the balloon in
+   * `verticalOf`, so one written through this tool outlives the job that wrote
+   * it and reads back exactly like a direction the reader pressed — neither
+   * they nor the next agent can tell the two apart. One asked to fix a page's
+   * lettering set every translated balloon on it across the page, and they
+   * stayed that way afterwards, in balloons drawn to be read downwards
+   * (2026-11-26). Offering the field again is the regression.
+   */
+  it('does not offer an agent a way to set text direction', async () => {
+    const client = await connect(true)
+    const tool = (await client.listTools()).tools.find((each) => each.name === 'set_lettering_style')
+    const style = (tool?.inputSchema.properties as { style?: { properties?: Record<string, unknown> } } | undefined)?.style
+    const fields = Object.keys(style?.properties ?? {})
+
+    expect(fields).not.toContain('vertical')
+
+    // And the rest is still offered, so this cannot pass by the style patch
+    // having been renamed, moved or emptied out underneath the assertion.
+    expect(fields).toEqual(expect.arrayContaining(['font', 'size', 'align', 'anchor', 'emphasis']))
+  })
+
   it('lists the workspaces in the database, with their page counts', async () => {
     const context = await aWorkspace({ name: 'Chapter one' })
 
